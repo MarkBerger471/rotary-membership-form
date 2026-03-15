@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Membership Application | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rotary: {
+              blue: '#17458f',
+              gold: '#f7a81b',
+              azure: '#0067c8',
+              sky: '#00a2e0',
+              cranberry: '#d41367',
+              charcoal: '#54565a',
+              pewter: '#898a8d',
+              silver: '#d0cfcd',
+              cloud: '#d6d1ca',
+              powder: '#b9d9eb',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.6s ease-out',
+            'slide-up': 'slideUp 0.5s ease-out',
+            'slide-left': 'slideLeft 0.4s ease-out',
+            'slide-right': 'slideRight 0.4s ease-out',
+            'scale-in': 'scaleIn 0.3s ease-out',
+            'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'shimmer': 'shimmer 2s linear infinite',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { opacity: '0', transform: 'translateY(30px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideLeft: {
+              '0%': { opacity: '0', transform: 'translateX(40px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            slideRight: {
+              '0%': { opacity: '0', transform: 'translateX(-40px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            scaleIn: {
+              '0%': { opacity: '0', transform: 'scale(0.9)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            },
+            pulseSoft: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.7' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% 0' },
+              '100%': { backgroundPosition: '200% 0' },
+            },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #17458f; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #0067c8; }
+
+    /* Step transitions */
+    .step-panel { display: none; }
+    .step-panel.active {
+      display: block;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    /* Progress bar animation */
+    .progress-fill {
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Input focus animation */
+    input:focus, select:focus, textarea:focus {
+      box-shadow: 0 0 0 3px rgba(23, 69, 143, 0.15);
+    }
+
+    /* Radio/Checkbox custom */
+    .radio-card {
+      transition: all 0.2s ease;
+    }
+    .radio-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(23, 69, 143, 0.15);
+    }
+    .radio-card.selected {
+      border-color: #17458f;
+      background: linear-gradient(135deg, rgba(23, 69, 143, 0.04), rgba(0, 103, 200, 0.04));
+    }
+
+    /* Button hover effects */
+    .btn-primary {
+      background: linear-gradient(135deg, #17458f 0%, #0067c8 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(23, 69, 143, 0.35);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      transition: all 0.3s ease;
+    }
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      background-color: #f3f4f6;
+    }
+
+    /* Gold accent gradient */
+    .gold-accent {
+      background: linear-gradient(135deg, #f7a81b 0%, #ffc656 100%);
+    }
+
+    /* Hero gradient */
+    .hero-gradient {
+      background: linear-gradient(135deg, #17458f 0%, #0067c8 40%, #00a2e0 100%);
+    }
+
+    /* Glass effect */
+    .glass {
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    /* Floating label */
+    .floating-label {
+      transition: all 0.2s ease;
+    }
+
+    /* Step indicator dots */
+    .step-dot {
+      transition: all 0.3s ease;
+    }
+    .step-dot.active {
+      background-color: #17458f;
+      transform: scale(1.3);
+    }
+    .step-dot.completed {
+      background-color: #f7a81b;
+    }
+
+    /* Smooth height transition */
+    .form-container {
+      transition: min-height 0.3s ease;
+    }
+
+    /* Checkbox grid */
+    .alumni-grid input[type="checkbox"]:checked + label {
+      border-color: #17458f;
+      background: linear-gradient(135deg, rgba(23, 69, 143, 0.06), rgba(0, 103, 200, 0.06));
+    }
+
+    /* File drop zone */
+    .drop-zone {
+      transition: all 0.3s ease;
+    }
+    .drop-zone.dragover {
+      border-color: #17458f;
+      background: rgba(23, 69, 143, 0.05);
+      transform: scale(1.02);
+    }
+
+    /* Rating slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #17458f, #f7a81b);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid #17458f;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: all 0.2s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 4px 12px rgba(23, 69, 143, 0.3);
+    }
+
+    /* Confetti animation for success */
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti-piece {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      animation: confetti-fall 3s ease-in forwards;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-rotary-charcoal antialiased">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 z-50 glass border-b border-gray-200/50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img
+          src="https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Rotary_International_Logo.svg/200px-Rotary_International_Logo.svg.png"
+          alt="Rotary International"
+          class="h-10 w-10 animate-float"
+        />
+        <div>
+          <h1 class="text-lg font-bold text-rotary-blue leading-tight">Rotary Club</h1>
+          <p class="text-xs text-rotary-azure font-medium -mt-0.5">Bangkok DACH</p>
+        </div>
+      </div>
+      <div class="hidden sm:flex items-center gap-2 text-sm text-rotary-pewter">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span>office@rotary-club-bangkok-dach.org</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-gradient relative overflow-hidden pt-20">
+    <div class="absolute inset-0 opacity-10">
+      <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <circle cx="80" cy="20" r="30" fill="white"/>
+        <circle cx="20" cy="80" r="25" fill="white"/>
+        <circle cx="60" cy="60" r="15" fill="white"/>
+      </svg>
+    </div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+      <div class="animate-fade-in">
+        <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-1.5 text-white/90 text-sm font-medium mb-6">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          Membership Application
+        </div>
+        <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-4 leading-tight">
+          Join Our Global<br/>
+          <span class="text-rotary-gold">Community of Leaders</span>
+        </h2>
+        <p class="text-white/80 text-lg max-w-2xl mx-auto mb-8">
+          Apply to become a member of Rotary Club Bangkok DACH &mdash; connecting German, Austrian, and Swiss professionals in the heart of Thailand.
+        </p>
+        <a href="#application" class="inline-flex items-center gap-2 bg-rotary-gold text-rotary-blue font-bold text-lg px-8 py-4 rounded-xl hover:bg-yellow-400 transition-all hover:scale-105 hover:shadow-lg">
+          Start Application
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-50 to-transparent"></div>
+  </section>
+
+  <!-- Info Cards -->
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 -mt-8 mb-12 relative z-10">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl p-6 shadow-lg shadow-rotary-blue/5 border border-gray-100 animate-slide-up" style="animation-delay: 0.1s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-blue/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-rotary-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3 class="font-bold text-rotary-blue mb-1">Annual Dues</h3>
+        <p class="text-2xl font-extrabold text-rotary-charcoal">12,000 THB</p>
+        <p class="text-sm text-rotary-pewter mt-1">Per year membership fee</p>
+      </div>
+      <div class="bg-white rounded-2xl p-6 shadow-lg shadow-rotary-blue/5 border border-gray-100 animate-slide-up" style="animation-delay: 0.2s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-gold/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+        </div>
+        <h3 class="font-bold text-rotary-blue mb-1">Registration Fee</h3>
+        <p class="text-2xl font-extrabold text-rotary-charcoal">18,000 THB</p>
+        <p class="text-sm text-rotary-pewter mt-1">One-time admission fee</p>
+      </div>
+      <div class="bg-white rounded-2xl p-6 shadow-lg shadow-rotary-blue/5 border border-gray-100 animate-slide-up" style="animation-delay: 0.3s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-azure/10 flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-rotary-azure" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <h3 class="font-bold text-rotary-blue mb-1">Meetings</h3>
+        <p class="text-2xl font-extrabold text-rotary-charcoal">Bi-Weekly</p>
+        <p class="text-sm text-rotary-pewter mt-1">Wednesdays 6:30 PM, Grand Hyatt</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Section -->
+  <section class="max-w-4xl mx-auto px-4 sm:px-6 mb-16">
+    <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 overflow-hidden">
+      <div class="p-6 sm:p-8">
+        <h3 class="text-xl font-bold text-rotary-blue mb-2">What It Means to Be a Rotarian</h3>
+        <p class="text-rotary-pewter mb-4">Watch this short video to learn about the Rotary experience before starting your application.</p>
+      </div>
+      <div class="relative pb-[56.25%] bg-rotary-blue/5">
+        <iframe
+          class="absolute inset-0 w-full h-full"
+          src="https://www.youtube.com/embed/s5dkG5hnUWk"
+          title="What It Means to Be a Rotarian"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- Application Form -->
+  <section id="application" class="max-w-4xl mx-auto px-4 sm:px-6 pb-24">
+
+    <!-- Progress Bar -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-2xl font-bold text-rotary-blue">Application Form</h2>
+        <span id="stepLabel" class="text-sm font-semibold text-rotary-azure">Step 1 of 9</span>
+      </div>
+      <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div id="progressBar" class="progress-fill h-full rounded-full gold-accent" style="width: 11.1%"></div>
+      </div>
+      <!-- Step dots -->
+      <div class="flex justify-between mt-3 px-1">
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300 active" data-step="1"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="2"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="3"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="4"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="5"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="6"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="7"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="8"></div>
+        <div class="step-dot w-3 h-3 rounded-full bg-gray-300" data-step="9"></div>
+      </div>
+    </div>
+
+    <form id="applicationForm" class="form-container" novalidate>
+
+      <!-- ========== STEP 1: Personal Info ========== -->
+      <div class="step-panel active" data-step="1">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-blue flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Personal Information</h3>
+              <p class="text-sm text-rotary-pewter">Tell us about yourself</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <!-- Email -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Email Address <span class="text-rotary-cranberry">*</span></label>
+              <input type="email" name="email" required
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                placeholder="your@email.com" />
+            </div>
+
+            <!-- Name Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">First Name <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="firstName" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="John" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Family Name <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="familyName" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Smith" />
+              </div>
+            </div>
+
+            <!-- Title & Suffix -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Title / Prefix <span class="text-rotary-cranberry">*</span></label>
+                <div class="grid grid-cols-3 gap-2">
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Mr." required class="sr-only" />
+                    <span>Mr.</span>
+                  </label>
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Mrs." class="sr-only" />
+                    <span>Mrs.</span>
+                  </label>
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Ms." class="sr-only" />
+                    <span>Ms.</span>
+                  </label>
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Dr." class="sr-only" />
+                    <span>Dr.</span>
+                  </label>
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Rev." class="sr-only" />
+                    <span>Rev.</span>
+                  </label>
+                  <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl px-3 py-2.5 text-center text-sm font-medium hover:border-rotary-blue/30">
+                    <input type="radio" name="title" value="Other" class="sr-only" />
+                    <span>Other</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Suffix <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="suffix" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Jr., Sr., III, MBA, etc." />
+              </div>
+            </div>
+
+            <!-- DOB & Gender -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Date of Birth <span class="text-rotary-cranberry">*</span></label>
+                <input type="date" name="dob" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Gender <span class="text-rotary-cranberry">*</span></label>
+                <select name="gender" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base bg-white">
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Proposed by -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Membership proposed by <span class="text-rotary-cranberry">*</span></label>
+              <input type="text" name="proposedBy" required
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                placeholder="Name of sponsoring Rotarian" />
+              <p class="text-xs text-rotary-pewter mt-1">The Rotarian who recommended you for membership</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 2: Rotarian Status ========== -->
+      <div class="step-panel" data-step="2">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-azure flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Rotarian Status</h3>
+              <p class="text-sm text-rotary-pewter">Are you a current or former Rotarian?</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <label class="radio-card cursor-pointer block border-2 border-gray-200 rounded-xl p-5">
+              <div class="flex items-center gap-4">
+                <input type="radio" name="rotarianStatus" value="none" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                <div>
+                  <span class="font-semibold text-rotary-charcoal">No Rotarian so far</span>
+                  <p class="text-sm text-rotary-pewter mt-0.5">This will be my first Rotary membership</p>
+                </div>
+              </div>
+            </label>
+            <label class="radio-card cursor-pointer block border-2 border-gray-200 rounded-xl p-5">
+              <div class="flex items-center gap-4">
+                <input type="radio" name="rotarianStatus" value="former" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                <div>
+                  <span class="font-semibold text-rotary-charcoal">Former Rotarian</span>
+                  <p class="text-sm text-rotary-pewter mt-0.5">I was previously a member of a Rotary club</p>
+                </div>
+              </div>
+            </label>
+            <label class="radio-card cursor-pointer block border-2 border-gray-200 rounded-xl p-5">
+              <div class="flex items-center gap-4">
+                <input type="radio" name="rotarianStatus" value="current" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                <div>
+                  <span class="font-semibold text-rotary-charcoal">Current Rotarian</span>
+                  <p class="text-sm text-rotary-pewter mt-0.5">I am currently a member of another Rotary club</p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Conditional: Former/Current Rotarian Details -->
+          <div id="rotarianDetails" class="hidden mt-6 p-5 bg-rotary-blue/[0.03] rounded-xl border border-rotary-blue/10">
+            <h4 class="font-semibold text-rotary-blue mb-4">Previous / Current Rotary Membership</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Membership ID <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="membershipId"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Your Rotary ID" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Rotary Club <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="rotaryClub"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Club name" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Rotary Club Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="clubNumber"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Club number" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">District Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="districtNumber"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="District number" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 3: Rotary Alumni ========== -->
+      <div class="step-panel" data-step="3">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-gold flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Rotary Alumnus / Alumnae</h3>
+              <p class="text-sm text-rotary-pewter">Select any Rotary programs you have participated in</p>
+            </div>
+          </div>
+
+          <div class="alumni-grid grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <input type="checkbox" id="alumni_interact" name="alumni" value="Interact" class="sr-only" />
+              <label for="alumni_interact" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Interact</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Youth service club (ages 12-18)</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_rotaract" name="alumni" value="Rotaract" class="sr-only" />
+              <label for="alumni_rotaract" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Rotaract</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Young adult club (ages 18-30)</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_exchange" name="alumni" value="Youth Exchange" class="sr-only" />
+              <label for="alumni_exchange" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Youth Exchange</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">International exchange program</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_ryla" name="alumni" value="RYLA" class="sr-only" />
+              <label for="alumni_ryla" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">RYLA</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Rotary Youth Leadership Awards</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_scholarships" name="alumni" value="Scholarships" class="sr-only" />
+              <label for="alumni_scholarships" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Scholarships</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Rotary Foundation scholarships</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_peace" name="alumni" value="Rotary Peace Fellowships" class="sr-only" />
+              <label for="alumni_peace" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Rotary Peace Fellowships</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Peace centers program</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_vtt" name="alumni" value="Vocational Training Teams" class="sr-only" />
+              <label for="alumni_vtt" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Vocational Training Teams</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Professional development exchanges</p>
+              </label>
+            </div>
+            <div>
+              <input type="checkbox" id="alumni_gse" name="alumni" value="Group Study Exchange" class="sr-only" />
+              <label for="alumni_gse" class="block cursor-pointer border-2 border-gray-200 rounded-xl p-4 transition-all hover:border-rotary-blue/30">
+                <span class="font-medium">Group Study Exchange</span>
+                <p class="text-xs text-rotary-pewter mt-0.5">Cultural and vocational exchange</p>
+              </label>
+            </div>
+          </div>
+          <p class="text-xs text-rotary-pewter mt-3">Select all that apply. You may leave all unchecked if none apply.</p>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 4: Profession ========== -->
+      <div class="step-panel" data-step="4">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-blue flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Current Profession</h3>
+              <p class="text-sm text-rotary-pewter">Your professional details</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Job Title <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="jobTitle" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="e.g. Managing Director" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Since <span class="text-rotary-cranberry">*</span></label>
+                <input type="date" name="jobSince" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Name of Business / Organization <span class="text-rotary-cranberry">*</span></label>
+              <input type="text" name="businessName" required
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                placeholder="Company or organization name" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 5: Contact Details ========== -->
+      <div class="step-panel" data-step="5">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-azure flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Contact Details</h3>
+              <p class="text-sm text-rotary-pewter">How can we reach you?</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Business Email <span class="text-rotary-cranberry">*</span></label>
+                <input type="email" name="businessEmail" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="work@company.com" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Phone Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="tel" name="phone" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="+66 XX XXX XXXX" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">LINE ID or Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="lineId" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Your LINE ID" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">WhatsApp Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="tel" name="whatsapp" required
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="+66 XX XXX XXXX" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Billing Address <span class="text-rotary-cranberry">*</span></label>
+              <textarea name="billingAddress" required rows="3"
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base resize-none"
+                placeholder="Full billing address including city, postal code, and country"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 6: Membership Type ========== -->
+      <div class="step-panel" data-step="6">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-gold flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Membership Type</h3>
+              <p class="text-sm text-rotary-pewter">Choose your preferred membership</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-2xl p-6 text-center">
+              <input type="radio" name="membershipType" value="Individual" required class="sr-only" />
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rotary-blue/10 flex items-center justify-center">
+                <svg class="w-8 h-8 text-rotary-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </div>
+              <h4 class="font-bold text-lg text-rotary-charcoal">Individual</h4>
+              <p class="text-sm text-rotary-pewter mt-1">Single membership</p>
+            </label>
+            <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-2xl p-6 text-center">
+              <input type="radio" name="membershipType" value="Family" class="sr-only" />
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rotary-gold/10 flex items-center justify-center">
+                <svg class="w-8 h-8 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              </div>
+              <h4 class="font-bold text-lg text-rotary-charcoal">Family / Spouse</h4>
+              <p class="text-sm text-rotary-pewter mt-1">Joint membership with partner</p>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 7: Spouse/Family (Conditional) ========== -->
+      <div class="step-panel" data-step="7">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-cranberry flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Spouse / Family Member</h3>
+              <p class="text-sm text-rotary-pewter">Details of your family co-applicant</p>
+            </div>
+          </div>
+
+          <div class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">First Name <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="spouseFirstName"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="First name" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Family Name <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="spouseFamilyName"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Family name" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Title / Prefix <span class="text-rotary-cranberry">*</span></label>
+                <select name="spouseTitle"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base bg-white">
+                  <option value="">Select...</option>
+                  <option>Mr.</option><option>Mrs.</option><option>Ms.</option><option>Dr.</option><option>Rev.</option><option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Suffix</label>
+                <input type="text" name="spouseSuffix"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Jr., Sr., etc." />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Date of Birth <span class="text-rotary-cranberry">*</span></label>
+                <input type="date" name="spouseDob"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Gender <span class="text-rotary-cranberry">*</span></label>
+                <select name="spouseGender"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base bg-white">
+                  <option value="">Select...</option>
+                  <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Job Title <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="spouseJobTitle"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="Job title" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Since <span class="text-rotary-cranberry">*</span></label>
+                <input type="date" name="spouseJobSince"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Name of Business / Organization <span class="text-rotary-cranberry">*</span></label>
+              <input type="text" name="spouseBusinessName"
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                placeholder="Company or organization name" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Email Address <span class="text-rotary-cranberry">*</span></label>
+                <input type="email" name="spouseEmail"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="email@example.com" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Phone Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="tel" name="spousePhone"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="+66 XX XXX XXXX" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">LINE ID or Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="text" name="spouseLineId"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="LINE ID" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">WhatsApp Number <span class="text-rotary-cranberry">*</span></label>
+                <input type="tel" name="spouseWhatsapp"
+                  class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base"
+                  placeholder="+66 XX XXX XXXX" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 8: Upload & Magazine ========== -->
+      <div class="step-panel" data-step="8">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-rotary-blue flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Photo, CV & Magazine</h3>
+              <p class="text-sm text-rotary-pewter">Upload your documents and choose your magazine</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- File Upload -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-2">Photo and CV <span class="text-rotary-cranberry">*</span></label>
+              <div id="dropZone" class="drop-zone border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-rotary-blue/50">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rotary-blue/10 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-rotary-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                </div>
+                <p class="font-semibold text-rotary-charcoal">Drop your file here or <span class="text-rotary-azure underline">browse</span></p>
+                <p class="text-sm text-rotary-pewter mt-1">Max 10 MB &middot; Photo and CV combined in one PDF preferred</p>
+                <input type="file" id="fileInput" name="upload" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="hidden" />
+              </div>
+              <div id="filePreview" class="hidden mt-3 flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span id="fileName" class="text-sm font-medium text-green-800"></span>
+                <button type="button" id="removeFile" class="ml-auto text-red-500 hover:text-red-700">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Magazine -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-2">Magazine Preference <span class="text-rotary-cranberry">*</span></label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                  <input type="radio" name="magazine" value="The Rotarian (print)" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                  <div>
+                    <span class="font-medium text-sm">The Rotarian</span>
+                    <p class="text-xs text-rotary-pewter">Print edition</p>
+                  </div>
+                </label>
+                <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                  <input type="radio" name="magazine" value="The Rotarian (digital)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                  <div>
+                    <span class="font-medium text-sm">The Rotarian</span>
+                    <p class="text-xs text-rotary-pewter">Digital edition</p>
+                  </div>
+                </label>
+                <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                  <input type="radio" name="magazine" value="Regional Magazine (Thai)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                  <div>
+                    <span class="font-medium text-sm">Regional Magazine</span>
+                    <p class="text-xs text-rotary-pewter">Thai edition</p>
+                  </div>
+                </label>
+                <label class="radio-card cursor-pointer border-2 border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                  <input type="radio" name="magazine" value="Regional Magazine (English)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                  <div>
+                    <span class="font-medium text-sm">Regional Magazine</span>
+                    <p class="text-xs text-rotary-pewter">English edition</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="button" onclick="nextStep()" class="btn-primary text-white font-bold text-lg px-10 py-4 rounded-xl flex items-center gap-2">
+            Continue
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STEP 9: Confirmation & Submit ========== -->
+      <div class="step-panel" data-step="9">
+        <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-6 sm:p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-bold text-rotary-blue">Confirmation & Feedback</h3>
+              <p class="text-sm text-rotary-pewter">Almost done! Review and submit</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <!-- Confirmation -->
+            <div class="p-5 bg-rotary-blue/[0.03] rounded-xl border border-rotary-blue/10">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" name="confirmation" required
+                  class="mt-1 w-5 h-5 rounded text-rotary-blue focus:ring-rotary-blue" />
+                <span class="text-sm text-rotary-charcoal leading-relaxed">
+                  I hereby confirm that the information provided in this application is true and complete to the best of my knowledge.
+                  I understand that any misrepresentation may result in the rejection of my application or termination of membership.
+                  <span class="text-rotary-cranberry">*</span>
+                </span>
+              </label>
+            </div>
+
+            <!-- Rating -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-3">How much did you enjoy filling out this application? <span class="text-rotary-cranberry">*</span></label>
+              <div class="flex items-center gap-4">
+                <span class="text-sm font-medium text-rotary-pewter">1</span>
+                <input type="range" name="rating" min="1" max="10" value="5" required
+                  class="flex-1" oninput="document.getElementById('ratingValue').textContent = this.value" />
+                <span class="text-sm font-medium text-rotary-pewter">10</span>
+              </div>
+              <div class="text-center mt-2">
+                <span id="ratingValue" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-rotary-blue text-white font-bold text-lg">5</span>
+              </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div>
+              <label class="block text-sm font-semibold text-rotary-charcoal mb-1.5">Recommendations or Questions</label>
+              <textarea name="recommendations" rows="4"
+                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base resize-none"
+                placeholder="Any questions, feedback, or recommendations for us?"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-6">
+          <button type="button" onclick="prevStep()" class="btn-secondary text-rotary-charcoal font-bold text-lg px-8 py-4 rounded-xl border-2 border-gray-200 flex items-center gap-2 bg-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+            Back
+          </button>
+          <button type="submit" class="btn-primary text-white font-bold text-lg px-12 py-4 rounded-xl flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Submit Application
+          </button>
+        </div>
+      </div>
+
+    </form>
+
+    <!-- Success Screen (hidden by default) -->
+    <div id="successScreen" class="hidden">
+      <div class="bg-white rounded-2xl shadow-lg shadow-rotary-blue/5 border border-gray-100 p-8 sm:p-12 text-center">
+        <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center animate-scale-in">
+          <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <h3 class="text-3xl font-extrabold text-rotary-blue mb-3">Application Submitted!</h3>
+        <p class="text-lg text-rotary-charcoal mb-2">Thank you for your interest in joining Rotary Club Bangkok DACH.</p>
+        <p class="text-rotary-pewter mb-8">Our membership committee will review your application and get back to you within 2-3 weeks. You will receive a confirmation email shortly.</p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="btn-primary text-white font-bold px-8 py-3 rounded-xl inline-flex items-center gap-2 justify-center">
+            Visit Our Website
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+          <button onclick="location.reload()" class="btn-secondary font-bold px-8 py-3 rounded-xl border-2 border-gray-200 bg-white">
+            Submit Another
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-rotary-blue text-white/80 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Rotary_International_Logo.svg/200px-Rotary_International_Logo.svg.png" alt="Rotary" class="h-10 w-10 brightness-200" />
+            <div>
+              <h4 class="font-bold text-white">Rotary Club</h4>
+              <p class="text-sm text-white/60">Bangkok DACH</p>
+            </div>
+          </div>
+          <p class="text-sm leading-relaxed">Connecting German, Austrian, and Swiss professionals in Bangkok through service, fellowship, and leadership.</p>
+        </div>
+        <div>
+          <h4 class="font-bold text-white mb-4">Quick Links</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="hover:text-rotary-gold transition-colors">Club Website</a></li>
+            <li><a href="https://www.rotary.org/" target="_blank" class="hover:text-rotary-gold transition-colors">Rotary International</a></li>
+            <li><a href="https://www.facebook.com/RCDACH/" target="_blank" class="hover:text-rotary-gold transition-colors">Facebook</a></li>
+            <li><a href="https://www.linkedin.com/company/rotary-club-bangkok-dach" target="_blank" class="hover:text-rotary-gold transition-colors">LinkedIn</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-bold text-white mb-4">Contact</h4>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              office@rotary-club-bangkok-dach.org
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Grand Hyatt Erawan, Bangkok
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Every other Wed, 6:30 PM
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-white/10 mt-8 pt-8 text-center text-sm text-white/40">
+        &copy; 2026 Rotary Club Bangkok DACH. All rights reserved. | Service Above Self
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==================== FORM LOGIC ====================
+    let currentStep = 1;
+    const totalSteps = 9;
+    let skipSpouse = true;
+
+    // Step navigation
+    function showStep(step) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      const panel = document.querySelector(`.step-panel[data-step="${step}"]`);
+      if (panel) panel.classList.add('active');
+
+      // Update progress
+      const effectiveSteps = skipSpouse ? totalSteps - 1 : totalSteps;
+      const effectiveStep = skipSpouse && step > 7 ? step - 1 : step;
+      const progress = (effectiveStep / effectiveSteps) * 100;
+      document.getElementById('progressBar').style.width = progress + '%';
+      document.getElementById('stepLabel').textContent = `Step ${effectiveStep} of ${effectiveSteps}`;
+
+      // Update dots
+      document.querySelectorAll('.step-dot').forEach(dot => {
+        const dotStep = parseInt(dot.dataset.step);
+        dot.classList.remove('active', 'completed');
+        if (dotStep === step) dot.classList.add('active');
+        else if (dotStep < step) dot.classList.add('completed');
+        if (skipSpouse && dotStep === 7) dot.style.display = 'none';
+        else dot.style.display = '';
+      });
+
+      // Scroll to form
+      document.getElementById('application').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function nextStep() {
+      // Validate current step
+      const currentPanel = document.querySelector(`.step-panel[data-step="${currentStep}"]`);
+      const requiredFields = currentPanel.querySelectorAll('[required]');
+      let valid = true;
+
+      requiredFields.forEach(field => {
+        if (!field.checkValidity()) {
+          field.classList.add('border-rotary-cranberry');
+          valid = false;
+          // Scroll to first invalid
+          if (valid === false) field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          field.classList.remove('border-rotary-cranberry');
+        }
+      });
+
+      // Check radio groups
+      if (currentStep === 2) {
+        const status = document.querySelector('input[name="rotarianStatus"]:checked');
+        if (!status) { valid = false; }
+      }
+      if (currentStep === 6) {
+        const mtype = document.querySelector('input[name="membershipType"]:checked');
+        if (!mtype) { valid = false; }
+      }
+
+      if (!valid) return;
+
+      // Membership type branching
+      if (currentStep === 6) {
+        const mtype = document.querySelector('input[name="membershipType"]:checked');
+        skipSpouse = mtype && mtype.value === 'Individual';
+      }
+
+      let next = currentStep + 1;
+      // Skip spouse step if individual
+      if (next === 7 && skipSpouse) next = 8;
+
+      if (next <= totalSteps) {
+        currentStep = next;
+        showStep(currentStep);
+      }
+    }
+
+    function prevStep() {
+      let prev = currentStep - 1;
+      // Skip spouse step if individual
+      if (prev === 7 && skipSpouse) prev = 6;
+      if (prev >= 1) {
+        currentStep = prev;
+        showStep(currentStep);
+      }
+    }
+
+    // Radio card selection visuals
+    document.querySelectorAll('.radio-card input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const name = radio.name;
+        document.querySelectorAll(`.radio-card input[name="${name}"]`).forEach(r => {
+          r.closest('.radio-card').classList.remove('selected');
+        });
+        radio.closest('.radio-card').classList.add('selected');
+      });
+    });
+
+    // Rotarian status conditional
+    document.querySelectorAll('input[name="rotarianStatus"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const details = document.getElementById('rotarianDetails');
+        if (radio.value === 'former' || radio.value === 'current') {
+          details.classList.remove('hidden');
+          details.style.animation = 'slideUp 0.4s ease-out';
+        } else {
+          details.classList.add('hidden');
+        }
+      });
+    });
+
+    // File upload
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showFile(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) showFile(fileInput.files[0]);
+    });
+
+    function showFile(file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be under 10 MB');
+        return;
+      }
+      fileName.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+      filePreview.classList.remove('hidden');
+      dropZone.classList.add('hidden');
+    }
+
+    document.getElementById('removeFile').addEventListener('click', () => {
+      fileInput.value = '';
+      filePreview.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+    });
+
+    // Form submit
+    document.getElementById('applicationForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      // Check confirmation
+      const conf = document.querySelector('input[name="confirmation"]');
+      if (!conf.checked) {
+        conf.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      // Hide form, show success
+      document.getElementById('applicationForm').classList.add('hidden');
+      document.getElementById('successScreen').classList.remove('hidden');
+      document.getElementById('successScreen').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Hide progress
+      document.getElementById('progressBar').parentElement.parentElement.classList.add('hidden');
+
+      // Confetti
+      launchConfetti();
+    });
+
+    // Confetti effect
+    function launchConfetti() {
+      const colors = ['#17458f', '#f7a81b', '#0067c8', '#00a2e0', '#d41367'];
+      for (let i = 0; i < 50; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = Math.random() * 2 + 's';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        piece.style.width = (Math.random() * 8 + 6) + 'px';
+        piece.style.height = (Math.random() * 8 + 6) + 'px';
+        document.body.appendChild(piece);
+        setTimeout(() => piece.remove(), 5000);
+      }
+    }
+
+    // Smooth scroll for anchor
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>
