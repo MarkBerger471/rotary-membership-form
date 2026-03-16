@@ -1,27 +1,23 @@
 {
   "name": "rotary",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Rotary Club Bangkok DACH Membership Application",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node tools/send-email.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MarkBerger471/rotary-membership-form.git"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/MarkBerger471/rotary-membership-form/issues"
-  },
-  "homepage": "https://github.com/MarkBerger471/rotary-membership-form#readme",
   "dependencies": {
+    "busboy": "^1.6.0",
+    "nodemailer": "^8.0.2"
+  },
+  "devDependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "multer": "^2.1.1",
-    "nodemailer": "^8.0.2"
+    "multer": "^2.1.1"
   }
 }

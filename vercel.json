@@ -1,0 +1,8 @@
+{
+  "regions": ["sin1"],
+  "functions": {
+    "api/send-application.js": {
+      "maxDuration": 30
+    }
+  }
+}

@@ -1255,7 +1255,7 @@
                   <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
                 <p class="font-semibold text-white/90">Drop CV here or <span class="text-glass-gold underline">browse</span></p>
-                <p class="text-sm text-glass-secondary mt-1">PDF, DOC, DOCX &middot; Max 10 MB</p>
+                <p class="text-sm text-glass-secondary mt-1">PDF, DOC, DOCX &middot; Max 4 MB</p>
                 <input type="file" id="cvInput" name="cv" accept=".pdf,.doc,.docx" class="hidden" />
               </div>
               <div id="cvPreview" class="mt-3"></div>
@@ -1742,7 +1742,7 @@
     });
 
     function setCvFile(file) {
-      if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); return; }
+      if (file.size > 4 * 1024 * 1024) { alert(file.name + ' exceeds 4 MB limit. Please compress your CV.'); return; }
       cvFile = file;
       cvPreview.innerHTML = `
         <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
@@ -2101,7 +2101,7 @@
       if (cvFile) formData.append('cv', cvFile, cvFile.name);
 
       try {
-        const res = await fetch('http://localhost:3001/send-application', {
+        const res = await fetch('/api/send-application', {
           method: 'POST',
           body: formData
         });
