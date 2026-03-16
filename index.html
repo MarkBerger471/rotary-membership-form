@@ -1381,23 +1381,112 @@
     </form>
 
     <!-- Success Screen (hidden by default) -->
-    <div id="successScreen" class="hidden">
+    <div id="successScreen" class="hidden space-y-6">
+      <!-- Confirmation Header -->
       <div class="glass-success rounded-2xl p-8 sm:p-12 text-center">
         <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center animate-scale-in">
           <svg class="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
         </div>
         <h3 class="text-3xl font-extrabold text-white mb-3">Application Submitted!</h3>
         <p class="text-lg text-white/90 mb-2">Thank you for your interest in joining Rotary Club Bangkok DACH.</p>
-        <p class="text-glass-secondary mb-8">Our membership committee will review your application and get back to you within 2-3 weeks. You will receive a confirmation email shortly.</p>
-        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-          <a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="btn-primary text-white font-bold px-8 py-3 rounded-xl inline-flex items-center gap-2 justify-center">
-            Visit Our Website
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-          </a>
-          <button onclick="location.reload()" class="btn-secondary font-bold px-8 py-3 rounded-xl">
-            Submit Another
-          </button>
+        <p class="text-glass-secondary">Your application has been received and is now being processed.</p>
+      </div>
+
+      <!-- Application Process Video -->
+      <div class="glass-card-strong rounded-2xl overflow-hidden">
+        <div class="p-6 sm:p-8">
+          <h3 class="text-xl font-bold text-white mb-2">The Application Process</h3>
+          <p class="text-glass-secondary">Watch this video to understand what happens next.</p>
         </div>
+        <div class="px-6 pb-6 sm:px-8 sm:pb-8">
+          <video class="w-full rounded-xl" controls preload="metadata" poster="">
+            <source src="https://github.com/MarkBerger471/rotary-membership-form/releases/download/v1.0/application-process.mp4" type="video/mp4" />
+            Your browser does not support video playback.
+          </video>
+        </div>
+      </div>
+
+      <!-- Next Steps Timeline -->
+      <div class="glass-card-strong rounded-2xl p-6 sm:p-8">
+        <h3 class="text-xl font-bold text-white mb-6">What Happens Next?</h3>
+        <div class="space-y-0">
+          <!-- Step 1 -->
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 rounded-full bg-rotary-gold/20 border-2 border-rotary-gold flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-rotary-gold">1</span>
+              </div>
+              <div class="w-0.5 flex-1 bg-white/10 my-2"></div>
+            </div>
+            <div class="pb-6">
+              <h4 class="font-bold text-white mb-1">Board Review</h4>
+              <span class="inline-block text-xs font-semibold text-rotary-gold/80 bg-rotary-gold/10 rounded-full px-2.5 py-0.5 mb-2">3-4 weeks</span>
+              <p class="text-white/60 text-sm leading-relaxed">The Club Board will review your application and submit it to all members of the club for review. This process takes 3-4 weeks by definition.</p>
+            </div>
+          </div>
+          <!-- Step 2 -->
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 rounded-full bg-rotary-azure/20 border-2 border-rotary-azure flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-rotary-azure">2</span>
+              </div>
+              <div class="w-0.5 flex-1 bg-white/10 my-2"></div>
+            </div>
+            <div class="pb-6">
+              <h4 class="font-bold text-white mb-1">Invoice from Treasurer</h4>
+              <p class="text-white/60 text-sm leading-relaxed">Upon approval, the Club Treasurer will send you an invoice covering both the one-time registration fee and the annual membership fee.</p>
+            </div>
+          </div>
+          <!-- Step 3 -->
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 rounded-full bg-rotary-sky/20 border-2 border-rotary-sky flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-rotary-sky">3</span>
+              </div>
+              <div class="w-0.5 flex-1 bg-white/10 my-2"></div>
+            </div>
+            <div class="pb-6">
+              <h4 class="font-bold text-white mb-1">Payment & Confirmation</h4>
+              <p class="text-white/60 text-sm leading-relaxed">Pay the invoice and submit your proof of payment. You will then receive your welcome materials and official membership confirmation.</p>
+            </div>
+          </div>
+          <!-- Step 4 -->
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 rounded-full bg-rotary-gold/20 border-2 border-rotary-gold flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-bold text-rotary-gold">4</span>
+              </div>
+              <div class="w-0.5 flex-1 bg-white/10 my-2"></div>
+            </div>
+            <div class="pb-6">
+              <h4 class="font-bold text-white mb-1">Induction Ceremony</h4>
+              <p class="text-white/60 text-sm leading-relaxed">The Club President will coordinate with you the date for the New Member Induction Ceremony &mdash; a special event during a club meeting where you will be officially introduced and celebrated as our newest member.</p>
+            </div>
+          </div>
+          <!-- Step 5 -->
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              <div class="w-10 h-10 rounded-full bg-green-500/20 border-2 border-green-400 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              </div>
+            </div>
+            <div class="pb-2">
+              <h4 class="font-bold text-white mb-1">Classification Talk</h4>
+              <p class="text-white/60 text-sm leading-relaxed">Our Club Meeting Organizer will schedule a club meeting exclusively for your personal introduction to all club members &mdash; the so-called Classification Talk, where you present yourself and your professional background.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="btn-primary text-white font-bold px-8 py-3 rounded-xl inline-flex items-center gap-2 justify-center">
+          Visit Our Website
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+        <button onclick="location.reload()" class="btn-secondary font-bold px-8 py-3 rounded-xl">
+          Submit Another
+        </button>
       </div>
     </div>
   </section>
