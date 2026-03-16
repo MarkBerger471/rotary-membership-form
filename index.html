@@ -11,6 +11,7 @@
   <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -1437,10 +1438,17 @@
           <p class="text-glass-secondary">Watch this video to understand what happens next.</p>
         </div>
         <div class="px-6 pb-6 sm:px-8 sm:pb-8">
-          <video class="w-full rounded-xl" controls preload="metadata" poster="">
-            <source src="https://github.com/MarkBerger471/rotary-membership-form/releases/download/v1.0/application-process.mp4" type="video/mp4" />
-            Your browser does not support video playback.
-          </video>
+          <div class="relative pb-[56.25%] bg-white/5 rounded-xl overflow-hidden">
+            <iframe
+              class="absolute inset-0 w-full h-full"
+              src="https://www.youtube.com/embed/PFryy_dY0tg?feature=oembed"
+              title="What is Rotary? - Rotary International"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen
+            ></iframe>
+          </div>
         </div>
       </div>
 
@@ -2038,25 +2046,54 @@
       const pw = doc.internal.pageSize.getWidth();
       const ph = doc.internal.pageSize.getHeight();
 
-      // If CV is a PDF, add a note page
-      if (cvFile && cvFile.type === 'application/pdf') {
-        doc.addPage();
-        doc.setFillColor(23, 69, 143);
-        doc.rect(0, 0, pw, 40, 'F');
+      // Update footers on the application summary pages
+      const summaryPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= summaryPages; i++) {
+        doc.setPage(i);
         doc.setFillColor(247, 168, 27);
-        doc.rect(0, 40, pw, 2, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Curriculum Vitae', 15, 25);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text('File: ' + cvFile.name, 15, 33);
-        doc.setTextColor(100, 100, 100);
-        doc.setFontSize(11);
-        doc.text('The CV document (' + cvFile.name + ') is attached separately.', 15, 55);
-        doc.text('Please refer to the attached file for the full curriculum vitae.', 15, 62);
+        doc.rect(0, ph - 8, pw, 8, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(23, 69, 143);
+        doc.text('Rotary Club Bangkok DACH | Membership Application', pw / 2, ph - 3, { align: 'center' });
+      }
+
+      // Get the application summary as arraybuffer
+      const summaryBytes = doc.output('arraybuffer');
+
+      // If CV is a PDF, merge its pages into the document using pdf-lib
+      if (cvFile && cvFile.type === 'application/pdf') {
+        try {
+          const { PDFDocument } = PDFLib;
+          const cvBytes = await readFileAsArrayBuffer(cvFile);
+
+          // Load both PDFs
+          const mergedPdf = await PDFDocument.load(summaryBytes);
+          const cvPdf = await PDFDocument.load(cvBytes);
+
+          // Copy all CV pages into the merged document
+          const cvPageIndices = cvPdf.getPageIndices();
+          const copiedPages = await mergedPdf.copyPages(cvPdf, cvPageIndices);
+          copiedPages.forEach(page => mergedPdf.addPage(page));
+
+          // Save merged PDF
+          const mergedBytes = await mergedPdf.save();
+          return { output: (type) => {
+            if (type === 'blob') return new Blob([mergedBytes], { type: 'application/pdf' });
+            if (type === 'arraybuffer') return mergedBytes;
+            return mergedBytes;
+          }, save: (filename) => {
+            const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename; a.click();
+            URL.revokeObjectURL(url);
+          }};
+        } catch (e) {
+          console.warn('Could not merge CV PDF:', e);
+          // Fall through to return the summary-only doc
+        }
       } else if (cvFile && cvFile.type.startsWith('image/')) {
+        // If CV is an image, embed it as a page
         try {
           const cvData = await readFileAsDataURL(cvFile);
           doc.addPage();
@@ -2073,17 +2110,6 @@
         } catch (e) { console.warn('Could not embed CV image:', e); }
       }
 
-      // Update page count in footers
-      const totalPages = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFillColor(247, 168, 27);
-        doc.rect(0, ph - 8, pw, 8, 'F');
-        doc.setFontSize(7);
-        doc.setTextColor(23, 69, 143);
-        doc.text('Rotary Club Bangkok DACH | Membership Application | Page ' + i + ' of ' + totalPages, pw / 2, ph - 3, { align: 'center' });
-      }
-
       return doc;
     }
 
@@ -2098,7 +2124,6 @@
       formData.append('subject', 'New Membership Application: ' + firstName + ' ' + familyName);
       formData.append('applicantName', firstName + ' ' + familyName);
       formData.append('pdf', pdfBlob, 'application-' + firstName.toLowerCase() + '-' + familyName.toLowerCase() + '.pdf');
-      if (cvFile) formData.append('cv', cvFile, cvFile.name);
 
       try {
         const res = await fetch('/api/send-application', {
