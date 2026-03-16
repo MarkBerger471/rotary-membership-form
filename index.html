@@ -1438,17 +1438,9 @@
           <p class="text-glass-secondary">Watch this video to understand what happens next.</p>
         </div>
         <div class="px-6 pb-6 sm:px-8 sm:pb-8">
-          <div class="relative pb-[56.25%] bg-white/5 rounded-xl overflow-hidden">
-            <iframe
-              class="absolute inset-0 w-full h-full"
-              src="https://www.youtube.com/embed/PFryy_dY0tg?feature=oembed"
-              title="What is Rotary? - Rotary International"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerpolicy="strict-origin-when-cross-origin"
-              allowfullscreen
-            ></iframe>
-          </div>
+          <video id="processVideo" class="w-full rounded-xl" controls preload="auto">
+            Your browser does not support video playback.
+          </video>
         </div>
       </div>
 
@@ -2436,6 +2428,20 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeModal();
     });
+
+    // Load application process video as blob to bypass redirect/content-type issues
+    (async function loadProcessVideo() {
+      const video = document.getElementById('processVideo');
+      if (!video) return;
+      try {
+        const resp = await fetch('https://github.com/MarkBerger471/rotary-membership-form/releases/download/v1.0/application-process.mp4');
+        const blob = await resp.blob();
+        video.src = URL.createObjectURL(blob);
+      } catch (e) {
+        // Fallback: set src directly
+        video.src = 'https://github.com/MarkBerger471/rotary-membership-form/releases/download/v1.0/application-process.mp4';
+      }
+    })();
   </script>
 </body>
 </html>
