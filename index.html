@@ -645,14 +645,6 @@
           </div>
 
           <div class="space-y-5">
-            <!-- Email -->
-            <div>
-              <label class="block text-sm font-semibold text-white/90 mb-1.5">Email Address <span class="text-rotary-cranberry">*</span></label>
-              <input type="email" name="email" required
-                class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base glass-input"
-                placeholder="your@email.com" />
-            </div>
-
             <!-- Name Row -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -701,8 +693,8 @@
                 </div>
               </div>
               <div>
-                <label class="block text-sm font-semibold text-white/90 mb-1.5">Suffix <span class="text-rotary-cranberry">*</span></label>
-                <input type="text" name="suffix" required
+                <label class="block text-sm font-semibold text-white/90 mb-1.5">Suffix</label>
+                <input type="text" name="suffix"
                   class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-rotary-blue focus:outline-none transition-all text-base glass-input"
                   placeholder="Jr., Sr., III, MBA, etc." />
               </div>
@@ -1220,58 +1212,70 @@
           </div>
 
           <div class="space-y-6">
-            <!-- File Upload -->
+            <!-- File Upload (multiple) -->
             <div>
               <label class="block text-sm font-semibold text-white/90 mb-2">Photo and CV <span class="text-rotary-cranberry">*</span></label>
               <div id="dropZone" class="drop-zone border-2 border-dashed border-white/20 rounded-2xl p-8 text-center cursor-pointer">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
                   <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                 </div>
-                <p class="font-semibold text-white/90">Drop your file here or <span class="text-glass-gold underline">browse</span></p>
-                <p class="text-sm text-glass-secondary mt-1">Max 10 MB &middot; Photo and CV combined in one PDF preferred</p>
-                <input type="file" id="fileInput" name="upload" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="hidden" />
+                <p class="font-semibold text-white/90">Drop files here or <span class="text-glass-gold underline">browse</span></p>
+                <p class="text-sm text-glass-secondary mt-1">Max 10 MB per file &middot; Upload photo and CV separately or combined</p>
+                <input type="file" id="fileInput" name="upload" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple class="hidden" />
               </div>
-              <div id="filePreview" class="hidden mt-3 flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span id="fileName" class="text-sm font-medium text-green-300"></span>
-                <button type="button" id="removeFile" class="ml-auto text-red-500 hover:text-red-700">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
+              <div id="fileList" class="mt-3 space-y-2"></div>
             </div>
 
             <!-- Magazine -->
             <div>
-              <label class="block text-sm font-semibold text-white/90 mb-2">Magazine Preference <span class="text-rotary-cranberry">*</span></label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                  <input type="radio" name="magazine" value="The Rotarian (print)" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                  <div>
-                    <span class="font-medium text-sm text-white/90">The Rotarian</span>
-                    <p class="text-xs text-glass-muted">Print edition</p>
-                  </div>
-                </label>
-                <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                  <input type="radio" name="magazine" value="The Rotarian (digital)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                  <div>
-                    <span class="font-medium text-sm text-white/90">The Rotarian</span>
-                    <p class="text-xs text-glass-muted">Digital edition</p>
-                  </div>
-                </label>
-                <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                  <input type="radio" name="magazine" value="Regional Magazine (Thai)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                  <div>
-                    <span class="font-medium text-sm text-white/90">Regional Magazine</span>
-                    <p class="text-xs text-glass-muted">Thai edition</p>
-                  </div>
-                </label>
-                <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                  <input type="radio" name="magazine" value="Regional Magazine (English)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                  <div>
-                    <span class="font-medium text-sm text-white/90">Regional Magazine</span>
-                    <p class="text-xs text-glass-muted">English edition</p>
-                  </div>
-                </label>
+              <label class="block text-sm font-semibold text-white/90 mb-4">Magazine Preference <span class="text-rotary-cranberry">*</span></label>
+
+              <!-- Print -->
+              <div class="mb-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+                  <span class="text-xs font-bold text-rotary-gold uppercase tracking-wider">Print</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="The Rotarian (print)" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">The Rotarian</span>
+                      <p class="text-xs text-glass-muted">International print magazine</p>
+                    </div>
+                  </label>
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="Regional Magazine (Thai) - Print" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">Regional Magazine</span>
+                      <p class="text-xs text-glass-muted">Thai print edition</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Digital -->
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-4 h-4 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  <span class="text-xs font-bold text-rotary-sky uppercase tracking-wider">Digital</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="The Rotarian (digital)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">The Rotarian</span>
+                      <p class="text-xs text-glass-muted">International digital edition</p>
+                    </div>
+                  </label>
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="Regional Magazine (English) - Digital" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">Regional Magazine</span>
+                      <p class="text-xs text-glass-muted">English digital edition</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1316,18 +1320,28 @@
               </label>
             </div>
 
-            <!-- Rating -->
+            <!-- Star Rating 1-5 -->
             <div>
               <label class="block text-sm font-semibold text-white/90 mb-3">How much did you enjoy filling out this application? <span class="text-rotary-cranberry">*</span></label>
-              <div class="flex items-center gap-4">
-                <span class="text-sm font-medium text-rotary-pewter">1</span>
-                <input type="range" name="rating" min="1" max="10" value="5" required
-                  class="flex-1" oninput="document.getElementById('ratingValue').textContent = this.value" />
-                <span class="text-sm font-medium text-rotary-pewter">10</span>
+              <input type="hidden" name="rating" id="ratingInput" value="" required />
+              <div class="flex items-center gap-2 justify-center" id="starRating">
+                <button type="button" class="star-btn p-1 transition-transform hover:scale-125" data-value="1">
+                  <svg class="w-10 h-10 text-white/25" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
+                <button type="button" class="star-btn p-1 transition-transform hover:scale-125" data-value="2">
+                  <svg class="w-10 h-10 text-white/25" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
+                <button type="button" class="star-btn p-1 transition-transform hover:scale-125" data-value="3">
+                  <svg class="w-10 h-10 text-white/25" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
+                <button type="button" class="star-btn p-1 transition-transform hover:scale-125" data-value="4">
+                  <svg class="w-10 h-10 text-white/25" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
+                <button type="button" class="star-btn p-1 transition-transform hover:scale-125" data-value="5">
+                  <svg class="w-10 h-10 text-white/25" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
               </div>
-              <div class="text-center mt-2">
-                <span id="ratingValue" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-rotary-gold/80 text-white font-bold text-lg">5</span>
-              </div>
+              <p id="starLabel" class="text-center text-sm text-glass-secondary mt-2">Select a rating</p>
             </div>
 
             <!-- Recommendations -->
@@ -1535,11 +1549,11 @@
       });
     });
 
-    // File upload
+    // File upload (multiple)
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    const filePreview = document.getElementById('filePreview');
-    const fileName = document.getElementById('fileName');
+    const fileListEl = document.getElementById('fileList');
+    let uploadedFiles = [];
 
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
@@ -1547,30 +1561,72 @@
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        showFile(e.dataTransfer.files[0]);
-      }
+      addFiles(e.dataTransfer.files);
     });
     fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) showFile(fileInput.files[0]);
+      addFiles(fileInput.files);
+      fileInput.value = '';
     });
 
-    function showFile(file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be under 10 MB');
-        return;
+    function addFiles(files) {
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) {
+          alert(file.name + ' exceeds 10 MB limit');
+          continue;
+        }
+        if (!uploadedFiles.find(f => f.name === file.name && f.size === file.size)) {
+          uploadedFiles.push(file);
+        }
       }
-      fileName.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
-      filePreview.classList.remove('hidden');
-      dropZone.classList.add('hidden');
+      renderFileList();
     }
 
-    document.getElementById('removeFile').addEventListener('click', () => {
-      fileInput.value = '';
-      filePreview.classList.add('hidden');
-      dropZone.classList.remove('hidden');
+    function removeFileAt(index) {
+      uploadedFiles.splice(index, 1);
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileListEl.innerHTML = uploadedFiles.map((file, i) => `
+        <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
+          <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="text-sm font-medium text-green-300 truncate flex-1">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+          <button type="button" onclick="removeFileAt(${i})" class="text-red-400 hover:text-red-300 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // Star rating
+    const starLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+    let currentRating = 0;
+
+    document.querySelectorAll('.star-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentRating = parseInt(btn.dataset.value);
+        document.getElementById('ratingInput').value = currentRating;
+        updateStars();
+      });
+      btn.addEventListener('mouseenter', () => highlightStars(parseInt(btn.dataset.value)));
+      btn.addEventListener('mouseleave', () => updateStars());
     });
+
+    function highlightStars(count) {
+      document.querySelectorAll('.star-btn svg').forEach((svg, i) => {
+        svg.style.color = i < count ? '#f7a81b' : 'rgba(255,255,255,0.15)';
+        svg.style.filter = i < count ? 'drop-shadow(0 0 6px rgba(247,168,27,0.4))' : 'none';
+      });
+      document.getElementById('starLabel').textContent = starLabels[count] || '';
+    }
+
+    function updateStars() {
+      document.querySelectorAll('.star-btn svg').forEach((svg, i) => {
+        svg.style.color = i < currentRating ? '#f7a81b' : 'rgba(255,255,255,0.15)';
+        svg.style.filter = i < currentRating ? 'drop-shadow(0 0 6px rgba(247,168,27,0.4))' : 'none';
+      });
+      document.getElementById('starLabel').textContent = currentRating ? starLabels[currentRating] : 'Select a rating';
+    }
 
     // Form submit
     document.getElementById('applicationForm').addEventListener('submit', (e) => {
