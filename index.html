@@ -1230,39 +1230,15 @@
             <div>
               <label class="block text-sm font-semibold text-white/90 mb-4">Magazine Preference <span class="text-rotary-cranberry">*</span></label>
 
-              <!-- Print -->
+              <!-- Digital (primary) -->
               <div class="mb-3">
-                <div class="flex items-center gap-2 mb-2">
-                  <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-                  <span class="text-xs font-bold text-rotary-gold uppercase tracking-wider">Print</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                    <input type="radio" name="magazine" value="The Rotarian (print)" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                    <div>
-                      <span class="font-medium text-sm text-white/90">The Rotarian</span>
-                      <p class="text-xs text-glass-muted">International print magazine</p>
-                    </div>
-                  </label>
-                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                    <input type="radio" name="magazine" value="Regional Magazine (Thai) - Print" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
-                    <div>
-                      <span class="font-medium text-sm text-white/90">Regional Magazine</span>
-                      <p class="text-xs text-glass-muted">Thai print edition</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Digital -->
-              <div>
                 <div class="flex items-center gap-2 mb-2">
                   <svg class="w-4 h-4 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                   <span class="text-xs font-bold text-rotary-sky uppercase tracking-wider">Digital</span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
-                    <input type="radio" name="magazine" value="The Rotarian (digital)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <input type="radio" name="magazine" value="The Rotarian (digital)" required class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
                     <div>
                       <span class="font-medium text-sm text-white/90">The Rotarian</span>
                       <p class="text-xs text-glass-muted">International digital edition</p>
@@ -1273,6 +1249,30 @@
                     <div>
                       <span class="font-medium text-sm text-white/90">Regional Magazine</span>
                       <p class="text-xs text-glass-muted">English digital edition</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Print -->
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+                  <span class="text-xs font-bold text-rotary-gold uppercase tracking-wider">Print</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="The Rotarian (print)" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">The Rotarian</span>
+                      <p class="text-xs text-glass-muted">International print magazine</p>
+                    </div>
+                  </label>
+                  <label class="radio-card cursor-pointer border border-white/15 rounded-xl p-4 flex items-center gap-3">
+                    <input type="radio" name="magazine" value="Regional Magazine (Thai) - Print" class="w-5 h-5 text-rotary-blue focus:ring-rotary-blue" />
+                    <div>
+                      <span class="font-medium text-sm text-white/90">Regional Magazine</span>
+                      <p class="text-xs text-glass-muted">Thai print edition</p>
                     </div>
                   </label>
                 </div>
@@ -1312,7 +1312,7 @@
               <label class="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" name="confirmation" required
                   class="mt-1 w-5 h-5 rounded text-rotary-blue focus:ring-rotary-blue" />
-                <span class="text-sm text-white/80 leading-relaxed">
+                <span class="text-base text-white/90 leading-relaxed">
                   I hereby confirm that the information provided in this application is true and complete to the best of my knowledge.
                   I understand that any misrepresentation may result in the rejection of my application or termination of membership.
                   <span class="text-rotary-cranberry">*</span>
