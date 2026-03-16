@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -544,10 +546,11 @@
       <div class="relative pb-[56.25%] bg-white/5">
         <iframe
           class="absolute inset-0 w-full h-full"
-          src="https://www.youtube.com/embed/PFryy_dY0tg"
+          src="https://www.youtube.com/embed/PFryy_dY0tg?feature=oembed"
           title="What is Rotary? - Rotary International"
           frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
           allowfullscreen
         ></iframe>
       </div>
@@ -1230,15 +1233,43 @@
           </div>
 
           <div class="space-y-6">
-            <!-- File Upload (multiple) -->
+            <!-- Profile Photo Upload -->
             <div>
-              <label class="block text-sm font-semibold text-white/90 mb-2">Photo and CV <span class="text-rotary-cranberry">*</span></label>
-              <div id="dropZone" class="drop-zone border-2 border-dashed border-white/20 rounded-2xl p-8 text-center cursor-pointer">
-                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
-                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              <label class="block text-sm font-semibold text-white/90 mb-2">Profile Photo <span class="text-rotary-cranberry">*</span></label>
+              <div id="photoDropZone" class="drop-zone border-2 border-dashed border-white/20 rounded-2xl p-6 text-center cursor-pointer">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center">
+                  <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <p class="font-semibold text-white/90">Drop photo here or <span class="text-glass-gold underline">browse</span></p>
+                <p class="text-sm text-glass-secondary mt-1">JPG or PNG &middot; Max 10 MB</p>
+                <input type="file" id="photoInput" name="photo" accept=".jpg,.jpeg,.png" class="hidden" />
+              </div>
+              <div id="photoPreview" class="mt-3"></div>
+            </div>
+
+            <!-- CV Upload -->
+            <div>
+              <label class="block text-sm font-semibold text-white/90 mb-2">CV / Resume <span class="text-rotary-cranberry">*</span></label>
+              <div id="cvDropZone" class="drop-zone border-2 border-dashed border-white/20 rounded-2xl p-6 text-center cursor-pointer">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center">
+                  <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <p class="font-semibold text-white/90">Drop CV here or <span class="text-glass-gold underline">browse</span></p>
+                <p class="text-sm text-glass-secondary mt-1">PDF, DOC, DOCX &middot; Max 10 MB</p>
+                <input type="file" id="cvInput" name="cv" accept=".pdf,.doc,.docx" class="hidden" />
+              </div>
+              <div id="cvPreview" class="mt-3"></div>
+            </div>
+
+            <!-- Additional Documents (optional) -->
+            <div>
+              <label class="block text-sm font-semibold text-white/90 mb-2">Additional Documents <span class="text-glass-muted">(optional)</span></label>
+              <div id="dropZone" class="drop-zone border-2 border-dashed border-white/20 rounded-2xl p-6 text-center cursor-pointer">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center">
+                  <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                 </div>
                 <p class="font-semibold text-white/90">Drop files here or <span class="text-glass-gold underline">browse</span></p>
-                <p class="text-sm text-glass-secondary mt-1">Max 10 MB per file &middot; Upload photo and CV separately or combined</p>
+                <p class="text-sm text-glass-secondary mt-1">Any supporting documents &middot; Max 10 MB per file</p>
                 <input type="file" id="fileInput" name="upload" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple class="hidden" />
               </div>
               <div id="fileList" class="mt-3 space-y-2"></div>
@@ -1396,6 +1427,7 @@
         <h3 class="text-3xl font-extrabold text-white mb-3">Application Submitted!</h3>
         <p class="text-lg text-white/90 mb-2">Thank you for your interest in joining Rotary Club Bangkok DACH.</p>
         <p class="text-glass-secondary">Your application has been received and is now being processed.</p>
+        <p id="emailStatus" class="text-sm text-green-300 mt-2">Your application PDF has been downloaded.</p>
       </div>
 
       <!-- Application Process Video -->
@@ -1656,7 +1688,74 @@
       });
     });
 
-    // File upload (multiple)
+    // ==================== FILE UPLOADS ====================
+    // Profile Photo
+    let profilePhotoFile = null;
+    const photoDropZone = document.getElementById('photoDropZone');
+    const photoInput = document.getElementById('photoInput');
+    const photoPreview = document.getElementById('photoPreview');
+
+    photoDropZone.addEventListener('click', () => photoInput.click());
+    photoDropZone.addEventListener('dragover', (e) => { e.preventDefault(); photoDropZone.classList.add('dragover'); });
+    photoDropZone.addEventListener('dragleave', () => photoDropZone.classList.remove('dragover'));
+    photoDropZone.addEventListener('drop', (e) => {
+      e.preventDefault(); photoDropZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) setProfilePhoto(e.dataTransfer.files[0]);
+    });
+    photoInput.addEventListener('change', () => {
+      if (photoInput.files[0]) setProfilePhoto(photoInput.files[0]);
+      photoInput.value = '';
+    });
+
+    function setProfilePhoto(file) {
+      if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); return; }
+      if (!file.type.startsWith('image/')) { alert('Please upload an image file (JPG, PNG)'); return; }
+      profilePhotoFile = file;
+      const url = URL.createObjectURL(file);
+      photoPreview.innerHTML = `
+        <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
+          <img src="${url}" class="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+          <span class="text-sm font-medium text-green-300 truncate flex-1">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+          <button type="button" onclick="clearProfilePhoto()" class="text-red-400 hover:text-red-300 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>`;
+    }
+    function clearProfilePhoto() { profilePhotoFile = null; photoPreview.innerHTML = ''; }
+
+    // CV Upload
+    let cvFile = null;
+    const cvDropZone = document.getElementById('cvDropZone');
+    const cvInput = document.getElementById('cvInput');
+    const cvPreview = document.getElementById('cvPreview');
+
+    cvDropZone.addEventListener('click', () => cvInput.click());
+    cvDropZone.addEventListener('dragover', (e) => { e.preventDefault(); cvDropZone.classList.add('dragover'); });
+    cvDropZone.addEventListener('dragleave', () => cvDropZone.classList.remove('dragover'));
+    cvDropZone.addEventListener('drop', (e) => {
+      e.preventDefault(); cvDropZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) setCvFile(e.dataTransfer.files[0]);
+    });
+    cvInput.addEventListener('change', () => {
+      if (cvInput.files[0]) setCvFile(cvInput.files[0]);
+      cvInput.value = '';
+    });
+
+    function setCvFile(file) {
+      if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); return; }
+      cvFile = file;
+      cvPreview.innerHTML = `
+        <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
+          <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="text-sm font-medium text-green-300 truncate flex-1">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+          <button type="button" onclick="clearCvFile()" class="text-red-400 hover:text-red-300 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>`;
+    }
+    function clearCvFile() { cvFile = null; cvPreview.innerHTML = ''; }
+
+    // Additional files (multiple)
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const fileListEl = document.getElementById('fileList');
@@ -1677,22 +1776,12 @@
 
     function addFiles(files) {
       for (const file of files) {
-        if (file.size > 10 * 1024 * 1024) {
-          alert(file.name + ' exceeds 10 MB limit');
-          continue;
-        }
-        if (!uploadedFiles.find(f => f.name === file.name && f.size === file.size)) {
-          uploadedFiles.push(file);
-        }
+        if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); continue; }
+        if (!uploadedFiles.find(f => f.name === file.name && f.size === file.size)) { uploadedFiles.push(file); }
       }
       renderFileList();
     }
-
-    function removeFileAt(index) {
-      uploadedFiles.splice(index, 1);
-      renderFileList();
-    }
-
+    function removeFileAt(index) { uploadedFiles.splice(index, 1); renderFileList(); }
     function renderFileList() {
       fileListEl.innerHTML = uploadedFiles.map((file, i) => `
         <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
@@ -1735,8 +1824,307 @@
       document.getElementById('starLabel').textContent = currentRating ? starLabels[currentRating] : 'Select a rating';
     }
 
+    // ==================== PDF GENERATION ====================
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function getFormValue(name) {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (!el) return '';
+      if (el.type === 'radio') {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        return checked ? checked.value : '';
+      }
+      return el.value || '';
+    }
+
+    function getCheckedValues(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(el => el.value);
+    }
+
+    async function generateApplicationPDF() {
+      if (!window.jspdf) {
+        throw new Error('PDF library (jsPDF) not loaded. Please check your internet connection and reload.');
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      let y = margin;
+
+      // ---- Header with Rotary branding ----
+      doc.setFillColor(23, 69, 143); // Rotary Blue
+      doc.rect(0, 0, pageW, 40, 'F');
+      doc.setFillColor(247, 168, 27); // Gold accent line
+      doc.rect(0, 40, pageW, 2, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Membership Application', margin, 20);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Rotary Club Bangkok DACH', margin, 28);
+      doc.setFontSize(9);
+      doc.text('Submitted: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin, 35);
+
+      y = 50;
+
+      // ---- Profile Photo (right-aligned) ----
+      let photoX = pageW - margin - 35;
+      let photoY = 50;
+      if (profilePhotoFile) {
+        try {
+          const photoData = await readFileAsDataURL(profilePhotoFile);
+          const imgType = profilePhotoFile.type.includes('png') ? 'PNG' : 'JPEG';
+          doc.addImage(photoData, imgType, photoX, photoY, 35, 40);
+          doc.setDrawColor(23, 69, 143);
+          doc.setLineWidth(0.5);
+          doc.rect(photoX, photoY, 35, 40);
+        } catch (e) {
+          console.warn('Could not embed photo:', e);
+        }
+      }
+
+      // ---- Applicant Summary (left side) ----
+      const contentW = profilePhotoFile ? pageW - margin * 2 - 45 : pageW - margin * 2;
+      doc.setTextColor(23, 69, 143);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      const title = getFormValue('title');
+      const firstName = getFormValue('firstName');
+      const familyName = getFormValue('familyName');
+      const suffix = getFormValue('suffix');
+      const fullName = [title, firstName, familyName, suffix].filter(Boolean).join(' ');
+      doc.text(fullName, margin, y);
+      y += 6;
+
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const jobTitle = getFormValue('jobTitle');
+      const businessName = getFormValue('businessName');
+      if (jobTitle || businessName) {
+        doc.text([jobTitle, businessName].filter(Boolean).join(' at '), margin, y);
+        y += 5;
+      }
+
+      // ---- Section: Personal Information ----
+      y = Math.max(y, profilePhotoFile ? 95 : y + 3);
+
+      function drawSectionHeader(label) {
+        doc.setFillColor(23, 69, 143);
+        doc.rect(margin, y, pageW - margin * 2, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, margin + 3, y + 5);
+        y += 10;
+      }
+
+      function addRow(label, value) {
+        if (y > pageH - 20) { doc.addPage(); y = margin; }
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(80, 80, 80);
+        doc.text(label + ':', margin, y);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(30, 30, 30);
+        const lines = doc.splitTextToSize(String(value || '—'), pageW - margin * 2 - 50);
+        doc.text(lines, margin + 50, y);
+        y += Math.max(5, lines.length * 4.5);
+      }
+
+      drawSectionHeader('Personal Information');
+      addRow('Full Name', fullName);
+      addRow('Date of Birth', getFormValue('dob'));
+      addRow('Gender', getFormValue('gender'));
+      addRow('Proposed By', getFormValue('proposedBy'));
+
+      // Rotarian status
+      const rotarianStatus = getFormValue('rotarianStatus');
+      const statusLabels = { none: 'Not a Rotarian', former: 'Former Rotarian', current: 'Current Rotarian' };
+      addRow('Rotarian Status', statusLabels[rotarianStatus] || rotarianStatus);
+      if (rotarianStatus === 'former' || rotarianStatus === 'current') {
+        addRow('Membership ID', getFormValue('membershipId'));
+        addRow('Rotary Club', getFormValue('rotaryClub'));
+        addRow('Club Number', getFormValue('clubNumber'));
+        addRow('District Number', getFormValue('districtNumber'));
+      }
+
+      // Alumni
+      const alumni = getCheckedValues('alumni');
+      if (alumni.length > 0) addRow('Rotary Alumni', alumni.join(', '));
+
+      y += 3;
+      drawSectionHeader('Professional Details');
+      addRow('Job Title', jobTitle);
+      addRow('Since', getFormValue('jobSince'));
+      addRow('Organization', businessName);
+
+      y += 3;
+      drawSectionHeader('Contact Information');
+      addRow('Business Email', getFormValue('businessEmail'));
+      addRow('Phone', getFormValue('phone'));
+      addRow('LINE ID', getFormValue('lineId'));
+      addRow('WhatsApp', getFormValue('whatsapp'));
+      addRow('Billing Address', getFormValue('billingAddress'));
+
+      // Membership type
+      y += 3;
+      drawSectionHeader('Membership');
+      const membershipType = getFormValue('membershipType');
+      addRow('Type', membershipType);
+
+      // Spouse info if family
+      if (membershipType === 'Family' && !skipSpouse) {
+        y += 3;
+        drawSectionHeader('Spouse / Family Member');
+        const spTitle = getFormValue('spouseTitle');
+        const spFirst = getFormValue('spouseFirstName');
+        const spLast = getFormValue('spouseFamilyName');
+        const spSuffix = getFormValue('spouseSuffix');
+        addRow('Name', [spTitle, spFirst, spLast, spSuffix].filter(Boolean).join(' '));
+        addRow('Date of Birth', getFormValue('spouseDob'));
+        addRow('Gender', getFormValue('spouseGender'));
+        addRow('Job Title', getFormValue('spouseJobTitle'));
+        addRow('Since', getFormValue('spouseJobSince'));
+        addRow('Organization', getFormValue('spouseBusinessName'));
+        addRow('Email', getFormValue('spouseEmail'));
+        addRow('Phone', getFormValue('spousePhone'));
+        addRow('LINE ID', getFormValue('spouseLineId'));
+        addRow('WhatsApp', getFormValue('spouseWhatsapp'));
+      }
+
+      // Magazine & rating
+      y += 3;
+      drawSectionHeader('Preferences & Feedback');
+      addRow('Magazine', getFormValue('magazine'));
+      addRow('Rating', currentRating + '/5 stars');
+      addRow('Recommendations', getFormValue('recommendations'));
+
+      // ---- Footer on each page ----
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFillColor(247, 168, 27);
+        doc.rect(0, pageH - 8, pageW, 8, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(23, 69, 143);
+        doc.text('Rotary Club Bangkok DACH | Membership Application | Page ' + i + ' of ' + totalPages, pageW / 2, pageH - 3, { align: 'center' });
+      }
+
+      return doc;
+    }
+
+    async function generateFullPDF() {
+      const doc = await generateApplicationPDF();
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+
+      // If CV is a PDF, add a note page
+      if (cvFile && cvFile.type === 'application/pdf') {
+        doc.addPage();
+        doc.setFillColor(23, 69, 143);
+        doc.rect(0, 0, pw, 40, 'F');
+        doc.setFillColor(247, 168, 27);
+        doc.rect(0, 40, pw, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Curriculum Vitae', 15, 25);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('File: ' + cvFile.name, 15, 33);
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(11);
+        doc.text('The CV document (' + cvFile.name + ') is attached separately.', 15, 55);
+        doc.text('Please refer to the attached file for the full curriculum vitae.', 15, 62);
+      } else if (cvFile && cvFile.type.startsWith('image/')) {
+        try {
+          const cvData = await readFileAsDataURL(cvFile);
+          doc.addPage();
+          doc.setFillColor(23, 69, 143);
+          doc.rect(0, 0, pw, 40, 'F');
+          doc.setFillColor(247, 168, 27);
+          doc.rect(0, 40, pw, 2, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(18);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Curriculum Vitae', 15, 25);
+          const imgType = cvFile.type.includes('png') ? 'PNG' : 'JPEG';
+          doc.addImage(cvData, imgType, 15, 50, pw - 30, ph - 70);
+        } catch (e) { console.warn('Could not embed CV image:', e); }
+      }
+
+      // Update page count in footers
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFillColor(247, 168, 27);
+        doc.rect(0, ph - 8, pw, 8, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(23, 69, 143);
+        doc.text('Rotary Club Bangkok DACH | Membership Application | Page ' + i + ' of ' + totalPages, pw / 2, ph - 3, { align: 'center' });
+      }
+
+      return doc;
+    }
+
+    // ==================== EMAIL SENDING ====================
+    async function sendApplicationEmail(pdfDoc) {
+      const pdfBlob = pdfDoc.output('blob');
+      const firstName = getFormValue('firstName');
+      const familyName = getFormValue('familyName');
+
+      const formData = new FormData();
+      formData.append('to', 'markberger471@gmail.com');
+      formData.append('subject', 'New Membership Application: ' + firstName + ' ' + familyName);
+      formData.append('applicantName', firstName + ' ' + familyName);
+      formData.append('pdf', pdfBlob, 'application-' + firstName.toLowerCase() + '-' + familyName.toLowerCase() + '.pdf');
+      if (cvFile) formData.append('cv', cvFile, cvFile.name);
+
+      try {
+        const res = await fetch('http://localhost:3001/send-application', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await res.json();
+        if (result.success) {
+          console.log('Email sent successfully!', result);
+          // If Ethereal test mode, open the preview URL
+          if (result.previewUrl) {
+            window.open(result.previewUrl, '_blank');
+          }
+          return result;
+        } else {
+          console.error('Email failed:', result.error);
+          return null;
+        }
+      } catch (err) {
+        console.warn('Email server not available (expected for static hosting):', err.message);
+        return null;
+      }
+    }
+
     // Form submit
-    document.getElementById('applicationForm').addEventListener('submit', (e) => {
+    document.getElementById('applicationForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       // Check confirmation
@@ -1746,16 +2134,52 @@
         return;
       }
 
-      // Hide form, show success
-      document.getElementById('applicationForm').classList.add('hidden');
-      document.getElementById('successScreen').classList.remove('hidden');
-      document.getElementById('successScreen').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Show loading state on submit button
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalBtnHTML = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Generating PDF & Sending...';
 
-      // Hide progress
-      document.getElementById('progressBar').parentElement.parentElement.classList.add('hidden');
+      try {
+        // Generate PDF
+        const pdfDoc = await generateFullPDF();
 
-      // Confetti
-      launchConfetti();
+        // Download PDF locally
+        const firstName = getFormValue('firstName');
+        const familyName = getFormValue('familyName');
+        pdfDoc.save('application-' + firstName.toLowerCase() + '-' + familyName.toLowerCase() + '.pdf');
+
+        // Try to send email (works when local server is running)
+        const emailResult = await sendApplicationEmail(pdfDoc);
+
+        // Show success
+        document.getElementById('applicationForm').classList.add('hidden');
+        document.getElementById('successScreen').classList.remove('hidden');
+        document.getElementById('successScreen').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('progressBar').parentElement.parentElement.classList.add('hidden');
+
+        // Update success message based on email result
+        const emailStatus = document.getElementById('emailStatus');
+        if (emailStatus) {
+          if (emailResult && emailResult.mode === 'gmail') {
+            emailStatus.textContent = 'Your application PDF has been emailed to the membership committee.';
+            emailStatus.className = 'text-sm text-green-300 mt-2';
+          } else if (emailResult && emailResult.previewUrl) {
+            emailStatus.innerHTML = 'Email sent via test server. <a href="' + emailResult.previewUrl + '" target="_blank" class="underline text-rotary-sky">View email here</a>';
+            emailStatus.className = 'text-sm text-green-300 mt-2';
+          } else {
+            emailStatus.textContent = 'Your application PDF has been downloaded. Please email it to office@rotary-club-bangkok-dach.org';
+            emailStatus.className = 'text-sm text-yellow-300 mt-2';
+          }
+        }
+
+        launchConfetti();
+      } catch (err) {
+        console.error('Error generating application:', err);
+        alert('Error: ' + err.message + '\n\nCheck browser console (F12) for details.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHTML;
+      }
     });
 
     // Confetti effect
