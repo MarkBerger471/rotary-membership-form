@@ -382,6 +382,46 @@
       animation: confetti-fall 3s ease-in forwards;
     }
 
+    /* ========== MODAL ========== */
+    #modalOverlay.open {
+      display: flex;
+    }
+    #modalOverlay.open #modalContent {
+      transform: scale(1);
+      opacity: 1;
+    }
+    #modalOverlay.closing #modalContent {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+
+    /* Info card hover lift */
+    .glass-card[onclick], button.glass-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card[onclick]:hover, button.glass-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Detail row in modal */
+    .detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-icon {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
     /* ========== GLASS TEXT COLORS ========== */
     .text-glass-primary { color: #fff; }
     .text-glass-secondary { color: rgba(255, 255, 255, 0.7); }
@@ -476,38 +516,8 @@
     <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0a1628] to-transparent"></div>
   </section>
 
-  <!-- Info Cards -->
-  <section class="max-w-6xl mx-auto px-4 sm:px-6 -mt-8 mb-12 relative z-10">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="glass-card rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.1s">
-        <div class="w-12 h-12 rounded-xl bg-rotary-gold/20 flex items-center justify-center mb-4">
-          <svg class="w-6 h-6 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        </div>
-        <h3 class="font-bold text-glass-gold mb-1">Annual Dues</h3>
-        <p class="text-2xl font-extrabold text-white">12,000 THB</p>
-        <p class="text-sm text-glass-secondary mt-1">Per year membership fee</p>
-      </div>
-      <div class="glass-card rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.2s">
-        <div class="w-12 h-12 rounded-xl bg-rotary-gold/20 flex items-center justify-center mb-4">
-          <svg class="w-6 h-6 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-        </div>
-        <h3 class="font-bold text-glass-gold mb-1">Registration Fee</h3>
-        <p class="text-2xl font-extrabold text-white">18,000 THB</p>
-        <p class="text-sm text-glass-secondary mt-1">One-time admission fee</p>
-      </div>
-      <div class="glass-card rounded-2xl p-6 animate-slide-up" style="animation-delay: 0.3s">
-        <div class="w-12 h-12 rounded-xl bg-rotary-sky/20 flex items-center justify-center mb-4">
-          <svg class="w-6 h-6 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-        </div>
-        <h3 class="font-bold text-glass-accent mb-1">Meetings</h3>
-        <p class="text-2xl font-extrabold text-white">Bi-Weekly</p>
-        <p class="text-sm text-glass-secondary mt-1">Wednesdays 6:30 PM, Grand Hyatt</p>
-      </div>
-    </div>
-  </section>
-
   <!-- Video Section -->
-  <section class="max-w-4xl mx-auto px-4 sm:px-6 mb-16">
+  <section class="max-w-4xl mx-auto px-4 sm:px-6 -mt-8 mb-12 relative z-10">
     <div class="glass-card-strong rounded-2xl overflow-hidden">
       <div class="p-6 sm:p-8">
         <h3 class="text-xl font-bold text-white mb-2">What is Rotary?</h3>
@@ -525,6 +535,73 @@
       </div>
     </div>
   </section>
+
+  <!-- Info Cards (clickable with popups) -->
+  <section class="max-w-4xl mx-auto px-4 sm:px-6 mb-16 relative z-10">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <!-- Annual Dues -->
+      <button type="button" onclick="openModal('annualDues')" class="glass-card rounded-2xl p-6 animate-slide-up text-left group cursor-pointer" style="animation-delay: 0.1s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-gold/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <svg class="w-6 h-6 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3 class="font-bold text-glass-gold mb-1">Annual Dues</h3>
+        <p class="text-2xl font-extrabold text-white">12,000 THB</p>
+        <p class="text-sm text-glass-secondary mt-1">Per year membership fee</p>
+        <span class="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-rotary-gold/70 group-hover:text-rotary-gold transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Click for details
+        </span>
+      </button>
+      <!-- Registration Fee -->
+      <button type="button" onclick="openModal('registrationFee')" class="glass-card rounded-2xl p-6 animate-slide-up text-left group cursor-pointer" style="animation-delay: 0.2s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-gold/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <svg class="w-6 h-6 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+        </div>
+        <h3 class="font-bold text-glass-gold mb-1">Registration Fee</h3>
+        <p class="text-2xl font-extrabold text-white">18,000 THB</p>
+        <p class="text-sm text-glass-secondary mt-1">One-time admission fee</p>
+        <span class="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-rotary-gold/70 group-hover:text-rotary-gold transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Click for details
+        </span>
+      </button>
+      <!-- Meetings -->
+      <button type="button" onclick="openModal('meetings')" class="glass-card rounded-2xl p-6 animate-slide-up text-left group cursor-pointer" style="animation-delay: 0.3s">
+        <div class="w-12 h-12 rounded-xl bg-rotary-sky/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <svg class="w-6 h-6 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <h3 class="font-bold text-glass-accent mb-1">Meetings</h3>
+        <p class="text-2xl font-extrabold text-white">Bi-Weekly</p>
+        <p class="text-sm text-glass-secondary mt-1">Wednesdays 6:30 PM, Grand Hyatt</p>
+        <span class="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-rotary-sky/70 group-hover:text-rotary-sky transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Click for details
+        </span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Modal Overlay -->
+  <div id="modalOverlay" class="fixed inset-0 z-[100] hidden items-center justify-center p-4" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div id="modalContent" class="glass-card-strong rounded-3xl max-w-lg w-full p-8 relative transform scale-95 opacity-0 transition-all duration-300">
+      <!-- Close button -->
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+        <svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <!-- Modal icon -->
+      <div id="modalIcon" class="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"></div>
+      <!-- Modal title -->
+      <h3 id="modalTitle" class="text-2xl font-extrabold text-white mb-2"></h3>
+      <!-- Modal subtitle -->
+      <p id="modalSubtitle" class="text-xl font-bold text-glass-gold mb-5"></p>
+      <!-- Modal body -->
+      <div id="modalBody" class="space-y-4 text-white/80 text-[15px] leading-relaxed"></div>
+      <!-- Close button bottom -->
+      <button onclick="closeModal()" class="mt-8 w-full btn-primary font-bold text-lg py-4 rounded-xl flex items-center justify-center gap-2">
+        Got it
+      </button>
+    </div>
+  </div>
 
   <!-- Application Form -->
   <section id="application" class="max-w-4xl mx-auto px-4 sm:px-6 pb-24">
@@ -1541,6 +1618,181 @@
         e.preventDefault();
         document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
       });
+    });
+
+    // ==================== MODAL POPUPS ====================
+    const modalData = {
+      annualDues: {
+        icon: '<svg class="w-7 h-7 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+        iconBg: 'bg-rotary-gold/20',
+        title: 'Annual Membership Dues',
+        subtitle: '12,000 THB / year',
+        body: `
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-gold/15">
+              <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Individual Membership</p>
+              <p class="text-white/60 text-sm">12,000 Baht per year for individual membership, covering club administration and activities.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-green-500/15">
+              <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">50% Early Entry Discount</p>
+              <p class="text-white/60 text-sm">Members joining between <strong class="text-white/80">January 1 and June 30</strong> receive a 50% reduction on the annual fee for the remaining Rotary year.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-sky/15">
+              <svg class="w-4 h-4 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Automatic Renewal</p>
+              <p class="text-white/60 text-sm">Membership is automatically renewed for the next Rotary year (starting <strong class="text-white/80">July 1</strong>) unless cancelled before <strong class="text-white/80">May 31</strong>.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-azure/15">
+              <svg class="w-4 h-4 text-rotary-azure" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Rotary Year</p>
+              <p class="text-white/60 text-sm">The Rotary year runs from <strong class="text-white/80">July 1 to June 30</strong>.</p>
+            </div>
+          </div>
+        `
+      },
+      registrationFee: {
+        icon: '<svg class="w-7 h-7 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>',
+        iconBg: 'bg-rotary-gold/20',
+        title: 'One-Time Registration Fee',
+        subtitle: '18,000 THB per person',
+        body: `
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-gold/15">
+              <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">One-Time Payment</p>
+              <p class="text-white/60 text-sm">The registration fee of 18,000 Baht per person is a one-time admission fee paid upon joining the club.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-green-500/15">
+              <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Under 40? 50% Discount</p>
+              <p class="text-white/60 text-sm">Members <strong class="text-white/80">under 40 years of age</strong> are eligible for a 50% discount on the registration fee (9,000 THB).</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-cranberry/15">
+              <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Family / Spouse Discount</p>
+              <p class="text-white/60 text-sm">Family members and spouses also receive a <strong class="text-white/80">50% discount</strong> on the registration fee (9,000 THB).</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-sky/15">
+              <svg class="w-4 h-4 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Transferring Rotarians Exempt</p>
+              <p class="text-white/60 text-sm">Current Rotarians transferring from another club are <strong class="text-white/80">exempted</strong> from the registration fee entirely.</p>
+            </div>
+          </div>
+        `
+      },
+      meetings: {
+        icon: '<svg class="w-7 h-7 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>',
+        iconBg: 'bg-rotary-sky/20',
+        title: 'Club Meetings',
+        subtitle: 'Every other Wednesday',
+        body: `
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-sky/15">
+              <svg class="w-4 h-4 text-rotary-sky" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Bi-Weekly Schedule</p>
+              <p class="text-white/60 text-sm">Meetings are held <strong class="text-white/80">every other Wednesday</strong> from <strong class="text-white/80">6:30 PM to 8:00 PM</strong>.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-gold/15">
+              <svg class="w-4 h-4 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Grand Hyatt Erawan Bangkok</p>
+              <p class="text-white/60 text-sm">494 Ratchadamri Rd., Lumphini, Pathumwan, Bangkok 10330, Thailand.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-azure/15">
+              <svg class="w-4 h-4 text-rotary-azure" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">English &amp; German Speaking</p>
+              <p class="text-white/60 text-sm">The club connects German, Austrian, and Swiss (DACH) professionals. Meetings are conducted in English and German.</p>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon bg-rotary-cranberry/15">
+              <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-white">Before You Apply</p>
+              <p class="text-white/60 text-sm">Prospective members should <strong class="text-white/80">attend multiple club activities</strong> to become known to members and secure sponsorship from a current Rotarian before submitting an application.</p>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    function openModal(key) {
+      const data = modalData[key];
+      if (!data) return;
+      const overlay = document.getElementById('modalOverlay');
+      document.getElementById('modalIcon').className = 'w-16 h-16 rounded-2xl flex items-center justify-center mb-5 ' + data.iconBg;
+      document.getElementById('modalIcon').innerHTML = data.icon;
+      document.getElementById('modalTitle').textContent = data.title;
+      document.getElementById('modalSubtitle').textContent = data.subtitle;
+      document.getElementById('modalBody').innerHTML = data.body;
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Trigger animation
+      requestAnimationFrame(() => {
+        document.getElementById('modalContent').style.transform = 'scale(1)';
+        document.getElementById('modalContent').style.opacity = '1';
+      });
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modalOverlay');
+      const content = document.getElementById('modalContent');
+      content.style.transform = 'scale(0.95)';
+      content.style.opacity = '0';
+      setTimeout(() => {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+      }, 200);
+    }
+
+    // Close modal on overlay click
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
     });
   </script>
 </body>
