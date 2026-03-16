@@ -519,10 +519,16 @@
         <p class="text-white/80 text-lg max-w-2xl mx-auto mb-8">
           Apply to become a member of Rotary Club Bangkok DACH &mdash; connecting German, Austrian, and Swiss professionals in the heart of Thailand.
         </p>
-        <a href="#application" class="inline-flex items-center gap-2 bg-rotary-gold text-rotary-blue font-bold text-lg px-8 py-4 rounded-xl hover:bg-yellow-400 transition-all hover:scale-105 hover:shadow-lg">
-          Start Application
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-        </a>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+          <a href="#application" class="inline-flex items-center gap-2 bg-rotary-gold text-rotary-blue font-bold text-lg px-8 py-4 rounded-xl hover:bg-yellow-400 transition-all hover:scale-105 hover:shadow-lg">
+            Start Application
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </a>
+          <button onclick="previewNextSteps()" class="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white/90 font-semibold text-sm px-6 py-3 rounded-xl border border-white/20 hover:bg-white/20 transition-all hover:scale-105">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Preview Next Steps
+          </button>
+        </div>
       </div>
     </div>
     <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0a1628] to-transparent"></div>
@@ -1776,6 +1782,36 @@
         document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
       });
     });
+
+    // Preview next steps (skip to success screen)
+    let isPreview = false;
+    function previewNextSteps() {
+      isPreview = true;
+      document.getElementById('applicationForm').classList.add('hidden');
+      document.getElementById('progressBar').parentElement.parentElement.classList.add('hidden');
+      const success = document.getElementById('successScreen');
+      success.classList.remove('hidden');
+      // Add a "Back to Application" button at top if not already there
+      if (!document.getElementById('backToApp')) {
+        const backBtn = document.createElement('button');
+        backBtn.id = 'backToApp';
+        backBtn.onclick = backToApplication;
+        backBtn.className = 'btn-secondary font-bold text-base px-6 py-3 rounded-xl flex items-center gap-2 mb-4';
+        backBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg> Back to Application';
+        success.insertBefore(backBtn, success.firstChild);
+      }
+      document.getElementById('application').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function backToApplication() {
+      isPreview = false;
+      document.getElementById('successScreen').classList.add('hidden');
+      document.getElementById('applicationForm').classList.remove('hidden');
+      document.getElementById('progressBar').parentElement.parentElement.classList.remove('hidden');
+      const backBtn = document.getElementById('backToApp');
+      if (backBtn) backBtn.remove();
+      document.getElementById('application').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     // ==================== MODAL POPUPS ====================
     const modalData = {
