@@ -1,5 +1,7 @@
 body {
-  background: fixed linear-gradient(135deg, #0a1628 0%, #0d2137 20%, #112d4e 40%, #17458f 60%, #0067c8 80%, #00a2e0 100%);
+  background-color: #0a1628;
+  background-image: linear-gradient(135deg, #0a1628 0%, #0d2137 20%, #112d4e 40%, #17458f 60%, #0067c8 80%, #00a2e0 100%);
+  background-attachment: fixed;
   min-height: 100vh;
   position: relative;
 }
