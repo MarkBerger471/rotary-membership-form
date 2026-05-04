@@ -20,6 +20,15 @@
     },
     "api/admin/votes.js": {
       "maxDuration": 15
+    },
+    "api/cron/keepalive.js": {
+      "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/keepalive",
+      "schedule": "0 12 * * 1"
+    }
+  ]
 }
