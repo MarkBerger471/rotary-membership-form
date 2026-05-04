@@ -493,9 +493,14 @@
           <p class="text-xs text-glass-gold font-medium -mt-0.5">Bangkok DACH</p>
         </div>
       </div>
-      <div class="hidden sm:flex items-center gap-2 text-sm text-glass-secondary">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        <span>office@rotary-club-bangkok-dach.org</span>
+      <div class="flex items-center gap-4 text-sm text-glass-secondary">
+        <div class="hidden sm:flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span>office@rotary-club-bangkok-dach.org</span>
+        </div>
+        <a href="/admin" class="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors" title="Admin">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </a>
       </div>
     </div>
   </header>
@@ -527,6 +532,10 @@
             Start Application
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
           </a>
+          <button onclick="previewNextSteps()" class="inline-flex items-center gap-2 btn-secondary font-bold text-lg px-8 py-4 rounded-xl">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            Application Process
+          </button>
         </div>
       </div>
     </div>
@@ -540,16 +549,15 @@
         <h3 class="text-xl font-bold text-white mb-2">What is Rotary?</h3>
         <p class="text-glass-secondary mb-4">Watch this short video to learn about the Rotary experience before starting your application.</p>
       </div>
-      <div class="relative pb-[56.25%] bg-white/5">
-        <iframe
-          class="absolute inset-0 w-full h-full"
-          src="https://www.youtube.com/embed/PFryy_dY0tg?feature=oembed"
-          title="What is Rotary? - Rotary International"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allowfullscreen
-        ></iframe>
+      <div class="relative pb-[56.25%] bg-white/5 cursor-pointer group" id="ytContainer" onclick="playYouTube()">
+        <img
+          src="https://img.youtube.com/vi/PFryy_dY0tg/maxresdefault.jpg"
+          alt="What is Rotary?"
+          class="absolute inset-0 w-full h-full object-cover"
+        />
+        <div class="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+          <svg class="w-20 h-20 text-white opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all" viewBox="0 0 68 48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="red"/><path d="M45 24L27 14v20" fill="white"/></svg>
+        </div>
       </div>
     </div>
   </section>
@@ -620,6 +628,30 @@
       </button>
     </div>
   </div>
+
+  <!-- Prerequisites Box -->
+  <section class="max-w-4xl mx-auto px-4 sm:px-6 mb-10">
+    <div class="glass-card-strong rounded-2xl p-6 sm:p-8 border border-rotary-gold/30">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-10 h-10 rounded-full bg-rotary-gold/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-white mb-1">Before You Apply</h3>
+          <p class="text-glass-secondary text-sm">Please make sure you meet the following prerequisites before starting your application.</p>
+        </div>
+      </div>
+      <ol class="space-y-3 ml-14 list-decimal list-outside text-white/85 text-sm leading-relaxed marker:text-rotary-gold marker:font-bold">
+        <li>Be sure about becoming a member of Rotary &mdash; <a href="https://www.rotary.org/en/about-rotary" target="_blank" rel="noopener" class="text-rotary-sky underline hover:text-white transition-colors">What it means to be a Rotarian</a></li>
+        <li>Be known by the club members after attending a couple of times during club activities</li>
+        <li>Have a sponsor (one current club member) who suggests you as a new member to our club</li>
+      </ol>
+      <div class="mt-5 ml-14 p-4 rounded-xl bg-white/5 border border-white/10">
+        <p class="text-white/90 text-sm font-medium">Please have your personal information, current photo and CV available for upload.</p>
+        <p class="text-rotary-cranberry text-sm font-bold mt-1">DON'T start the application if you do not have it ready.</p>
+      </div>
+    </div>
+  </section>
 
   <!-- Application Form -->
   <section id="application" class="max-w-4xl mx-auto px-4 sm:px-6 pb-24">
@@ -1434,7 +1466,7 @@
           <p class="text-glass-secondary">Watch this video to understand what happens next.</p>
         </div>
         <div class="px-6 pb-6 sm:px-8 sm:pb-8">
-          <video class="w-full rounded-xl" controls preload="auto">
+          <video class="w-full rounded-xl" controls preload="metadata" poster="/application-process-poster.jpg">
             <source src="/application-process.mp4" type="video/mp4" />
             Your browser does not support video playback.
           </video>
@@ -1533,20 +1565,42 @@
         <div>
           <div class="flex items-center gap-3 mb-4">
             <img src="https://rotary-bkkdach.clubdesk.com/clubdesk/wwwfiles/logo.png" alt="Rotary Club Bangkok DACH" class="h-12 w-auto rounded-lg" />
-            <div>
-              <h4 class="font-bold text-white">Rotary Club</h4>
-              <p class="text-sm text-white/60">Bangkok DACH</p>
-            </div>
           </div>
           <p class="text-sm leading-relaxed">Connecting German, Austrian, and Swiss professionals in Bangkok through service, fellowship, and leadership.</p>
         </div>
         <div>
           <h4 class="font-bold text-white mb-4">Quick Links</h4>
           <ul class="space-y-2 text-sm">
-            <li><a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70">Club Website</a></li>
-            <li><a href="https://www.rotary.org/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70">Rotary International</a></li>
-            <li><a href="https://www.facebook.com/RCDACH/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70">Facebook</a></li>
-            <li><a href="https://www.linkedin.com/company/rotary-club-bangkok-dach" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70">LinkedIn</a></li>
+            <li>
+              <a href="https://www.rotary-club-bangkok-dach.org/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                Club Website
+              </a>
+            </li>
+            <li>
+              <a href="https://www.rotary.org/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                Rotary International
+              </a>
+            </li>
+            <li>
+              <a href="https://www.facebook.com/RCDACH/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                Facebook
+              </a>
+            </li>
+            <li>
+              <a href="https://www.instagram.com/rotarybkkdach/" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                Instagram
+              </a>
+            </li>
+            <li>
+              <a href="https://www.linkedin.com/company/rotary-club-bangkok-dach" target="_blank" class="hover:text-rotary-gold transition-colors text-white/70 inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                LinkedIn
+              </a>
+            </li>
           </ul>
         </div>
         <div>
@@ -1580,6 +1634,13 @@
     let skipSpouse = true;
 
     // Step navigation
+    function playYouTube() {
+      const container = document.getElementById('ytContainer');
+      container.innerHTML = '<iframe class="absolute inset-0 w-full h-full" src="https://www.youtube.com/embed/PFryy_dY0tg?autoplay=1" title="What is Rotary?" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+      container.onclick = null;
+      container.classList.remove('cursor-pointer', 'group');
+    }
+
     function showStep(step) {
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       const panel = document.querySelector(`.step-panel[data-step="${step}"]`);
@@ -1631,6 +1692,22 @@
       if (currentStep === 6) {
         const mtype = document.querySelector('input[name="membershipType"]:checked');
         if (!mtype) { valid = false; }
+      }
+      if (currentStep === 8) {
+        if (!profilePhotoFile) {
+          valid = false;
+          document.getElementById('photoDropZone').classList.add('border-rotary-cranberry');
+          document.getElementById('photoDropZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          document.getElementById('photoDropZone').classList.remove('border-rotary-cranberry');
+        }
+        if (!cvFile) {
+          valid = false;
+          document.getElementById('cvDropZone').classList.add('border-rotary-cranberry');
+          if (profilePhotoFile) document.getElementById('cvDropZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          document.getElementById('cvDropZone').classList.remove('border-rotary-cranberry');
+        }
       }
 
       if (!valid) return;
@@ -1708,6 +1785,7 @@
       if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); return; }
       if (!file.type.startsWith('image/')) { alert('Please upload an image file (JPG, PNG)'); return; }
       profilePhotoFile = file;
+      photoDropZone.classList.remove('border-rotary-cranberry');
       const url = URL.createObjectURL(file);
       photoPreview.innerHTML = `
         <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
@@ -1741,6 +1819,7 @@
     function setCvFile(file) {
       if (file.size > 4 * 1024 * 1024) { alert(file.name + ' exceeds 4 MB limit. Please compress your CV.'); return; }
       cvFile = file;
+      cvDropZone.classList.remove('border-rotary-cranberry');
       cvPreview.innerHTML = `
         <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
           <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -2109,10 +2188,13 @@
       const familyName = getFormValue('familyName');
 
       const formData = new FormData();
-      formData.append('to', 'markberger471@gmail.com');
-      formData.append('subject', 'New Membership Application: ' + firstName + ' ' + familyName);
       formData.append('applicantName', firstName + ' ' + familyName);
       formData.append('pdf', pdfBlob, 'application-' + firstName.toLowerCase() + '-' + familyName.toLowerCase() + '.pdf');
+
+      // Always attach CV separately so it arrives even if pdf-lib merge failed
+      if (cvFile) {
+        formData.append('cv', cvFile, cvFile.name);
+      }
 
       try {
         const res = await fetch('/api/send-application', {

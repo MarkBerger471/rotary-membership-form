@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting Planner · Admin | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rotary: { blue: '#17458f', gold: '#f7a81b', azure: '#0067c8', sky: '#00a2e0', cranberry: '#d41367' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: { 'fade-in': 'fadeIn 0.6s ease-out' },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body class="font-sans text-white antialiased">
+
+  <header class="sticky top-0 z-40 px-4 py-3" style="background: rgba(10, 22, 40, 0.6); backdrop-filter: blur(40px); border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/admin" class="text-white/50 hover:text-white/80 transition-colors" title="Back to Admin">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+        </a>
+        <div class="h-5 w-px bg-white/20"></div>
+        <h1 class="text-lg font-bold">Meeting Planner</h1>
+        <span class="text-xs bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-medium">Admin</span>
+      </div>
+      <button onclick="adminLogout()" class="text-white/40 hover:text-white/70 text-sm transition-colors flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
+    <div class="glass-card rounded-2xl p-12 text-center">
+      <div class="w-20 h-20 rounded-2xl bg-rotary-gold/20 flex items-center justify-center mx-auto mb-5">
+        <svg class="w-10 h-10 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-extrabold mb-2">Meeting Planner</h2>
+      <p class="text-white/60 max-w-lg mx-auto">Schedule club meetings, programs, and events. Detailed features coming soon.</p>
+    </div>
+  </main>
+
+  <script src="/admin/admin.js"></script>
+  <script>
+    requireAuthOrRedirect();
+  </script>
+</body>
+</html>

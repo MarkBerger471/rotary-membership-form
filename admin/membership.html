@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Membership · Admin | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rotary: {
+              blue: '#17458f',
+              gold: '#f7a81b',
+              azure: '#0067c8',
+              sky: '#00a2e0',
+              cranberry: '#d41367',
+              charcoal: '#54565a',
+              pewter: '#898a8d',
+              silver: '#d0cfcd',
+              cloud: '#d6d1ca',
+              powder: '#b9d9eb',
+            }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: {
+            'fade-in': 'fadeIn 0.6s ease-out',
+            'slide-up': 'slideUp 0.5s ease-out',
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body class="font-sans text-white antialiased">
+
+  <header class="sticky top-0 z-40 px-4 py-3" style="background: rgba(10, 22, 40, 0.6); backdrop-filter: blur(40px); border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/admin" class="text-white/50 hover:text-white/80 transition-colors" title="Back to Admin">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+        </a>
+        <div class="h-5 w-px bg-white/20"></div>
+        <h1 class="text-lg font-bold">Membership</h1>
+        <span class="text-xs bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-medium">Admin</span>
+      </div>
+      <button onclick="adminLogout()" class="text-white/40 hover:text-white/70 text-sm transition-colors flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <div class="max-w-6xl mx-auto px-4 mt-6">
+    <div class="flex gap-1 border-b border-white/10 mb-6">
+      <button class="tab-btn active px-5 py-3 text-sm font-semibold text-white/70 hover:text-white" onclick="switchTab(event, 'applications')">
+        <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Applications
+      </button>
+      <button class="tab-btn px-5 py-3 text-sm font-semibold text-white/70 hover:text-white" onclick="switchTab(event, 'recipients')">
+        <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Email Recipients
+      </button>
+      <button class="tab-btn px-5 py-3 text-sm font-semibold text-white/70 hover:text-white" onclick="switchTab(event, 'template')">
+        <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Email Template
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== APPLICATIONS TAB ==================== -->
+  <div id="tab-applications" class="tab-panel active max-w-6xl mx-auto px-4 pb-12">
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <h2 class="font-bold text-lg">Application Log</h2>
+        <button onclick="loadApplications()" class="btn-secondary px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="applicationsLoading" class="px-6 py-12 text-center text-white/40">
+        <svg class="w-6 h-6 animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        Loading applications...
+      </div>
+      <div id="applicationsEmpty" class="hidden px-6 py-12 text-center text-white/40">
+        <svg class="w-12 h-12 mx-auto mb-3 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <p class="font-medium">No applications yet</p>
+        <p class="text-sm mt-1">Applications will appear here once submitted through the form.</p>
+      </div>
+      <div id="applicationsTable" class="hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-white/50 text-xs uppercase tracking-wider">
+                <th class="px-6 py-3 text-left font-semibold">Applicant</th>
+                <th class="px-6 py-3 text-left font-semibold">Date</th>
+                <th class="px-6 py-3 text-left font-semibold">Votes</th>
+                <th class="px-6 py-3 text-left font-semibold">Files</th>
+                <th class="px-6 py-3 text-left font-semibold w-10"></th>
+              </tr>
+            </thead>
+            <tbody id="applicationsBody" class="divide-y divide-white/5">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RECIPIENTS TAB ==================== -->
+  <div id="tab-recipients" class="tab-panel max-w-6xl mx-auto px-4 pb-12">
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10">
+        <h2 class="font-bold text-lg">Email Recipients</h2>
+        <p class="text-white/50 text-sm mt-1">Manage who receives application emails. Toggle recipients on/off without removing them.</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div id="recipientsList" class="space-y-3">
+          <!-- Populated by JS -->
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-4">
+          <h3 class="text-sm font-semibold text-white/60 mb-3">Add New Recipient</h3>
+          <div class="flex gap-3 flex-wrap">
+            <input type="text" id="newRecipientName" class="glass-input px-4 py-2.5 rounded-xl text-sm flex-1 min-w-[150px]" placeholder="Name" />
+            <input type="email" id="newRecipientEmail" class="glass-input px-4 py-2.5 rounded-xl text-sm flex-1 min-w-[220px]" placeholder="Email address" />
+            <button onclick="addRecipient()" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5 whitespace-nowrap">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TEMPLATE TAB ==================== -->
+  <div id="tab-template" class="tab-panel max-w-6xl mx-auto px-4 pb-12">
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10">
+        <h2 class="font-bold text-lg">Email Template</h2>
+        <p class="text-white/50 text-sm mt-1">Customize the subject and body of application notification emails. Use <code class="bg-white/10 px-1.5 py-0.5 rounded text-rotary-gold text-xs">{{name}}</code> for the applicant's name and <code class="bg-white/10 px-1.5 py-0.5 rounded text-rotary-gold text-xs">{{cv_note}}</code> for the CV attachment note.</p>
+      </div>
+      <div class="p-6 space-y-5">
+        <div>
+          <label class="block text-sm font-semibold text-white/70 mb-2">Email Subject</label>
+          <input type="text" id="emailSubject" class="glass-input w-full px-4 py-3 rounded-xl text-sm" placeholder="New Membership Application: {{name}}" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-white/70 mb-2">Email Body (HTML)</label>
+          <textarea id="emailBody" class="glass-input w-full px-4 py-3 rounded-xl text-sm font-mono leading-relaxed" rows="16" placeholder="Enter email HTML template..."></textarea>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button onclick="saveTemplate()" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Save Template
+          </button>
+          <button onclick="resetTemplate()" class="btn-secondary px-5 py-2.5 rounded-xl text-sm font-medium">Reset to Default</button>
+          <button onclick="previewTemplate()" class="btn-secondary px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Preview
+          </button>
+        </div>
+        <div id="templatePreview" class="hidden mt-4 rounded-xl overflow-hidden border border-white/10">
+          <div class="bg-white/5 px-4 py-2 border-b border-white/10 flex items-center justify-between">
+            <span class="text-xs font-semibold text-white/50">Email Preview</span>
+            <button onclick="document.getElementById('templatePreview').classList.add('hidden')" class="text-white/30 hover:text-white/60">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <iframe id="previewFrame" class="w-full bg-white" style="height: 400px; border: none;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+  <script>
+    if (!requireAuthOrRedirect()) { /* redirecting */ }
+
+    // ==================== STATE ====================
+    let settings = null;
+    let applications = [];
+    let allVotes = {};
+
+    const DEFAULT_EMAIL_BODY = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #17458f; padding: 20px; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0; font-size: 20px;">New Membership Application</h1>
+    <p style="color: #f7a81b; margin: 5px 0 0;">Rotary Club Bangkok DACH</p>
+  </div>
+  <div style="background: #f8f9fa; padding: 20px; border: 1px solid #e9ecef;">
+    <p>Dear Membership Committee,</p>
+    <p>A new membership application has been submitted by <strong>{{name}}</strong>.</p>
+    <p>Please find the application summary PDF attached{{cv_note}}.</p>
+    <p style="margin-top: 20px; color: #666; font-size: 12px;">
+      This email was sent automatically from the online membership application form.
+    </p>
+  </div>
+  <div style="background: #f7a81b; padding: 8px; text-align: center; border-radius: 0 0 8px 8px;">
+    <span style="color: #17458f; font-size: 11px; font-weight: bold;">Rotary Club Bangkok DACH</span>
+  </div>
+</div>`;
+
+    // ==================== TABS ====================
+    function switchTab(evt, name) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      evt.currentTarget.classList.add('active');
+    }
+
+    // ==================== APPLICATIONS ====================
+    async function loadApplications() {
+      document.getElementById('applicationsLoading').classList.remove('hidden');
+      document.getElementById('applicationsTable').classList.add('hidden');
+      document.getElementById('applicationsEmpty').classList.add('hidden');
+      try {
+        const [appData, voteData] = await Promise.all([
+          apiFetch('/api/admin/applications'),
+          apiFetch('/api/admin/votes'),
+        ]);
+        applications = appData.applications || [];
+        allVotes = voteData.votes || {};
+        renderApplications();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') {
+          showToast('Failed to load applications', 'error');
+        }
+      }
+      document.getElementById('applicationsLoading').classList.add('hidden');
+    }
+
+    function renderApplications() {
+      if (applications.length === 0) {
+        document.getElementById('applicationsEmpty').classList.remove('hidden');
+        document.getElementById('applicationsTable').classList.add('hidden');
+        return;
+      }
+      document.getElementById('applicationsEmpty').classList.add('hidden');
+      document.getElementById('applicationsTable').classList.remove('hidden');
+
+      const tbody = document.getElementById('applicationsBody');
+      tbody.innerHTML = applications.map(app => {
+        const date = new Date(app.date);
+        const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+        let filesHtml = '';
+        if (app.hasPdf) {
+          filesHtml += `<button type="button" onclick="openFile('${app.id}','pdf')" class="inline-flex items-center gap-1 text-rotary-sky hover:text-rotary-gold transition-colors mr-3">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            PDF</button>`;
+        }
+        if (app.hasCv) {
+          filesHtml += `<button type="button" onclick="openFile('${app.id}','cv')" class="inline-flex items-center gap-1 text-rotary-sky hover:text-rotary-gold transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            CV</button>`;
+        }
+        if (!filesHtml) filesHtml = '<span class="text-white/30">N/A</span>';
+
+        const votes = allVotes[app.id] || {};
+        const recipients = app.emailedTo || [];
+        const approved = [];
+        const rejected = [];
+        const pending = [];
+        recipients.forEach(email => {
+          const v = votes[email];
+          if (v && v.vote === 'approved') approved.push({ email, ...v });
+          else if (v && v.vote === 'rejected') rejected.push({ email, ...v });
+          else pending.push({ email });
+        });
+        Object.keys(votes).forEach(email => {
+          if (!recipients.includes(email)) {
+            const v = votes[email];
+            if (v.vote === 'approved') approved.push({ email, ...v });
+            else if (v.vote === 'rejected') rejected.push({ email, ...v });
+          }
+        });
+
+        const total = approved.length + rejected.length + pending.length;
+        let voteSummaryHtml = '';
+        if (total === 0) {
+          voteSummaryHtml = '<span class="text-white/30 text-xs">No recipients</span>';
+        } else {
+          const pills = [];
+          if (approved.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">${approved.length} approved</span>`);
+          if (rejected.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">${rejected.length} rejected</span>`);
+          if (pending.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">${pending.length} pending</span>`);
+          voteSummaryHtml = `<div class="flex flex-wrap gap-1.5 cursor-pointer" onclick="toggleVoteDetail('${app.id}')">${pills.join('')}</div>`;
+        }
+
+        let voteDetailHtml = '<div id="votes-' + app.id + '" class="hidden">';
+        const allVoters = [...approved.map(v => ({...v, status: 'approved'})), ...rejected.map(v => ({...v, status: 'rejected'})), ...pending.map(v => ({...v, status: 'pending'}))];
+        allVoters.forEach(v => {
+          const name = v.voterName || v.email;
+          let icon, color, label;
+          if (v.status === 'approved') {
+            icon = '<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+            color = 'text-green-400';
+            label = 'Approved';
+          } else if (v.status === 'rejected') {
+            icon = '<svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+            color = 'text-red-400';
+            label = 'Rejected';
+          } else {
+            icon = '<svg class="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+            color = 'text-white/40';
+            label = 'Pending';
+          }
+          const dateInfo = v.date ? ' &middot; ' + new Date(v.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+          const commentHtml = v.comment ? `<div class="text-xs text-red-300/70 mt-1 ml-5 italic">"${escapeHtml(v.comment)}"</div>` : '';
+          voteDetailHtml += `<div class="py-1.5">
+            <div class="flex items-center gap-1.5 text-xs">
+              ${icon}
+              <span class="${color} font-medium">${escapeHtml(name)}</span>
+              <span class="text-white/30">${label}${dateInfo}</span>
+            </div>
+            ${commentHtml}
+          </div>`;
+        });
+        voteDetailHtml += '</div>';
+
+        return `<tr class="hover:bg-white/5 transition-colors">
+          <td class="px-6 py-4">
+            <span class="font-semibold text-white">${escapeHtml(app.name)}</span>
+          </td>
+          <td class="px-6 py-4 text-white/60">
+            <div>${dateStr}</div>
+            <div class="text-xs text-white/40">${timeStr}</div>
+          </td>
+          <td class="px-6 py-4">
+            ${voteSummaryHtml}
+            ${voteDetailHtml}
+          </td>
+          <td class="px-6 py-4">${filesHtml}</td>
+          <td class="px-6 py-4">
+            <button onclick="deleteApplication('${app.id}')" class="text-white/20 hover:text-red-400 transition-colors p-1" title="Delete application">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function toggleVoteDetail(appId) {
+      const el = document.getElementById('votes-' + appId);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    async function deleteApplication(appId) {
+      const app = applications.find(a => a.id === appId);
+      if (!confirm('Delete application from ' + (app ? app.name : 'unknown') + '? This cannot be undone.')) return;
+      try {
+        await apiFetch('/api/admin/applications?id=' + encodeURIComponent(appId), { method: 'DELETE' });
+        showToast('Application deleted', 'success');
+        loadApplications();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Failed to delete application', 'error');
+      }
+    }
+
+    // ==================== SETTINGS ====================
+    async function loadSettings() {
+      try {
+        settings = await apiFetch('/api/admin/settings');
+        renderRecipients();
+        renderTemplate();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') {
+          showToast('Failed to load settings', 'error');
+        }
+      }
+    }
+
+    async function saveSettings() {
+      try {
+        await apiFetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings),
+        });
+        showToast('Settings saved', 'success');
+      } catch (err) {
+        showToast('Failed to save settings', 'error');
+      }
+    }
+
+    // ==================== RECIPIENTS ====================
+    function renderRecipients() {
+      const container = document.getElementById('recipientsList');
+      if (!settings || !settings.recipients || settings.recipients.length === 0) {
+        container.innerHTML = '<p class="text-white/40 text-sm py-4 text-center">No recipients configured.</p>';
+        return;
+      }
+      const sorted = settings.recipients
+        .map((r, i) => ({ ...r, _idx: i }))
+        .sort((a, b) => {
+          const lastA = (a.name || '').trim().split(/\s+/).pop().toLowerCase();
+          const lastB = (b.name || '').trim().split(/\s+/).pop().toLowerCase();
+          return lastA.localeCompare(lastB);
+        });
+      container.innerHTML = sorted.map(r => { const i = r._idx; return `
+        <div class="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
+          <div class="toggle-track ${r.active ? 'on' : ''}" onclick="toggleRecipient(${i})">
+            <div class="toggle-thumb"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm ${r.active ? 'text-white' : 'text-white/40'}">${escapeHtml(r.name || 'Unnamed')}</div>
+            <div class="text-xs ${r.active ? 'text-white/60' : 'text-white/30'} truncate">${escapeHtml(r.email)}</div>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium ${r.active ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}">
+            ${r.active ? 'Active' : 'Inactive'}
+          </span>
+          <button onclick="removeRecipient(${i})" class="text-white/20 hover:text-red-400 transition-colors p-1" title="Remove">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      `}).join('');
+    }
+
+    function toggleRecipient(index) {
+      settings.recipients[index].active = !settings.recipients[index].active;
+      renderRecipients();
+      saveSettings();
+    }
+
+    function removeRecipient(index) {
+      const name = settings.recipients[index].name || settings.recipients[index].email;
+      if (!confirm('Remove ' + name + ' from recipients?')) return;
+      settings.recipients.splice(index, 1);
+      renderRecipients();
+      saveSettings();
+    }
+
+    function addRecipient() {
+      const nameInput = document.getElementById('newRecipientName');
+      const emailInput = document.getElementById('newRecipientEmail');
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      if (!email) {
+        showToast('Please enter an email address', 'error');
+        emailInput.focus();
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Please enter a valid email address', 'error');
+        emailInput.focus();
+        return;
+      }
+      if (settings.recipients.some(r => r.email.toLowerCase() === email.toLowerCase())) {
+        showToast('This email is already in the list', 'error');
+        return;
+      }
+      settings.recipients.push({ email, name: name || email.split('@')[0], active: true });
+      renderRecipients();
+      saveSettings();
+      nameInput.value = '';
+      emailInput.value = '';
+      showToast('Recipient added', 'success');
+    }
+
+    // ==================== EMAIL TEMPLATE ====================
+    function renderTemplate() {
+      if (!settings) return;
+      document.getElementById('emailSubject').value = settings.emailSubject || '';
+      document.getElementById('emailBody').value = settings.emailBody || '';
+    }
+
+    function saveTemplate() {
+      settings.emailSubject = document.getElementById('emailSubject').value;
+      settings.emailBody = document.getElementById('emailBody').value;
+      saveSettings();
+    }
+
+    function resetTemplate() {
+      if (!confirm('Reset email template to default? This cannot be undone.')) return;
+      settings.emailSubject = 'New Membership Application: {{name}}';
+      settings.emailBody = DEFAULT_EMAIL_BODY;
+      renderTemplate();
+      saveSettings();
+      showToast('Template reset to default', 'success');
+    }
+
+    function previewTemplate() {
+      const html = document.getElementById('emailBody').value
+        .replace(/\{\{name\}\}/g, 'John Doe')
+        .replace(/\{\{cv_note\}\}/g, ", along with the applicant's CV");
+      const preview = document.getElementById('templatePreview');
+      const frame = document.getElementById('previewFrame');
+      preview.classList.remove('hidden');
+      frame.srcdoc = html;
+    }
+
+    // ==================== INIT ====================
+    if (adminPassword) {
+      loadSettings();
+      loadApplications();
+    }
+  </script>
+</body>
+</html>

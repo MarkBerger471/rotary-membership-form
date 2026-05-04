@@ -1,8 +1,25 @@
 {
   "regions": ["sin1"],
+  "cleanUrls": true,
+  "trailingSlash": false,
   "functions": {
     "api/send-application.js": {
       "maxDuration": 30
+    },
+    "api/admin/applications.js": {
+      "maxDuration": 15
+    },
+    "api/admin/settings.js": {
+      "maxDuration": 15
+    },
+    "api/admin/download.js": {
+      "maxDuration": 15
+    },
+    "api/admin/vote.js": {
+      "maxDuration": 15
+    },
+    "api/admin/votes.js": {
+      "maxDuration": 15
     }
   }
 }
