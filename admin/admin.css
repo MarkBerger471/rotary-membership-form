@@ -135,3 +135,16 @@ body > * { position: relative; z-index: 1; }
   0% { opacity: 0; transform: translateY(30px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+.glass-header {
+  background: rgba(10, 22, 40, 0.6);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.text-glass-primary { color: #fff; }
+.text-glass-secondary { color: rgba(255, 255, 255, 0.7); }
+.text-glass-muted { color: rgba(255, 255, 255, 0.45); }
+.text-glass-gold { color: #f7a81b; }
+.text-glass-accent { color: #00a2e0; }
