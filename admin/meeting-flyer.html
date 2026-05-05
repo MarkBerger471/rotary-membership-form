@@ -25,13 +25,16 @@
     /* ==================== FLYER ==================== */
     .flyer {
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
       background: #fdf6e3;
       color: #17458f;
       font-family: 'Inter', system-ui, sans-serif;
-      padding: 12mm;
+      padding: 9mm;
       position: relative;
       box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     .flyer::before {
       content: '';
@@ -43,60 +46,61 @@
     }
     .flyer-title {
       text-align: center;
-      font-size: 28pt;
+      font-size: 24pt;
       font-weight: 800;
       color: #17458f;
-      margin: 6mm 0 8mm;
+      margin: 2mm 0 5mm;
     }
-    .flyer-fields { font-size: 13pt; line-height: 1.6; }
-    .flyer-fields .row { display: grid; grid-template-columns: 28mm 1fr; gap: 4mm; margin-bottom: 1.5mm; }
+    .flyer-fields { font-size: 11.5pt; line-height: 1.45; }
+    .flyer-fields .row { display: grid; grid-template-columns: 24mm 1fr; gap: 3mm; margin-bottom: 1mm; }
     .flyer-fields .label { font-weight: 400; color: #17458f; }
     .flyer-fields .value { color: #17458f; }
     .flyer-fields .speaker-name { font-weight: 700; }
-    .flyer-fields .speaker-title { font-size: 11pt; font-weight: 400; }
+    .flyer-fields .speaker-title { font-size: 10pt; font-weight: 400; }
     .flyer-fields .topic { font-style: italic; }
-    .flyer-body { margin-top: 5mm; font-size: 11pt; line-height: 1.5; color: #17458f; }
+    .flyer-body { margin-top: 4mm; font-size: 10pt; line-height: 1.4; color: #17458f; flex: 1 1 auto; min-height: 0; }
     .flyer-photo {
       float: left;
-      width: 50mm;
-      height: 60mm;
+      width: 42mm;
+      height: 52mm;
       object-fit: cover;
-      margin: 0 5mm 3mm 0;
+      margin: 0 4mm 2mm 0;
       border-radius: 1.5mm;
       background: #e6dfd0;
     }
     .flyer-photo-placeholder {
       float: left;
-      width: 50mm;
-      height: 60mm;
-      margin: 0 5mm 3mm 0;
+      width: 42mm;
+      height: 52mm;
+      margin: 0 4mm 2mm 0;
       border-radius: 1.5mm;
       background: #e6dfd0;
       display: flex; align-items: center; justify-content: center;
       color: #b9a87a; font-size: 9pt;
     }
-    .flyer-description p { margin: 0 0 3mm 0; text-align: justify; }
+    .flyer-description p { margin: 0 0 2mm 0; text-align: justify; }
     .flyer-clear { clear: both; }
-    .flyer-divider { border: none; border-top: 0.5px solid #b9a87a; margin: 5mm 0; }
-    .flyer-footer { font-size: 9.5pt; line-height: 1.5; color: #17458f; text-align: center; }
-    .flyer-footer .quote { font-weight: 600; margin-bottom: 2mm; }
-    .flyer-footer p { margin: 0 0 1.5mm 0; }
+    .flyer-divider { border: none; border-top: 0.5px solid #b9a87a; margin: 3mm 0; flex-shrink: 0; }
+    .flyer-footer { font-size: 8.5pt; line-height: 1.4; color: #17458f; text-align: center; flex-shrink: 0; }
+    .flyer-footer .quote { font-weight: 600; margin-bottom: 1.5mm; }
+    .flyer-footer p { margin: 0 0 1mm 0; }
     .flyer-logos {
       display: flex; align-items: flex-end; justify-content: space-between;
-      margin-top: 6mm;
+      margin-top: 3mm;
+      flex-shrink: 0;
     }
     .flyer-unite {
-      font-weight: 800; font-size: 16pt; line-height: 1; color: #17458f;
+      font-weight: 800; font-size: 13pt; line-height: 1; color: #17458f;
       text-transform: uppercase; letter-spacing: 0.02em;
     }
     .flyer-unite span { display: block; }
     .flyer-unite span:nth-child(3) { color: #f7a81b; }
     .flyer-rotary {
-      display: flex; align-items: center; gap: 3mm;
-      font-weight: 700; font-size: 18pt; color: #17458f;
+      display: flex; align-items: center; gap: 2.5mm;
+      font-weight: 700; font-size: 14pt; color: #17458f;
     }
-    .flyer-rotary img { height: 14mm; width: auto; }
-    .flyer-rotary .label-line { font-size: 11pt; font-weight: 400; }
+    .flyer-rotary img { height: 11mm; width: auto; }
+    .flyer-rotary .label-line { font-size: 10pt; font-weight: 400; }
 
     /* Live preview scaling on screen */
     .flyer-preview-wrap {
@@ -241,8 +245,8 @@
             <span class="label-line">Rotary</span>
             <img src="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" alt="Rotary" />
             <span style="display:flex; flex-direction: column; line-height: 1.05;">
-              <span style="font-size: 14pt;">Club of</span>
-              <span style="font-size: 14pt;">Bangkok DACH</span>
+              <span style="font-size: 11pt;">Club of</span>
+              <span style="font-size: 11pt;">Bangkok DACH</span>
             </span>
           </div>
         </div>
