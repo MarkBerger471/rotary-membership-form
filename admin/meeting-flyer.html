@@ -119,6 +119,10 @@
       .flyer-preview-wrap { padding: 0 !important; background: transparent !important; }
       .flyer { box-shadow: none !important; width: 210mm !important; min-height: 297mm !important; }
     }
+
+    /* Embedded (modal/iframe) mode — hide the page chrome */
+    body.embedded > header { display: none !important; }
+    body.embedded .print-container { padding-top: 1rem; }
   </style>
 </head>
 <body class="font-sans text-white antialiased">
@@ -252,6 +256,7 @@
 
     const params = new URLSearchParams(location.search);
     const dateStr = params.get('d');
+    if (params.get('embedded') === '1') document.body.classList.add('embedded');
 
     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       document.body.innerHTML = '<div style="padding:40px;text-align:center;">Missing or invalid date. <a href="/admin/meeting-planner" style="color:#f7a81b">Back to planner</a>.</div>';
@@ -317,22 +322,30 @@
         : '<p style="color:#b9a87a; font-style: italic;">Description will appear here.</p>';
     }
 
+    async function saveNow() {
+      try {
+        const next = { ...allMeetings, [dateStr]: { ...entry, active: true } };
+        await apiFetch('/api/admin/meetings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meetings: next }),
+        });
+        allMeetings = next;
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
+      }
+    }
+
     function scheduleSave() {
       clearTimeout(pendingSave);
-      pendingSave = setTimeout(async () => {
-        try {
-          const next = { ...allMeetings, [dateStr]: { ...entry, active: true } };
-          await apiFetch('/api/admin/meetings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ meetings: next }),
-          });
-          allMeetings = next;
-        } catch (err) {
-          if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
-        }
-      }, 400);
+      pendingSave = setTimeout(saveNow, 400);
     }
+
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'flush') {
+        if (pendingSave) { clearTimeout(pendingSave); pendingSave = null; saveNow(); }
+      }
+    });
 
     function bindField(id, key) {
       document.getElementById(id).addEventListener('input', (e) => {

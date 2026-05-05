@@ -81,6 +81,31 @@
     </div>
   </main>
 
+  <!-- ==================== FLYER MODAL ==================== -->
+  <div id="flyerModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeFlyer()"></div>
+    <div class="relative h-full w-full p-2 sm:p-4 flex items-center justify-center">
+      <div class="relative w-full h-full max-w-7xl max-h-[96vh] bg-[#0a1628] rounded-2xl overflow-hidden shadow-2xl flex flex-col" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/10 flex-shrink-0">
+          <div class="flex items-center gap-3 min-w-0">
+            <h3 class="text-sm font-bold text-white truncate">Meeting Flyer</h3>
+            <span id="flyerDateBadge" class="text-xs bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-medium whitespace-nowrap"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="printFlyer()" class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              Print / PDF
+            </button>
+            <button onclick="closeFlyer()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white" title="Close (Esc)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+        <iframe id="flyerFrame" class="flex-1 w-full bg-[#0a1628]" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+
   <script src="/admin/admin.js"></script>
   <script>
     requireAuthOrRedirect();
@@ -160,9 +185,9 @@
                 placeholder="Presenter…"
                 value="${escapeHtml(entry.presenter)}"
                 onchange="updatePresenter('${ds}', this.value)" />
-              <a href="/admin/meeting-flyer?d=${ds}" target="_blank" class="block border-t border-rotary-gold/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-rotary-gold/80 hover:text-rotary-gold hover:bg-rotary-gold/10 transition-colors text-center">
+              <button type="button" onclick="openFlyer('${ds}')" class="block w-full border-t border-rotary-gold/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-rotary-gold/80 hover:text-rotary-gold hover:bg-rotary-gold/10 transition-colors text-center">
                 Flyer →
-              </a>`
+              </button>`
             : '';
           return `<div class="relative rounded-xl border transition-all overflow-hidden ${cardClasses}">
             ${draftDot}
@@ -240,6 +265,49 @@
     }
 
     if (adminPassword) loadMeetings();
+
+    // ==================== FLYER MODAL ====================
+    function ordinal(n) {
+      const v = n % 100;
+      if (v >= 11 && v <= 13) return 'th';
+      switch (n % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th'; }
+    }
+    function formatFlyerDate(ds) {
+      const [y, m, d] = ds.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      const dayName = dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const monthName = dt.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+      return `${dayName}, ${String(d).padStart(2,'0')}${ordinal(d)} ${monthName} ${y}`;
+    }
+
+    function openFlyer(ds) {
+      document.getElementById('flyerDateBadge').textContent = formatFlyerDate(ds);
+      document.getElementById('flyerFrame').src = `/admin/meeting-flyer?d=${encodeURIComponent(ds)}&embedded=1`;
+      document.getElementById('flyerModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeFlyer() {
+      const frame = document.getElementById('flyerFrame');
+      try { frame.contentWindow && frame.contentWindow.postMessage({ type: 'flush' }, '*'); } catch {}
+      setTimeout(() => {
+        document.getElementById('flyerModal').classList.add('hidden');
+        frame.src = 'about:blank';
+        document.body.style.overflow = '';
+        loadMeetings();
+      }, 80);
+    }
+
+    function printFlyer() {
+      const frame = document.getElementById('flyerFrame');
+      try { frame.contentWindow && frame.contentWindow.print(); } catch (e) { showToast('Print failed', 'error'); }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !document.getElementById('flyerModal').classList.contains('hidden')) {
+        closeFlyer();
+      }
+    });
   </script>
 </body>
 </html>
