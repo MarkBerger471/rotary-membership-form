@@ -137,28 +137,27 @@
           const day = parseInt(ds.slice(8, 10), 10);
           const isSel = ds in meetings;
           const topic = meetings[ds] || '';
-          const checkbox = isSel
-            ? `<svg class="w-4 h-4" fill="none" stroke="#0a1628" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
+          const cardClasses = isSel
+            ? 'bg-rotary-gold/20 border-rotary-gold/50'
+            : 'bg-white/5 border-white/10 hover:bg-white/10';
+          const topicHtml = isSel
+            ? `<input type="text"
+                class="w-full bg-transparent border-0 border-t border-rotary-gold/20 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
+                placeholder="Topic…"
+                value="${escapeHtml(topic)}"
+                onchange="updateTopic('${ds}', this.value)" />`
             : '';
-          const checkboxClasses = isSel
-            ? 'bg-rotary-gold border-rotary-gold'
-            : 'bg-transparent border-white/30 hover:border-white/60';
-          const dateClasses = isSel ? 'text-white' : 'text-white/40';
-          const topicInputHtml = isSel
-            ? `<input type="text" class="glass-input flex-1 min-w-0 px-3 py-1.5 rounded-lg text-sm" placeholder="Presentation topic…" value="${escapeHtml(topic)}" onchange="updateTopic('${ds}', this.value)" />`
-            : `<span class="flex-1 text-white/30 text-sm italic">No meeting</span>`;
-          return `<div class="flex items-center gap-3 py-1.5">
-            <button type="button" onclick="toggleMeeting('${ds}')"
-              class="w-6 h-6 rounded-md border-2 ${checkboxClasses} flex items-center justify-center flex-shrink-0 transition-all">
-              ${checkbox}
+          return `<div class="rounded-xl border transition-all overflow-hidden ${cardClasses}">
+            <button type="button" onclick="toggleMeeting('${ds}')" class="w-full text-left px-3 py-2.5">
+              <div class="text-[10px] font-bold uppercase tracking-wider ${isSel ? 'text-rotary-gold' : 'text-white/40'}">Wed</div>
+              <div class="text-2xl font-extrabold ${isSel ? 'text-white' : 'text-white/50'} leading-tight">${day}</div>
             </button>
-            <div class="w-28 sm:w-32 flex-shrink-0 font-semibold ${dateClasses} text-sm">Wed ${SHORT_MONTHS[m]} ${day}</div>
-            ${topicInputHtml}
+            ${topicHtml}
           </div>`;
         }).join('');
         return `<div>
-          <h3 class="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider">${MONTH_NAMES[m]}</h3>
-          <div class="space-y-0.5">${items}</div>
+          <h3 class="text-xs font-bold text-white/60 mb-3 uppercase tracking-wider">${MONTH_NAMES[m]}</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 items-start">${items}</div>
         </div>`;
       }).join('');
 
