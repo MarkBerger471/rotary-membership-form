@@ -137,9 +137,18 @@
           const day = parseInt(ds.slice(8, 10), 10);
           const entry = meetings[ds] || { active: false, topic: '', presenter: '' };
           const isSel = !!entry.active;
+          const hasDraft = !isSel && (entry.topic || entry.presenter);
           const cardClasses = isSel
             ? 'bg-rotary-gold/20 border-rotary-gold/50'
-            : 'bg-white/5 border-white/10 hover:bg-white/10';
+            : hasDraft
+              ? 'bg-white/5 border-rotary-gold/30 border-dashed hover:bg-white/10'
+              : 'bg-white/5 border-white/10 hover:bg-white/10';
+          const draftPreview = hasDraft
+            ? `<div class="px-3 pb-2 text-[10px] text-rotary-gold/70 italic truncate" title="${escapeHtml(entry.topic)}${entry.presenter ? ' — ' + escapeHtml(entry.presenter) : ''}">${escapeHtml(entry.topic || entry.presenter)}</div>`
+            : '';
+          const draftDot = hasDraft
+            ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rotary-gold ring-2 ring-rotary-gold/30" title="Draft saved"></span>`
+            : '';
           const editorHtml = isSel
             ? `<input type="text"
                 class="w-full bg-transparent border-0 border-t border-rotary-gold/20 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
@@ -152,11 +161,13 @@
                 value="${escapeHtml(entry.presenter)}"
                 onchange="updatePresenter('${ds}', this.value)" />`
             : '';
-          return `<div class="rounded-xl border transition-all overflow-hidden ${cardClasses}">
+          return `<div class="relative rounded-xl border transition-all overflow-hidden ${cardClasses}">
+            ${draftDot}
             <button type="button" onclick="toggleMeeting('${ds}')" class="w-full text-left px-3 py-2.5">
               <div class="text-[10px] font-bold uppercase tracking-wider ${isSel ? 'text-rotary-gold' : 'text-white/40'}">Wed</div>
               <div class="text-2xl font-extrabold ${isSel ? 'text-white' : 'text-white/50'} leading-tight">${day}</div>
             </button>
+            ${draftPreview}
             ${editorHtml}
           </div>`;
         }).join('');
