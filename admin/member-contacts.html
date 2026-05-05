@@ -141,15 +141,22 @@
           ? new Date(c.joinDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
           : '';
         const addressHtml = c.address ? escapeHtml(c.address).replace(/\r?\n/g, '<br>') : '';
+        const isBoard = !!c.isBoardMember;
+        const fn = c.boardFunction || '';
+        const boardPill = isBoard && fn
+          ? `<span class="text-[10px] uppercase tracking-wider bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-bold whitespace-nowrap">${escapeHtml(fn)}</span>`
+          : '';
+        const boardCardClass = isBoard ? 'border-rotary-gold/40' : 'border-white/10';
 
         return `
-          <div class="rounded-xl bg-white/5 border border-white/10 p-4 hover:border-white/25 transition-colors">
+          <div class="rounded-xl bg-white/5 border ${boardCardClass} p-4 hover:border-white/25 transition-colors">
             <div class="flex items-center gap-3 mb-3">
               <div class="w-10 h-10 rounded-full bg-rotary-gold/20 text-rotary-gold flex items-center justify-center text-sm font-bold flex-shrink-0">${escapeHtml(initials)}</div>
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <div class="font-semibold truncate">${name || '<span class="text-white/40">Unnamed</span>'}</div>
                 ${joinHtml ? `<div class="text-xs text-white/40">Member since ${joinHtml}</div>` : ''}
               </div>
+              ${boardPill}
             </div>
             <div class="space-y-1.5 text-sm text-white/70">
               <div class="flex items-start gap-2">
@@ -165,9 +172,53 @@
                 <div class="min-w-0 text-white/60 text-xs leading-relaxed">${addressHtml}${cityHtml ? `<br>${cityHtml}` : ''}</div>
               </div>` : ''}
             </div>
+            <div class="mt-3 pt-3 border-t border-white/10 space-y-2">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <div class="toggle-track ${isBoard ? 'on' : ''}" onclick="toggleBoard(${c.memberNo})">
+                  <div class="toggle-thumb"></div>
+                </div>
+                <span class="text-xs font-medium ${isBoard ? 'text-white' : 'text-white/50'}">Board member</span>
+              </label>
+              ${isBoard ? `<input type="text" class="glass-input w-full px-3 py-1.5 rounded-lg text-xs" placeholder="Board function (e.g., President)" value="${escapeHtml(fn)}" onchange="updateBoardFunction(${c.memberNo}, this.value)" />` : ''}
+            </div>
           </div>
         `;
       }).join('');
+    }
+
+    async function saveBoardInfo(memberNo, isBoardMember, boardFunction) {
+      try {
+        await apiFetch('/api/admin/contacts', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberNo, isBoardMember, boardFunction }),
+        });
+        showToast('Saved', 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
+      }
+    }
+
+    function toggleBoard(memberNo) {
+      const c = contacts.find(x => x.memberNo === memberNo);
+      if (!c) return;
+      const next = !c.isBoardMember;
+      c.isBoardMember = next;
+      if (!next) c.boardFunction = '';
+      renderContacts();
+      saveBoardInfo(memberNo, next, c.boardFunction || '');
+    }
+
+    function updateBoardFunction(memberNo, value) {
+      const c = contacts.find(x => x.memberNo === memberNo);
+      if (!c) return;
+      const trimmed = (value || '').trim();
+      if ((c.boardFunction || '') === trimmed) return;
+      c.boardFunction = trimmed;
+      saveBoardInfo(memberNo, true, trimmed).then(() => {
+        const pillContainer = document.getElementById('contactsGrid');
+        if (pillContainer) renderContacts();
+      });
     }
 
     document.getElementById('contactsSearch').addEventListener('input', renderContacts);
