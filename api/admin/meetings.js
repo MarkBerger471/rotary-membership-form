@@ -21,6 +21,9 @@ function normalize(value) {
         active: !!v.active,
         topic: typeof v.topic === 'string' ? v.topic : '',
         presenter: typeof v.presenter === 'string' ? v.presenter : '',
+        presenterTitle: typeof v.presenterTitle === 'string' ? v.presenterTitle : '',
+        photoUrl: typeof v.photoUrl === 'string' ? v.photoUrl : '',
+        description: typeof v.description === 'string' ? v.description : '',
       };
     }
   }

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meeting Flyer · Admin | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { rotary: { blue: '#17458f', gold: '#f7a81b', azure: '#0067c8', sky: '#00a2e0', cranberry: '#d41367' } },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: { 'fade-in': 'fadeIn 0.6s ease-out' },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/admin/admin.css" />
+  <style>
+    /* ==================== FLYER ==================== */
+    .flyer {
+      width: 210mm;
+      min-height: 297mm;
+      background: #fdf6e3;
+      color: #17458f;
+      font-family: 'Inter', system-ui, sans-serif;
+      padding: 12mm;
+      position: relative;
+      box-sizing: border-box;
+    }
+    .flyer::before {
+      content: '';
+      position: absolute;
+      inset: 4mm;
+      border: 2.5px solid #f7a81b;
+      pointer-events: none;
+      border-radius: 2px;
+    }
+    .flyer-title {
+      text-align: center;
+      font-size: 28pt;
+      font-weight: 800;
+      color: #17458f;
+      margin: 6mm 0 8mm;
+    }
+    .flyer-fields { font-size: 13pt; line-height: 1.6; }
+    .flyer-fields .row { display: grid; grid-template-columns: 28mm 1fr; gap: 4mm; margin-bottom: 1.5mm; }
+    .flyer-fields .label { font-weight: 400; color: #17458f; }
+    .flyer-fields .value { color: #17458f; }
+    .flyer-fields .speaker-name { font-weight: 700; }
+    .flyer-fields .speaker-title { font-size: 11pt; font-weight: 400; }
+    .flyer-fields .topic { font-style: italic; }
+    .flyer-body { margin-top: 5mm; font-size: 11pt; line-height: 1.5; color: #17458f; }
+    .flyer-photo {
+      float: left;
+      width: 50mm;
+      height: 60mm;
+      object-fit: cover;
+      margin: 0 5mm 3mm 0;
+      border-radius: 1.5mm;
+      background: #e6dfd0;
+    }
+    .flyer-photo-placeholder {
+      float: left;
+      width: 50mm;
+      height: 60mm;
+      margin: 0 5mm 3mm 0;
+      border-radius: 1.5mm;
+      background: #e6dfd0;
+      display: flex; align-items: center; justify-content: center;
+      color: #b9a87a; font-size: 9pt;
+    }
+    .flyer-description p { margin: 0 0 3mm 0; text-align: justify; }
+    .flyer-clear { clear: both; }
+    .flyer-divider { border: none; border-top: 0.5px solid #b9a87a; margin: 5mm 0; }
+    .flyer-footer { font-size: 9.5pt; line-height: 1.5; color: #17458f; text-align: center; }
+    .flyer-footer .quote { font-weight: 600; margin-bottom: 2mm; }
+    .flyer-footer p { margin: 0 0 1.5mm 0; }
+    .flyer-logos {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-top: 6mm;
+    }
+    .flyer-unite {
+      font-weight: 800; font-size: 16pt; line-height: 1; color: #17458f;
+      text-transform: uppercase; letter-spacing: 0.02em;
+    }
+    .flyer-unite span { display: block; }
+    .flyer-unite span:nth-child(3) { color: #f7a81b; }
+    .flyer-rotary {
+      display: flex; align-items: center; gap: 3mm;
+      font-weight: 700; font-size: 18pt; color: #17458f;
+    }
+    .flyer-rotary img { height: 14mm; width: auto; }
+    .flyer-rotary .label-line { font-size: 11pt; font-weight: 400; }
+
+    /* Live preview scaling on screen */
+    .flyer-preview-wrap {
+      background: rgba(0,0,0,0.2);
+      padding: 8mm;
+      border-radius: 12px;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+    }
+    .flyer-preview-wrap .flyer { box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+
+    @media print {
+      @page { size: A4; margin: 0; }
+      body { background: #fdf6e3 !important; }
+      body::before { display: none !important; }
+      body > *:not(.print-container) { display: none !important; }
+      .print-container { display: block !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+      .print-container > *:not(.flyer-preview-wrap) { display: none !important; }
+      .flyer-preview-wrap { padding: 0 !important; background: transparent !important; }
+      .flyer { box-shadow: none !important; width: 210mm !important; min-height: 297mm !important; }
+    }
+  </style>
+</head>
+<body class="font-sans text-white antialiased">
+
+  <header class="sticky top-0 z-50 glass-header no-print">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity" title="Application page">
+        <img src="https://rotary-bkkdach.clubdesk.com/clubdesk/wwwfiles/logo.png" alt="Rotary Club Bangkok DACH" class="h-12 w-auto rounded-lg" />
+        <div>
+          <h1 class="text-lg font-bold text-white leading-tight">Rotary Club</h1>
+          <p class="text-xs text-glass-gold font-medium -mt-0.5">Bangkok DACH</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-4 text-sm text-glass-secondary">
+        <div class="hidden sm:flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span>office@rotary-club-bangkok-dach.org</span>
+        </div>
+        <button onclick="adminLogout()" class="text-white/40 hover:text-white/70 text-sm transition-colors flex items-center gap-1" title="Logout">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <header class="px-4 py-3" style="background: rgba(10, 22, 40, 0.6); backdrop-filter: blur(40px); border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <a href="/admin/meeting-planner" class="text-white/50 hover:text-white/80 transition-colors" title="Back to Meeting Planner">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+        </a>
+        <div class="h-5 w-px bg-white/20"></div>
+        <h1 class="text-lg font-bold">Meeting Flyer</h1>
+        <span id="dateBadge" class="text-xs bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-medium"></span>
+      </div>
+      <button onclick="window.print()" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        Print / PDF
+      </button>
+    </div>
+  </header>
+
+  <main class="print-container max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-[380px_1fr] gap-6 animate-fade-in">
+
+    <!-- Editor -->
+    <div class="glass-card rounded-2xl p-5 space-y-4 self-start lg:sticky lg:top-32 no-print">
+      <h2 class="font-bold text-base">Flyer details</h2>
+
+      <div>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Topic</label>
+        <input type="text" id="topic" class="glass-input w-full px-3 py-2 rounded-lg text-sm" placeholder="« Topic in quotes »" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Speaker name</label>
+        <input type="text" id="presenter" class="glass-input w-full px-3 py-2 rounded-lg text-sm" placeholder="Speaker name" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Speaker title / role</label>
+        <input type="text" id="presenterTitle" class="glass-input w-full px-3 py-2 rounded-lg text-sm" placeholder="e.g., Founder & General Partner of A2D Ventures" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Speaker photo</label>
+        <input type="file" id="photoFile" accept="image/*" class="hidden" />
+        <button type="button" onclick="document.getElementById('photoFile').click()" class="btn-secondary w-full px-3 py-2 rounded-lg text-sm font-medium mb-2">Upload image…</button>
+        <input type="text" id="photoUrl" class="glass-input w-full px-3 py-2 rounded-lg text-xs" placeholder="…or paste a photo URL" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Description</label>
+        <textarea id="description" rows="10" class="glass-input w-full px-3 py-2 rounded-lg text-sm leading-relaxed" placeholder="Talk abstract and speaker bio. Separate paragraphs with a blank line."></textarea>
+      </div>
+
+      <p class="text-xs text-white/40">Saves automatically as you type. Date, time, venue, and footer are standard.</p>
+    </div>
+
+    <!-- Preview -->
+    <div class="flyer-preview-wrap">
+      <div class="flyer" id="flyer">
+        <h1 class="flyer-title">Our Club Meeting</h1>
+        <div class="flyer-fields">
+          <div class="row"><span class="label">Date:</span><span class="value" id="fDate"></span></div>
+          <div class="row"><span class="label">Time:</span><span class="value">18:30 – 20:00 H</span></div>
+          <div class="row"><span class="label">Venue:</span><span class="value">Grand Hyatt Erawan Bangkok (The Residence 303)</span></div>
+          <div class="row">
+            <span class="label">Speaker:</span>
+            <span class="value">
+              <span class="speaker-name" id="fSpeaker"></span>
+              <span class="speaker-title" id="fSpeakerTitle" style="display:block;"></span>
+            </span>
+          </div>
+          <div class="row"><span class="label">Topic:</span><span class="value topic" id="fTopic"></span></div>
+        </div>
+        <div class="flyer-body">
+          <div id="fPhotoSlot"></div>
+          <div class="flyer-description" id="fDescription"></div>
+          <div class="flyer-clear"></div>
+        </div>
+        <hr class="flyer-divider" />
+        <div class="flyer-footer">
+          <p class="quote">&ldquo;Rotarians &amp; Invited Guests&rdquo;</p>
+          <p>Please contact one of our members for registration if you&rsquo;re interested. We look forward to welcoming you.</p>
+          <p>During the meeting a 3-course menu will be served. Cost: 880 THB pp (vegetarian option available on pre-order with three days&rsquo; notice to the meeting &mdash; please indicate accordingly when registering).</p>
+          <p>Payable on-site using all common payment methods. We highly recommend using BTS to get to the meeting.</p>
+        </div>
+        <div class="flyer-logos">
+          <div class="flyer-unite">
+            <span>Unite</span>
+            <span>For</span>
+            <span>Good</span>
+          </div>
+          <div class="flyer-rotary">
+            <span class="label-line">Rotary</span>
+            <img src="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" alt="Rotary" />
+            <span style="display:flex; flex-direction: column; line-height: 1.05;">
+              <span style="font-size: 14pt;">Club of</span>
+              <span style="font-size: 14pt;">Bangkok DACH</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/admin/admin.js"></script>
+  <script>
+    requireAuthOrRedirect();
+
+    const params = new URLSearchParams(location.search);
+    const dateStr = params.get('d');
+
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      document.body.innerHTML = '<div style="padding:40px;text-align:center;">Missing or invalid date. <a href="/admin/meeting-planner" style="color:#f7a81b">Back to planner</a>.</div>';
+      throw new Error('bad date');
+    }
+
+    function ordinal(n) {
+      const v = n % 100;
+      if (v >= 11 && v <= 13) return 'th';
+      switch (n % 10) { case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th'; }
+    }
+    function formatFlyerDate(ds) {
+      const [y, m, d] = ds.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      const dayName = dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const monthName = dt.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+      return `${dayName}, ${String(d).padStart(2,'0')}${ordinal(d)} ${monthName} ${y}`;
+    }
+
+    document.getElementById('fDate').textContent = formatFlyerDate(dateStr);
+    document.getElementById('dateBadge').textContent = formatFlyerDate(dateStr);
+
+    let entry = { active: true, topic: '', presenter: '', presenterTitle: '', photoUrl: '', description: '' };
+    let pendingSave = null;
+    let allMeetings = {};
+
+    async function load() {
+      try {
+        const data = await apiFetch('/api/admin/meetings');
+        allMeetings = data.meetings || {};
+        if (allMeetings[dateStr]) entry = { ...entry, ...allMeetings[dateStr], active: true };
+        document.getElementById('topic').value = entry.topic || '';
+        document.getElementById('presenter').value = entry.presenter || '';
+        document.getElementById('presenterTitle').value = entry.presenterTitle || '';
+        document.getElementById('photoUrl').value = entry.photoUrl || '';
+        document.getElementById('description').value = entry.description || '';
+        renderPreview();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Failed to load meeting', 'error');
+      }
+    }
+
+    function renderPreview() {
+      const t = entry.topic || '';
+      document.getElementById('fTopic').textContent = t ? (t.startsWith('«') ? t : `« ${t} »`) : '';
+      document.getElementById('fSpeaker').textContent = entry.presenter || '';
+      const titleEl = document.getElementById('fSpeakerTitle');
+      titleEl.textContent = entry.presenterTitle || '';
+      titleEl.style.display = entry.presenterTitle ? 'block' : 'none';
+
+      const slot = document.getElementById('fPhotoSlot');
+      if (entry.photoUrl) {
+        slot.innerHTML = `<img class="flyer-photo" src="${entry.photoUrl.replace(/"/g, '&quot;')}" alt="${escapeHtml(entry.presenter || 'Speaker')}" onerror="this.outerHTML='<div class=\\'flyer-photo-placeholder\\'>image failed to load</div>'" />`;
+      } else {
+        slot.innerHTML = '<div class="flyer-photo-placeholder">photo</div>';
+      }
+
+      const desc = document.getElementById('fDescription');
+      const text = entry.description || '';
+      const paras = text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+      desc.innerHTML = paras.length
+        ? paras.map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')
+        : '<p style="color:#b9a87a; font-style: italic;">Description will appear here.</p>';
+    }
+
+    function scheduleSave() {
+      clearTimeout(pendingSave);
+      pendingSave = setTimeout(async () => {
+        try {
+          const next = { ...allMeetings, [dateStr]: { ...entry, active: true } };
+          await apiFetch('/api/admin/meetings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetings: next }),
+          });
+          allMeetings = next;
+        } catch (err) {
+          if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
+        }
+      }, 400);
+    }
+
+    function bindField(id, key) {
+      document.getElementById(id).addEventListener('input', (e) => {
+        entry[key] = e.target.value;
+        renderPreview();
+        scheduleSave();
+      });
+    }
+    bindField('topic', 'topic');
+    bindField('presenter', 'presenter');
+    bindField('presenterTitle', 'presenterTitle');
+    bindField('photoUrl', 'photoUrl');
+    bindField('description', 'description');
+
+    document.getElementById('photoFile').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.size > 1024 * 1024 * 2) {
+        showToast('Image must be under 2 MB', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('photoUrl').value = ev.target.result;
+        entry.photoUrl = ev.target.result;
+        renderPreview();
+        scheduleSave();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (adminPassword) load();
+  </script>
+</body>
+</html>

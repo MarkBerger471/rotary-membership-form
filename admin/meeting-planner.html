@@ -159,7 +159,10 @@
                 class="w-full bg-transparent border-0 border-t border-rotary-gold/10 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
                 placeholder="Presenter…"
                 value="${escapeHtml(entry.presenter)}"
-                onchange="updatePresenter('${ds}', this.value)" />`
+                onchange="updatePresenter('${ds}', this.value)" />
+              <a href="/admin/meeting-flyer?d=${ds}" target="_blank" class="block border-t border-rotary-gold/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-rotary-gold/80 hover:text-rotary-gold hover:bg-rotary-gold/10 transition-colors text-center">
+                Flyer →
+              </a>`
             : '';
           return `<div class="relative rounded-xl border transition-all overflow-hidden ${cardClasses}">
             ${draftDot}
