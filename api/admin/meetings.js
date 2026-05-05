@@ -7,17 +7,24 @@ function normalize(value) {
   if (!value) return {};
   if (Array.isArray(value)) {
     const out = {};
-    for (const d of value) if (DATE_RE.test(d)) out[d] = '';
+    for (const d of value) if (DATE_RE.test(d)) out[d] = { active: true, topic: '', presenter: '' };
     return out;
   }
-  if (typeof value === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (DATE_RE.test(k)) out[k] = typeof v === 'string' ? v : '';
+  if (typeof value !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (!DATE_RE.test(k)) continue;
+    if (typeof v === 'string') {
+      out[k] = { active: true, topic: v, presenter: '' };
+    } else if (v && typeof v === 'object') {
+      out[k] = {
+        active: !!v.active,
+        topic: typeof v.topic === 'string' ? v.topic : '',
+        presenter: typeof v.presenter === 'string' ? v.presenter : '',
+      };
     }
-    return out;
   }
-  return {};
+  return out;
 }
 
 module.exports = async (req, res) => {
@@ -28,8 +35,7 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
-      const meetings = normalize(await kv.get(KEY));
-      return res.json({ meetings });
+      return res.json({ meetings: normalize(await kv.get(KEY)) });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

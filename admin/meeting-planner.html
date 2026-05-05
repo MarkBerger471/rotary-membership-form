@@ -128,31 +128,36 @@
         (byMonth[m] = byMonth[m] || []).push(ds);
       }
 
-      const selectedCount = Object.keys(meetings).length;
+      const selectedCount = Object.values(meetings).filter(m => m && m.active).length;
       document.getElementById('meetingsMeta').textContent =
         `${selectedCount} of ${allWednesdays.length} Wednesdays selected`;
 
       const html = Object.keys(byMonth).map(Number).sort((a, b) => a - b).map(m => {
         const items = byMonth[m].map(ds => {
           const day = parseInt(ds.slice(8, 10), 10);
-          const isSel = ds in meetings;
-          const topic = meetings[ds] || '';
+          const entry = meetings[ds] || { active: false, topic: '', presenter: '' };
+          const isSel = !!entry.active;
           const cardClasses = isSel
             ? 'bg-rotary-gold/20 border-rotary-gold/50'
             : 'bg-white/5 border-white/10 hover:bg-white/10';
-          const topicHtml = isSel
+          const editorHtml = isSel
             ? `<input type="text"
                 class="w-full bg-transparent border-0 border-t border-rotary-gold/20 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
                 placeholder="Topic…"
-                value="${escapeHtml(topic)}"
-                onchange="updateTopic('${ds}', this.value)" />`
+                value="${escapeHtml(entry.topic)}"
+                onchange="updateTopic('${ds}', this.value)" />
+              <input type="text"
+                class="w-full bg-transparent border-0 border-t border-rotary-gold/10 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
+                placeholder="Presenter…"
+                value="${escapeHtml(entry.presenter)}"
+                onchange="updatePresenter('${ds}', this.value)" />`
             : '';
           return `<div class="rounded-xl border transition-all overflow-hidden ${cardClasses}">
             <button type="button" onclick="toggleMeeting('${ds}')" class="w-full text-left px-3 py-2.5">
               <div class="text-[10px] font-bold uppercase tracking-wider ${isSel ? 'text-rotary-gold' : 'text-white/40'}">Wed</div>
               <div class="text-2xl font-extrabold ${isSel ? 'text-white' : 'text-white/50'} leading-tight">${day}</div>
             </button>
-            ${topicHtml}
+            ${editorHtml}
           </div>`;
         }).join('');
         return `<div>
@@ -180,30 +185,42 @@
       }, 350);
     }
 
+    function ensureEntry(ds) {
+      if (!meetings[ds]) meetings[ds] = { active: false, topic: '', presenter: '' };
+      return meetings[ds];
+    }
+
     function toggleMeeting(ds) {
-      if (ds in meetings) delete meetings[ds];
-      else meetings[ds] = '';
+      const e = ensureEntry(ds);
+      e.active = !e.active;
       renderMeetings();
       scheduleSave();
     }
 
     function updateTopic(ds, value) {
+      const e = ensureEntry(ds);
       const trimmed = (value || '').trim();
-      if ((meetings[ds] || '') === trimmed) return;
-      meetings[ds] = trimmed;
+      if (e.topic === trimmed) return;
+      e.topic = trimmed;
+      scheduleSave();
+    }
+
+    function updatePresenter(ds, value) {
+      const e = ensureEntry(ds);
+      const trimmed = (value || '').trim();
+      if (e.presenter === trimmed) return;
+      e.presenter = trimmed;
       scheduleSave();
     }
 
     function selectAllMeetings() {
-      const next = {};
-      for (const ds of allWednesdays) next[ds] = meetings[ds] || '';
-      meetings = next;
+      for (const ds of allWednesdays) ensureEntry(ds).active = true;
       renderMeetings();
       scheduleSave();
     }
 
     function clearAllMeetings() {
-      meetings = {};
+      for (const ds in meetings) meetings[ds].active = false;
       renderMeetings();
       scheduleSave();
     }
