@@ -26,10 +26,13 @@
     .flyer {
       width: 210mm;
       height: 297mm;
-      background: #fdf6e3;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(247, 168, 27, 0.08) 0%, transparent 35%),
+        radial-gradient(circle at 0% 100%, rgba(23, 69, 143, 0.05) 0%, transparent 40%),
+        #fdf6e3;
       color: #17458f;
       font-family: 'Inter', system-ui, sans-serif;
-      padding: 9mm;
+      padding: 12mm;
       position: relative;
       box-sizing: border-box;
       display: flex;
@@ -39,68 +42,191 @@
     .flyer::before {
       content: '';
       position: absolute;
-      inset: 4mm;
-      border: 2.5px solid #f7a81b;
+      inset: 5mm;
+      border: 2px solid #f7a81b;
+      pointer-events: none;
+      border-radius: 3px;
+    }
+    .flyer::after {
+      content: '';
+      position: absolute;
+      inset: 6.5mm;
+      border: 0.5px solid rgba(247, 168, 27, 0.4);
       pointer-events: none;
       border-radius: 2px;
     }
+
+    /* Title */
     .flyer-title {
       text-align: center;
-      font-size: 24pt;
+      font-size: 30pt;
       font-weight: 800;
       color: #17458f;
-      margin: 2mm 0 5mm;
+      letter-spacing: -0.01em;
+      margin: 2mm 0 1.5mm;
+      line-height: 1;
     }
-    .flyer-fields { font-size: 11.5pt; line-height: 1.45; }
-    .flyer-fields .row { display: grid; grid-template-columns: 24mm 1fr; gap: 3mm; margin-bottom: 1mm; }
-    .flyer-fields .label { font-weight: 400; color: #17458f; }
-    .flyer-fields .value { color: #17458f; }
-    .flyer-fields .speaker-name { font-weight: 700; }
-    .flyer-fields .speaker-title { font-size: 10pt; font-weight: 400; }
-    .flyer-fields .topic { font-style: italic; }
-    .flyer-body { margin-top: 4mm; font-size: 10pt; line-height: 1.4; color: #17458f; flex: 1 1 auto; min-height: 0; }
+    .flyer-title-accent {
+      width: 40mm;
+      height: 1mm;
+      background: linear-gradient(to right, transparent, #f7a81b 20%, #f7a81b 80%, transparent);
+      margin: 0 auto 4mm;
+      border-radius: 1px;
+    }
+
+    /* Info row — date / time / venue inline */
+    .flyer-info {
+      background: rgba(247, 168, 27, 0.10);
+      border-left: 3px solid #f7a81b;
+      padding: 3.5mm 5mm;
+      margin: 0 0 5mm;
+      border-radius: 0 1.5mm 1.5mm 0;
+      font-size: 10.5pt;
+      line-height: 1.55;
+    }
+    .flyer-info-row { display: grid; grid-template-columns: 17mm 1fr; gap: 3mm; }
+    .flyer-info-row + .flyer-info-row { margin-top: 0.5mm; }
+    .flyer-info-label { font-weight: 700; color: #17458f; letter-spacing: 0.02em; }
+    .flyer-info-value { color: #17458f; }
+
+    /* Speaker hero */
+    .flyer-hero {
+      display: grid;
+      grid-template-columns: 50mm 1fr;
+      gap: 7mm;
+      align-items: start;
+      margin-bottom: 5mm;
+    }
+    .flyer-photo-wrap {
+      width: 50mm; height: 60mm;
+      position: relative;
+    }
     .flyer-photo {
-      float: left;
-      width: 42mm;
-      height: 52mm;
+      width: 100%; height: 100%;
       object-fit: cover;
-      margin: 0 4mm 2mm 0;
-      border-radius: 1.5mm;
-      background: #e6dfd0;
+      border-radius: 2mm;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+      display: block;
     }
     .flyer-photo-placeholder {
-      float: left;
-      width: 42mm;
-      height: 52mm;
-      margin: 0 4mm 2mm 0;
-      border-radius: 1.5mm;
-      background: #e6dfd0;
+      width: 100%; height: 100%;
+      border-radius: 2mm;
+      background: linear-gradient(135deg, #ede4cf, #d4c8a8);
       display: flex; align-items: center; justify-content: center;
-      color: #b9a87a; font-size: 9pt;
+      color: #8b7c5a; font-size: 9pt; font-style: italic;
     }
-    .flyer-description p { margin: 0 0 2mm 0; text-align: justify; }
-    .flyer-clear { clear: both; }
-    .flyer-divider { border: none; border-top: 0.5px solid #b9a87a; margin: 3mm 0; flex-shrink: 0; }
-    .flyer-footer { font-size: 8.5pt; line-height: 1.4; color: #17458f; text-align: center; flex-shrink: 0; }
-    .flyer-footer .quote { font-weight: 600; margin-bottom: 1.5mm; }
+    .flyer-photo-frame {
+      position: absolute; inset: -1.5mm;
+      border: 0.5mm solid #f7a81b;
+      border-radius: 3mm;
+      pointer-events: none;
+    }
+    .flyer-speaker-info { padding-top: 2mm; min-width: 0; }
+    .flyer-topic-eyebrow {
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: #f7a81b;
+      text-transform: uppercase;
+      margin-bottom: 1.5mm;
+    }
+    .flyer-topic {
+      font-size: 17pt;
+      font-style: italic;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #17458f;
+      margin-bottom: 5mm;
+    }
+    .flyer-speaker-eyebrow {
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: #f7a81b;
+      text-transform: uppercase;
+      margin-bottom: 1.5mm;
+    }
+    .flyer-speaker-name {
+      font-size: 16pt;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #17458f;
+      margin-bottom: 1mm;
+    }
+    .flyer-speaker-title {
+      font-size: 10.5pt;
+      font-weight: 400;
+      color: #17458f;
+      line-height: 1.3;
+    }
+
+    /* Description */
+    .flyer-description {
+      font-size: 10pt;
+      line-height: 1.55;
+      color: #17458f;
+      flex: 1 1 auto;
+      min-height: 0;
+      column-gap: 6mm;
+    }
+    .flyer-description p { margin: 0 0 2.5mm 0; text-align: justify; hyphens: auto; }
+
+    /* Footer */
+    .flyer-divider {
+      border: none;
+      height: 0.6mm;
+      background: linear-gradient(to right, transparent, rgba(247, 168, 27, 0.5) 20%, rgba(247, 168, 27, 0.5) 80%, transparent);
+      margin: 4mm 0 3mm;
+      flex-shrink: 0;
+    }
+    .flyer-footer {
+      font-size: 8.5pt;
+      line-height: 1.45;
+      color: #17458f;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .flyer-footer .quote {
+      font-weight: 700;
+      font-size: 9pt;
+      letter-spacing: 0.02em;
+      margin-bottom: 1.5mm;
+      color: #17458f;
+    }
     .flyer-footer p { margin: 0 0 1mm 0; }
+
+    /* Logo bar */
     .flyer-logos {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      margin-top: 3mm;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4mm;
+      padding-top: 3mm;
+      border-top: 0.5px solid rgba(23, 69, 143, 0.15);
       flex-shrink: 0;
     }
     .flyer-unite {
-      font-weight: 800; font-size: 13pt; line-height: 1; color: #17458f;
-      text-transform: uppercase; letter-spacing: 0.02em;
+      font-weight: 800;
+      font-size: 13pt;
+      line-height: 0.95;
+      color: #17458f;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .flyer-unite span { display: block; }
     .flyer-unite span:nth-child(3) { color: #f7a81b; }
     .flyer-rotary {
-      display: flex; align-items: center; gap: 2.5mm;
-      font-weight: 700; font-size: 14pt; color: #17458f;
+      display: flex; align-items: center; gap: 3mm;
+      font-weight: 700; color: #17458f;
     }
-    .flyer-rotary img { height: 11mm; width: auto; }
-    .flyer-rotary .label-line { font-size: 10pt; font-weight: 400; }
+    .flyer-rotary img { height: 12mm; width: auto; }
+    .flyer-rotary-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.05;
+    }
+    .flyer-rotary-text .top { font-size: 14pt; font-weight: 800; }
+    .flyer-rotary-text .bottom { font-size: 10pt; font-weight: 600; color: #17458f; }
 
     /* Live preview scaling on screen */
     .flyer-preview-wrap {
@@ -210,29 +336,35 @@
     <div class="flyer-preview-wrap">
       <div class="flyer" id="flyer">
         <h1 class="flyer-title">Our Club Meeting</h1>
-        <div class="flyer-fields">
-          <div class="row"><span class="label">Date:</span><span class="value" id="fDate"></span></div>
-          <div class="row"><span class="label">Time:</span><span class="value">18:30 – 20:00 H</span></div>
-          <div class="row"><span class="label">Venue:</span><span class="value">Grand Hyatt Erawan Bangkok (The Residence 303)</span></div>
-          <div class="row">
-            <span class="label">Speaker:</span>
-            <span class="value">
-              <span class="speaker-name" id="fSpeaker"></span>
-              <span class="speaker-title" id="fSpeakerTitle" style="display:block;"></span>
-            </span>
+        <div class="flyer-title-accent"></div>
+
+        <div class="flyer-info">
+          <div class="flyer-info-row"><span class="flyer-info-label">Date</span><span class="flyer-info-value" id="fDate"></span></div>
+          <div class="flyer-info-row"><span class="flyer-info-label">Time</span><span class="flyer-info-value">18:30 – 20:00 H</span></div>
+          <div class="flyer-info-row"><span class="flyer-info-label">Venue</span><span class="flyer-info-value">Grand Hyatt Erawan Bangkok (The Residence 303)</span></div>
+        </div>
+
+        <div class="flyer-hero">
+          <div class="flyer-photo-wrap">
+            <div id="fPhotoSlot"><div class="flyer-photo-placeholder">Speaker photo</div></div>
+            <div class="flyer-photo-frame"></div>
           </div>
-          <div class="row"><span class="label">Topic:</span><span class="value topic" id="fTopic"></span></div>
+          <div class="flyer-speaker-info">
+            <div class="flyer-topic-eyebrow">Topic</div>
+            <div class="flyer-topic" id="fTopic"></div>
+            <div class="flyer-speaker-eyebrow">Speaker</div>
+            <div class="flyer-speaker-name" id="fSpeaker"></div>
+            <div class="flyer-speaker-title" id="fSpeakerTitle"></div>
+          </div>
         </div>
-        <div class="flyer-body">
-          <div id="fPhotoSlot"></div>
-          <div class="flyer-description" id="fDescription"></div>
-          <div class="flyer-clear"></div>
-        </div>
+
+        <div class="flyer-description" id="fDescription"></div>
+
         <hr class="flyer-divider" />
         <div class="flyer-footer">
           <p class="quote">&ldquo;Rotarians &amp; Invited Guests&rdquo;</p>
           <p>Please contact one of our members for registration if you&rsquo;re interested. We look forward to welcoming you.</p>
-          <p>During the meeting a 3-course menu will be served. Cost: 880 THB pp (vegetarian option available on pre-order with three days&rsquo; notice to the meeting &mdash; please indicate accordingly when registering).</p>
+          <p>During the meeting a 3-course menu will be served. Cost: 880 THB pp (vegetarian option available on pre-order with three days&rsquo; notice — please indicate accordingly when registering).</p>
           <p>Payable on-site using all common payment methods. We highly recommend using BTS to get to the meeting.</p>
         </div>
         <div class="flyer-logos">
@@ -242,12 +374,11 @@
             <span>Good</span>
           </div>
           <div class="flyer-rotary">
-            <span class="label-line">Rotary</span>
             <img src="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" alt="Rotary" />
-            <span style="display:flex; flex-direction: column; line-height: 1.05;">
-              <span style="font-size: 11pt;">Club of</span>
-              <span style="font-size: 11pt;">Bangkok DACH</span>
-            </span>
+            <div class="flyer-rotary-text">
+              <span class="top">Rotary</span>
+              <span class="bottom">Club of Bangkok DACH</span>
+            </div>
           </div>
         </div>
       </div>
@@ -304,18 +435,28 @@
     }
 
     function renderPreview() {
-      const t = entry.topic || '';
-      document.getElementById('fTopic').textContent = t ? (t.startsWith('«') ? t : `« ${t} »`) : '';
-      document.getElementById('fSpeaker').textContent = entry.presenter || '';
+      const t = (entry.topic || '').trim();
+      const topicEl = document.getElementById('fTopic');
+      topicEl.textContent = t ? (t.startsWith('«') ? t : `« ${t} »`) : '';
+      document.querySelector('.flyer-topic-eyebrow').style.display = t ? 'block' : 'none';
+      topicEl.style.display = t ? 'block' : 'none';
+
+      const speakerEl = document.getElementById('fSpeaker');
       const titleEl = document.getElementById('fSpeakerTitle');
-      titleEl.textContent = entry.presenterTitle || '';
-      titleEl.style.display = entry.presenterTitle ? 'block' : 'none';
+      const speaker = (entry.presenter || '').trim();
+      const titleStr = (entry.presenterTitle || '').trim();
+      speakerEl.textContent = speaker;
+      titleEl.textContent = titleStr;
+      const speakerEyebrow = document.querySelector('.flyer-speaker-eyebrow');
+      speakerEyebrow.style.display = (speaker || titleStr) ? 'block' : 'none';
+      speakerEl.style.display = speaker ? 'block' : 'none';
+      titleEl.style.display = titleStr ? 'block' : 'none';
 
       const slot = document.getElementById('fPhotoSlot');
       if (entry.photoUrl) {
         slot.innerHTML = `<img class="flyer-photo" src="${entry.photoUrl.replace(/"/g, '&quot;')}" alt="${escapeHtml(entry.presenter || 'Speaker')}" onerror="this.outerHTML='<div class=\\'flyer-photo-placeholder\\'>image failed to load</div>'" />`;
       } else {
-        slot.innerHTML = '<div class="flyer-photo-placeholder">photo</div>';
+        slot.innerHTML = '<div class="flyer-photo-placeholder">Speaker photo</div>';
       }
 
       const desc = document.getElementById('fDescription');
