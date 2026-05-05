@@ -21,6 +21,9 @@
     "api/admin/votes.js": {
       "maxDuration": 15
     },
+    "api/admin/contacts.js": {
+      "maxDuration": 15
+    },
     "api/cron/keepalive.js": {
       "maxDuration": 10
     }

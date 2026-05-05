@@ -61,21 +61,118 @@
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
-    <div class="glass-card rounded-2xl p-12 text-center">
-      <div class="w-20 h-20 rounded-2xl bg-rotary-gold/20 flex items-center justify-center mx-auto mb-5">
-        <svg class="w-10 h-10 text-rotary-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
+  <main class="max-w-6xl mx-auto px-4 py-8 animate-fade-in">
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10 flex flex-wrap items-center gap-3 justify-between">
+        <div>
+          <h2 class="font-bold text-lg">Member Directory</h2>
+          <p id="contactsMeta" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
+        </div>
+        <div class="flex items-center gap-2 flex-1 sm:flex-none sm:min-w-[280px]">
+          <input type="search" id="contactsSearch" class="glass-input flex-1 px-3 py-2 rounded-lg text-sm" placeholder="Search name, email, city…" />
+          <button onclick="loadContacts()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium" title="Refresh">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+        </div>
       </div>
-      <h2 class="text-2xl font-extrabold mb-2">Member Contacts</h2>
-      <p class="text-white/60 max-w-lg mx-auto">Browse and manage the member directory and contact details. Detailed features coming soon.</p>
+      <div id="contactsLoading" class="px-6 py-12 text-center text-white/40">
+        <svg class="w-6 h-6 animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        Loading contacts...
+      </div>
+      <div id="contactsEmpty" class="hidden px-6 py-12 text-center text-white/40">
+        <p class="font-medium">No member contacts yet</p>
+      </div>
+      <div id="contactsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6"></div>
     </div>
   </main>
 
   <script src="/admin/admin.js"></script>
   <script>
     requireAuthOrRedirect();
+
+    let contacts = [];
+
+    async function loadContacts() {
+      document.getElementById('contactsLoading').classList.remove('hidden');
+      document.getElementById('contactsGrid').classList.add('hidden');
+      document.getElementById('contactsEmpty').classList.add('hidden');
+      try {
+        const data = await apiFetch('/api/admin/contacts');
+        contacts = data.contacts || [];
+        renderContacts();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Failed to load contacts', 'error');
+      }
+      document.getElementById('contactsLoading').classList.add('hidden');
+    }
+
+    function renderContacts() {
+      const q = (document.getElementById('contactsSearch').value || '').trim().toLowerCase();
+      const filtered = q
+        ? contacts.filter(c => [c.firstName, c.lastName, c.email, c.city, c.phone].some(v => (v || '').toLowerCase().includes(q)))
+        : contacts;
+
+      const meta = document.getElementById('contactsMeta');
+      meta.textContent = q
+        ? `${filtered.length} of ${contacts.length} members`
+        : `${contacts.length} active members`;
+
+      const grid = document.getElementById('contactsGrid');
+      const empty = document.getElementById('contactsEmpty');
+      if (filtered.length === 0) {
+        grid.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      grid.innerHTML = filtered.map(c => {
+        const name = escapeHtml(`${c.firstName || ''} ${c.lastName || ''}`.trim());
+        const initials = ((c.firstName || ' ')[0] + (c.lastName || ' ')[0]).toUpperCase();
+        const emailHtml = c.email
+          ? `<a href="mailto:${escapeHtml(c.email)}" class="text-rotary-sky hover:text-rotary-gold transition-colors break-all">${escapeHtml(c.email)}</a>`
+          : '<span class="text-white/30">—</span>';
+        const phoneHtml = c.phone
+          ? `<a href="tel:${escapeHtml((c.phone || '').replace(/\s+/g, ''))}" class="hover:text-rotary-gold transition-colors">${escapeHtml(c.phone)}</a>`
+          : '<span class="text-white/30">—</span>';
+        const cityHtml = c.city ? escapeHtml(c.city) : '';
+        const joinHtml = c.joinDate
+          ? new Date(c.joinDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+          : '';
+        const addressHtml = c.address ? escapeHtml(c.address).replace(/\r?\n/g, '<br>') : '';
+
+        return `
+          <div class="rounded-xl bg-white/5 border border-white/10 p-4 hover:border-white/25 transition-colors">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-full bg-rotary-gold/20 text-rotary-gold flex items-center justify-center text-sm font-bold flex-shrink-0">${escapeHtml(initials)}</div>
+              <div class="min-w-0">
+                <div class="font-semibold truncate">${name || '<span class="text-white/40">Unnamed</span>'}</div>
+                ${joinHtml ? `<div class="text-xs text-white/40">Member since ${joinHtml}</div>` : ''}
+              </div>
+            </div>
+            <div class="space-y-1.5 text-sm text-white/70">
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 mt-0.5 text-white/30 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <div class="min-w-0">${emailHtml}</div>
+              </div>
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 mt-0.5 text-white/30 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                <div>${phoneHtml}</div>
+              </div>
+              ${addressHtml ? `<div class="flex items-start gap-2">
+                <svg class="w-4 h-4 mt-0.5 text-white/30 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <div class="min-w-0 text-white/60 text-xs leading-relaxed">${addressHtml}${cityHtml ? `<br>${cityHtml}` : ''}</div>
+              </div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('contactsSearch').addEventListener('input', renderContacts);
+
+    if (adminPassword) loadContacts();
   </script>
 </body>
 </html>
