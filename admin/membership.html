@@ -137,7 +137,7 @@
     <div class="glass-card rounded-2xl overflow-hidden">
       <div class="px-6 py-4 border-b border-white/10">
         <h2 class="font-bold text-lg">Email Recipients</h2>
-        <p class="text-white/50 text-sm mt-1">Manage who receives application emails. Toggle recipients on/off without removing them.</p>
+        <p class="text-white/50 text-sm mt-1">Manage who receives application emails. Click a recipient to edit their name and email, or toggle them on/off without removing them.</p>
       </div>
       <div class="p-6 space-y-4">
         <div id="recipientsList" class="space-y-3">
@@ -204,6 +204,7 @@
 
     // ==================== STATE ====================
     let settings = null;
+    let editingRecipient = null;
     let applications = [];
     let allVotes = {};
 
@@ -423,23 +424,97 @@
           const lastB = (b.name || '').trim().split(/\s+/).pop().toLowerCase();
           return lastA.localeCompare(lastB);
         });
-      container.innerHTML = sorted.map(r => { const i = r._idx; return `
+      container.innerHTML = sorted.map(r => { const i = r._idx;
+        if (i === editingRecipient) return `
+        <div class="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-rotary-gold/40 flex-wrap">
+          <input type="text" id="editRecipientName" value="${escapeAttr(r.name || '')}" onkeydown="recipientEditKey(event, ${i})"
+            class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[140px]" placeholder="Name" />
+          <input type="email" id="editRecipientEmail" value="${escapeAttr(r.email || '')}" onkeydown="recipientEditKey(event, ${i})"
+            class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[200px]" placeholder="Email address" />
+          <button onclick="saveRecipientEdit(${i})" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Save</button>
+          <button onclick="cancelEditRecipient()" class="px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white transition-colors">Cancel</button>
+        </div>`;
+        return `
         <div class="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
           <div class="toggle-track ${r.active ? 'on' : ''}" onclick="toggleRecipient(${i})">
             <div class="toggle-thumb"></div>
           </div>
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0 cursor-pointer" onclick="startEditRecipient(${i})" title="Click to edit">
             <div class="font-semibold text-sm ${r.active ? 'text-white' : 'text-white/40'}">${escapeHtml(r.name || 'Unnamed')}</div>
             <div class="text-xs ${r.active ? 'text-white/60' : 'text-white/30'} truncate">${escapeHtml(r.email)}</div>
           </div>
           <span class="text-xs px-2 py-0.5 rounded-full font-medium ${r.active ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}">
             ${r.active ? 'Active' : 'Inactive'}
           </span>
+          <button onclick="startEditRecipient(${i})" class="text-white/20 hover:text-rotary-gold transition-colors p-1" title="Edit name and email">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
           <button onclick="removeRecipient(${i})" class="text-white/20 hover:text-red-400 transition-colors p-1" title="Remove">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
         </div>
       `}).join('');
+
+      if (editingRecipient !== null) {
+        const el = document.getElementById('editRecipientName');
+        if (el) { el.focus(); el.select(); }
+      }
+    }
+
+    // escapeHtml() escapes &, < and > but not quotes, which is not enough for
+    // an attribute value like value="...".
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/"/g, '&quot;');
+    }
+
+    function startEditRecipient(index) {
+      editingRecipient = index;
+      renderRecipients();
+    }
+
+    function cancelEditRecipient() {
+      editingRecipient = null;
+      renderRecipients();
+    }
+
+    function recipientEditKey(event, index) {
+      if (event.key === 'Enter') { event.preventDefault(); saveRecipientEdit(index); }
+      else if (event.key === 'Escape') { event.preventDefault(); cancelEditRecipient(); }
+    }
+
+    function saveRecipientEdit(index) {
+      const name = document.getElementById('editRecipientName').value.trim();
+      const emailInput = document.getElementById('editRecipientEmail');
+      const email = emailInput.value.trim();
+      if (!email) {
+        showToast('Please enter an email address', 'error');
+        emailInput.focus();
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Please enter a valid email address', 'error');
+        emailInput.focus();
+        return;
+      }
+      if (settings.recipients.some((r, i) => i !== index && (r.email || '').toLowerCase() === email.toLowerCase())) {
+        showToast('This email is already in the list', 'error');
+        emailInput.focus();
+        return;
+      }
+      const prevEmail = settings.recipients[index].email || '';
+      settings.recipients[index].name = name || email.split('@')[0];
+      settings.recipients[index].email = email;
+      editingRecipient = null;
+      renderRecipients();
+      saveSettings();
+      // Votes are keyed by email address, so an address change leaves any
+      // vote already cast under the old one attached to the old one.
+      showToast(
+        email.toLowerCase() !== prevEmail.toLowerCase()
+          ? 'Recipient updated. Votes already cast under the old address stay with it.'
+          : 'Recipient updated',
+        'success'
+      );
     }
 
     function toggleRecipient(index) {
@@ -451,6 +526,7 @@
     function removeRecipient(index) {
       const name = settings.recipients[index].name || settings.recipients[index].email;
       if (!confirm('Remove ' + name + ' from recipients?')) return;
+      editingRecipient = null;
       settings.recipients.splice(index, 1);
       renderRecipients();
       saveSettings();
