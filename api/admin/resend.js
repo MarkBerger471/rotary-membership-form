@@ -23,8 +23,14 @@ module.exports = async (req, res) => {
     if (!app) return res.status(404).json({ error: 'Application not found' });
 
     const settings = await settingsLib.getSettings();
-    const already = Array.isArray(app.emailedTo) ? app.emailedTo : [];
     const norm = (e) => (e || '').trim().toLowerCase();
+
+    // markDelivered records addresses that were already mailed but never made
+    // it into emailedTo - e.g. a run that was cut short after some sends. They
+    // are recorded, never re-sent, so reminders still reach them.
+    const marked = Array.isArray(body.markDelivered) ? body.markDelivered : [];
+    const already = (Array.isArray(app.emailedTo) ? app.emailedTo : [])
+      .concat(marked.filter(e => !(app.emailedTo || []).some(a => norm(a) === norm(e))));
 
     // An explicit list wins; otherwise everyone active who has not had it yet.
     const requested = Array.isArray(body.emails) && body.emails.length
