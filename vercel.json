@@ -34,6 +34,9 @@
     },
     "api/cron/poll.js": {
       "maxDuration": 60
+    },
+    "api/admin/member-photo.js": {
+      "maxDuration": 15
     }
   },
   "crons": [

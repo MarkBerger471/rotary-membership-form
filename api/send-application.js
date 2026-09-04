@@ -155,6 +155,18 @@ module.exports = async (req, res) => {
       jobTitle: fields.jobTitle,
     }, appId);
     if (pending) {
+      // Keep the applicant's own photo as their directory picture.
+      if (files.photo && files.photo.buffer.length <= 600 * 1024) {
+        try {
+          await kv.set(`file:photo:${pending.memberNo}`, {
+            content: files.photo.buffer.toString('base64'),
+            mimeType: files.photo.mimeType || 'image/jpeg',
+          });
+          pending.hasPhoto = true;
+        } catch (photoErr) {
+          console.error(`Could not store photo for member ${pending.memberNo}:`, photoErr);
+        }
+      }
       directory.push(pending);
       await membersLib.saveMembers(directory);
       await updateLogEntry({ memberNo: pending.memberNo });

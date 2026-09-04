@@ -2201,6 +2201,10 @@
       if (cvFile) {
         formData.append('cv', cvFile, cvFile.name);
       }
+      // The profile photo becomes the member's directory picture on confirmation.
+      if (profilePhotoFile) {
+        formData.append('photo', profilePhotoFile, profilePhotoFile.name);
+      }
 
       try {
         const res = await fetch('/api/send-application', {
