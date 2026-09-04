@@ -679,6 +679,24 @@
       </div>
     </div>
 
+    <div id="draftBanner" class="hidden mb-6 glass-card-strong rounded-2xl p-4 sm:p-5 border border-rotary-gold/40">
+      <div class="flex items-start gap-3 flex-wrap sm:flex-nowrap">
+        <svg class="w-6 h-6 text-rotary-gold flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="flex-1 min-w-[200px]">
+          <p class="font-bold text-white">You have an unfinished application</p>
+          <p id="draftBannerWhen" class="text-sm text-glass-secondary mt-0.5"></p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button type="button" onclick="resumeDraft()" class="btn-primary px-4 py-2 rounded-xl text-sm font-bold">Resume</button>
+          <button type="button" onclick="discardDraft(true)" class="px-4 py-2 rounded-xl text-sm font-medium text-white/60 hover:text-white transition-colors">Start fresh</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="draftSaved" class="hidden fixed bottom-4 right-4 z-40 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur text-xs text-white/80 border border-white/15">
+      Draft saved
+    </div>
+
     <form id="applicationForm" class="form-container" novalidate>
 
       <!-- ========== STEP 1: Personal Info ========== -->
@@ -1642,6 +1660,7 @@
     }
 
     function showStep(step) {
+      if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
       const panel = document.querySelector(`.step-panel[data-step="${step}"]`);
       if (panel) panel.classList.add('active');
@@ -1782,6 +1801,7 @@
     });
 
     function setProfilePhoto(file) {
+      if (!draftSuspended) setTimeout(persistDraftFiles, 0);
       if (file.size > 10 * 1024 * 1024) { alert(file.name + ' exceeds 10 MB limit'); return; }
       if (!file.type.startsWith('image/')) { alert('Please upload an image file (JPG, PNG)'); return; }
       profilePhotoFile = file;
@@ -1796,7 +1816,7 @@
           </button>
         </div>`;
     }
-    function clearProfilePhoto() { profilePhotoFile = null; photoPreview.innerHTML = ''; }
+    function clearProfilePhoto() { profilePhotoFile = null; photoPreview.innerHTML = ''; persistDraftFiles(); }
 
     // CV Upload
     let cvFile = null;
@@ -1817,6 +1837,7 @@
     });
 
     function setCvFile(file) {
+      if (!draftSuspended) setTimeout(persistDraftFiles, 0);
       if (file.size > 4 * 1024 * 1024) { alert(file.name + ' exceeds 4 MB limit. Please compress your CV.'); return; }
       cvFile = file;
       cvDropZone.classList.remove('border-rotary-cranberry');
@@ -1829,7 +1850,7 @@
           </button>
         </div>`;
     }
-    function clearCvFile() { cvFile = null; cvPreview.innerHTML = ''; }
+    function clearCvFile() { cvFile = null; cvPreview.innerHTML = ''; persistDraftFiles(); }
 
     // Additional files (multiple)
     const dropZone = document.getElementById('dropZone');
@@ -1856,8 +1877,9 @@
         if (!uploadedFiles.find(f => f.name === file.name && f.size === file.size)) { uploadedFiles.push(file); }
       }
       renderFileList();
+      persistDraftFiles();
     }
-    function removeFileAt(index) { uploadedFiles.splice(index, 1); renderFileList(); }
+    function removeFileAt(index) { uploadedFiles.splice(index, 1); renderFileList(); persistDraftFiles(); }
     function renderFileList() {
       fileListEl.innerHTML = uploadedFiles.map((file, i) => `
         <div class="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-400/30 animate-scale-in">
@@ -2229,6 +2251,174 @@
       }
     }
 
+    // ==================== SAVE & RESUME ====================
+    // Everything stays in this browser until the form is submitted: text in
+    // localStorage, the photo/CV/uploads in IndexedDB because they are far too
+    // big for it. Nothing is sent to the server, so an unfinished application
+    // never becomes personal data we have to hold and later delete.
+    const DRAFT_KEY = 'rcbd:application:draft:v1';
+    const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const DRAFT_DB = 'rcbd-application';
+    const DRAFT_STORE = 'files';
+
+    function draftDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DRAFT_DB, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(DRAFT_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    async function draftFiles(mode, fn) {
+      try {
+        const db = await draftDb();
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(DRAFT_STORE, mode);
+          const out = fn(tx.objectStore(DRAFT_STORE));
+          tx.oncomplete = () => resolve(out && out.result !== undefined ? out.result : out);
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch { return null; }   // private mode, or storage disabled
+    }
+    const putDraftFile = (k, v) => draftFiles('readwrite', st => v ? st.put(v, k) : st.delete(k));
+    const getDraftFile  = (k)    => draftFiles('readonly',  st => st.get(k));
+    const clearDraftFiles = ()   => draftFiles('readwrite', st => st.clear());
+
+    function collectDraft() {
+      const form = document.getElementById('applicationForm');
+      const fields = {};
+      form.querySelectorAll('[name]').forEach(el => {
+        if (el.type === 'file') return;
+        if (el.name === 'confirmation') return;   // must always be re-affirmed
+        if (el.type === 'radio') { if (el.checked) fields[el.name] = el.value; }
+        else if (el.type === 'checkbox') fields[el.name] = el.checked;
+        else if (el.value) fields[el.name] = el.value;
+      });
+      return { savedAt: new Date().toISOString(), step: currentStep, rating: currentRating, fields };
+    }
+
+    // Files are stored as Blobs; IndexedDB keeps File objects intact.
+    function persistDraftFiles() {
+      if (draftSuspended) return;
+      putDraftFile('photo', profilePhotoFile || null);
+      putDraftFile('cv', cvFile || null);
+      putDraftFile('uploads', uploadedFiles && uploadedFiles.length ? uploadedFiles.slice() : null);
+    }
+
+    let draftTimer = null;
+    let draftSuspended = false;
+    function scheduleDraftSave() {
+      if (draftSuspended) return;
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(saveDraft, 500);
+    }
+    function saveDraft() {
+      if (draftSuspended) return;
+      try {
+        const draft = collectDraft();
+        const hasContent = Object.values(draft.fields).some(v => v && v !== false);
+        if (!hasContent && draft.step === 1) return;      // nothing worth keeping yet
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        flashDraftSaved();
+      } catch { /* quota or private mode - autosave is best effort */ }
+    }
+
+    let savedFlashTimer = null;
+    function flashDraftSaved() {
+      const el = document.getElementById('draftSaved');
+      if (!el) return;
+      el.classList.remove('hidden');
+      clearTimeout(savedFlashTimer);
+      savedFlashTimer = setTimeout(() => el.classList.add('hidden'), 1400);
+    }
+
+    function readDraft() {
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return null;
+        const draft = JSON.parse(raw);
+        if (!draft || !draft.savedAt) return null;
+        if (Date.now() - new Date(draft.savedAt).getTime() > DRAFT_TTL_MS) {
+          discardDraft(false);
+          return null;
+        }
+        return draft;
+      } catch { return null; }
+    }
+
+    function discardDraft(userInitiated) {
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      clearDraftFiles();
+      const banner = document.getElementById('draftBanner');
+      if (banner) banner.classList.add('hidden');
+      if (userInitiated) showToastLike('Starting a fresh application');
+    }
+
+    function showToastLike(msg) {
+      const el = document.getElementById('draftSaved');
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(savedFlashTimer);
+      savedFlashTimer = setTimeout(() => { el.classList.add('hidden'); el.textContent = 'Draft saved'; }, 2000);
+    }
+
+    async function resumeDraft() {
+      const draft = readDraft();
+      if (!draft) return;
+      draftSuspended = true;
+      const form = document.getElementById('applicationForm');
+
+      Object.entries(draft.fields || {}).forEach(([name, value]) => {
+        const els = form.querySelectorAll(`[name="${window.CSS && CSS.escape ? CSS.escape(name) : name}"]`);
+        els.forEach(el => {
+          if (el.type === 'radio') { el.checked = (el.value === value); if (el.checked) el.dispatchEvent(new Event('change', { bubbles: true })); }
+          else if (el.type === 'checkbox') el.checked = !!value;
+          else el.value = value;
+        });
+      });
+
+      if (draft.rating) {
+        currentRating = draft.rating;
+        const ratingInput = document.getElementById('ratingInput');
+        if (ratingInput) ratingInput.value = currentRating;
+        try { updateStars(); } catch {}
+      }
+
+      // Files come back from IndexedDB through the same setters the pickers use,
+      // so their previews and validation behave identically.
+      const [photo, cv, extras] = await Promise.all([
+        getDraftFile('photo'), getDraftFile('cv'), getDraftFile('uploads'),
+      ]);
+      if (photo) { try { setProfilePhoto(photo); } catch {} }
+      if (cv) { try { setCvFile(cv); } catch {} }
+      if (Array.isArray(extras) && extras.length) { uploadedFiles = extras.slice(); try { renderFileList(); } catch {} }
+
+      document.getElementById('draftBanner').classList.add('hidden');
+      currentStep = Math.min(Math.max(1, draft.step || 1), totalSteps);
+      showStep(currentStep);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      draftSuspended = false;
+      showToastLike('Application restored');
+    }
+
+    function offerDraftResume() {
+      const draft = readDraft();
+      if (!draft) return;
+      const when = new Date(draft.savedAt);
+      const rel = when.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
+                  ' at ' + when.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const filled = Object.values(draft.fields || {}).filter(v => v && v !== false).length;
+      document.getElementById('draftBannerWhen').textContent =
+        `Saved ${rel} - ${filled} field${filled === 1 ? '' : 's'} completed, up to step ${draft.step || 1} of ${totalSteps}. Resume where you left off, or start again.`;
+      document.getElementById('draftBanner').classList.remove('hidden');
+    }
+
+    document.getElementById('applicationForm').addEventListener('input', scheduleDraftSave);
+    document.getElementById('applicationForm').addEventListener('change', scheduleDraftSave);
+    window.addEventListener('beforeunload', () => { try { saveDraft(); } catch {} });
+    offerDraftResume();
+
     // Form submit
     document.getElementById('applicationForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2257,6 +2447,10 @@
 
         // Try to send email (works when local server is running)
         const emailResult = await sendApplicationEmail(pdfDoc);
+
+        // Submitted for real - the draft has served its purpose.
+        draftSuspended = true;
+        discardDraft(false);
 
         // Show success
         document.getElementById('applicationForm').classList.add('hidden');
