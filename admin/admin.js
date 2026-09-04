@@ -47,7 +47,14 @@ async function apiFetch(url, options = {}) {
     handleUnauthorized();
     throw new Error('Unauthorized');
   }
-  return res.json();
+  let data = null;
+  try { data = await res.json(); } catch { data = null; }
+  // Without this a 400/409/500 resolved like a success and the caller showed
+  // "Saved" over a rejected write.
+  if (!res.ok) {
+    throw new Error((data && data.error) || `Request failed (${res.status})`);
+  }
+  return data;
 }
 
 async function openFile(id, type) {

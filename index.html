@@ -2189,6 +2189,12 @@
 
       const formData = new FormData();
       formData.append('applicantName', firstName + ' ' + familyName);
+      // Also send the identifying fields so the admin can confirm the applicant
+      // as a club member without retyping them from the PDF.
+      ['firstName', 'familyName', 'businessEmail', 'phone', 'whatsapp',
+       'billingAddress', 'businessName', 'jobTitle'].forEach(f => {
+        formData.append(f, getFormValue(f));
+      });
       formData.append('pdf', pdfBlob, 'application-' + firstName.toLowerCase() + '-' + familyName.toLowerCase() + '.pdf');
 
       // Always attach CV separately so it arrives even if pdf-lib merge failed

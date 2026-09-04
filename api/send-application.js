@@ -2,6 +2,7 @@ const busboy = require('busboy');
 const { kv } = require('@vercel/kv');
 const settingsLib = require('../lib/settings');
 const { LOG_KEY } = require('../lib/applications');
+const membersLib = require('../lib/members');
 const mailer = require('../lib/mailer');
 module.exports = async (req, res) => {
   // CORS
@@ -137,6 +138,30 @@ module.exports = async (req, res) => {
   }
 
   await updateLogEntry({ hasPdf, hasCv });
+
+  // Seed a pending directory entry so the applicant can be confirmed as a
+  // member with one tick instead of being retyped. Never overwrites anyone,
+  // and never blocks the application if it fails.
+  try {
+    const directory = await membersLib.getMembers();
+    const pending = membersLib.buildPendingMember(directory, {
+      firstName: fields.firstName,
+      lastName: fields.familyName,
+      email: fields.businessEmail,
+      phone: fields.phone,
+      whatsapp: fields.whatsapp,
+      address: fields.billingAddress,
+      company: fields.businessName,
+      jobTitle: fields.jobTitle,
+    }, appId);
+    if (pending) {
+      directory.push(pending);
+      await membersLib.saveMembers(directory);
+      await updateLogEntry({ memberNo: pending.memberNo });
+    }
+  } catch (err) {
+    console.error(`Could not create pending member for ${appId}:`, err);
+  }
 
   // Load admin settings for recipients and email template
   const settings = await settingsLib.getSettings();
