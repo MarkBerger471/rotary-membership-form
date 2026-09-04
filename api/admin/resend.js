@@ -56,13 +56,12 @@ module.exports = async (req, res) => {
 
     await mailer.mapLimit(targets, 4, async (email) => {
       try {
-        await transporter.sendMail({
-          from: mailer.fromAddress(),
+        await transporter.sendMail(mailer.message({
           to: email,
           subject,
           html: bodyHtml + mailer.voteSection(app.id, email, settingsLib.recipientName(settings, email)),
           attachments,
-        });
+        }));
         sent.push(email);
       } catch (err) {
         console.error(`Resend to ${email} failed for ${appId}:`, err);

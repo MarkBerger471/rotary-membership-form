@@ -215,13 +215,12 @@ module.exports = async (req, res) => {
 
       // One bad address must not stop the rest of the board being notified.
       try {
-        const info = await transporter.sendMail({
-          from: mailer.fromAddress(),
+        const info = await transporter.sendMail(mailer.message({
           to: recipientEmail,
           subject,
           html: fullHtml,
           attachments,
-        });
+        }));
         results.push({ email: recipientEmail, messageId: info.messageId });
       } catch (sendErr) {
         console.error(`Email to ${recipientEmail} failed:`, sendErr);

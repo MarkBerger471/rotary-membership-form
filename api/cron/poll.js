@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
         if (!dryRun) {
           for (const email of ticked) {
             try {
-              await transporter.sendMail({ from: mailer.fromAddress(), to: email, subject, html });
+              await transporter.sendMail(mailer.message({ to: email, subject, html }));
               sent.push(email);
             } catch (err) {
               console.error(`Result email to ${email} failed for ${app.id}:`, err);
@@ -127,13 +127,7 @@ module.exports = async (req, res) => {
                 recipientName(settings, email),
                 'Your Vote Is Still Outstanding'
               );
-            await transporter.sendMail({
-              from: mailer.fromAddress(),
-              to: email,
-              subject,
-              html,
-              attachments,
-            });
+            await transporter.sendMail(mailer.message({ to: email, subject, html, attachments }));
             sent.push(email);
           } catch (err) {
             console.error(`Reminder to ${email} failed for ${app.id}:`, err);
