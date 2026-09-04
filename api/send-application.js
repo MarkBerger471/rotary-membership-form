@@ -4,6 +4,7 @@ const settingsLib = require('../lib/settings');
 const { LOG_KEY } = require('../lib/applications');
 const membersLib = require('../lib/members');
 const photosLib = require('../lib/photos');
+const notify = require('../lib/notify');
 const mailer = require('../lib/mailer');
 module.exports = async (req, res) => {
   // CORS
@@ -226,6 +227,15 @@ module.exports = async (req, res) => {
         console.error(`Email to ${recipientEmail} failed:`, sendErr);
         failures.push({ email: recipientEmail, error: sendErr.message });
       }
+    });
+
+    // Tell the membership chair straight away, before anyone opens their email.
+    await notify.push({
+      title: 'New membership application',
+      message: `${fields.applicantName || 'Someone'} has applied to join.`
+        + (results.length ? ` The board (${results.length}) has been emailed.` : ''),
+      url: `${mailer.siteUrl()}/admin/membership`,
+      tags: ['inbox_tray'],
     });
 
     const delivered = results.map(r => r.email);

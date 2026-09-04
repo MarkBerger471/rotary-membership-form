@@ -1,4 +1,8 @@
 const { kv } = require('@vercel/kv');
+const apps = require('../../lib/applications');
+const settingsLib = require('../../lib/settings');
+const mailer = require('../../lib/mailer');
+const notify = require('../../lib/notify');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -83,7 +87,16 @@ module.exports = async (req, res) => {
       };
       await kv.set(`votes:${id}`, votes);
 
-      return res.json({ success: true, vote });
+      // Act on the vote immediately rather than leaving the outcome to sit
+      // until the 14-day sweep. Never let this break recording the vote.
+      let closedEarly = false;
+      try {
+        closedEarly = await reactToVote(application, votes, { vote, voterName, comment });
+      } catch (err) {
+        console.error(`Post-vote handling failed for ${id}:`, err);
+      }
+
+      return res.json({ success: true, vote, closedEarly });
     } catch (err) {
       console.error('Vote error:', err);
       return res.status(500).json({ error: 'Failed to record vote.' });
@@ -92,6 +105,83 @@ module.exports = async (req, res) => {
 
   res.status(405).send('Method not allowed');
 };
+
+// A rejection is decisive under the board's rule, and a final approval ends
+// the poll there and then - both are worth knowing about the moment they
+// happen, not a fortnight later.
+async function reactToVote(application, votes, cast) {
+  if (!application) return false;
+  const name = application.name || 'the applicant';
+  const siteUrl = mailer.siteUrl();
+  const adminUrl = `${siteUrl}/admin/membership`;
+
+  if (cast.vote === 'rejected') {
+    await notify.push({
+      title: `${cast.voterName} declined ${name}`,
+      message: `${cast.voterName} voted to reject the application from ${name}.`
+        + (cast.comment ? `\n\nReason: ${cast.comment}` : '')
+        + '\n\nOne objection blocks the application.',
+      url: adminUrl,
+      priority: 'high',
+      tags: ['x'],
+    });
+    return false;
+  }
+
+  // Approval: has everyone who was asked now approved?
+  const asked = Array.isArray(application.emailedTo) ? application.emailedTo : [];
+  if (!asked.length) return false;
+  const allApproved = asked.every(e => votes[e] && votes[e].vote === 'approved');
+  if (!allApproved) {
+    await notify.push({
+      title: `${cast.voterName} approved ${name}`,
+      message: `${asked.filter(e => votes[e]).length} of ${asked.length} board members have now voted.`,
+      url: adminUrl,
+      tags: ['white_check_mark'],
+    });
+    return false;
+  }
+
+  // Unanimous - close the poll now and send the result, exactly as the
+  // day-14 sweep would have done.
+  const tally = apps.tally(application, votes);
+  const result = apps.outcome(tally);
+  const settings = await settingsLib.getSettings();
+  const ticked = settingsLib.activeRecipients(settings);
+
+  await apps.updateApplication(application.id, {
+    pollStatus: 'closed',
+    pollClosedAt: new Date().toISOString(),
+    pollResult: result.label,
+    pollClosedEarly: true,
+    pollTally: {
+      approved: tally.approved.length,
+      rejected: tally.rejected.length,
+      noResponse: tally.pending.length,
+    },
+  });
+
+  const html = mailer.wrap(`Application Result: ${name}`,
+    mailer.resultBody(name, result, tally, apps.CLOSE_DAYS));
+  const subject = `Result: Membership Application - ${name} - ${result.label}`;
+  const transporter = mailer.createTransporter();
+  await mailer.mapLimit(ticked, 4, async (to) => {
+    try {
+      await transporter.sendMail(mailer.message({ to, subject, html }));
+    } catch (err) {
+      console.error(`Early result email to ${to} failed:`, err);
+    }
+  });
+
+  await notify.push({
+    title: `${name} approved unanimously`,
+    message: `All ${asked.length} board members approved. The poll is closed and the result has been emailed.`,
+    url: adminUrl,
+    priority: 'high',
+    tags: ['tada'],
+  });
+  return true;
+}
 
 function renderVotePage(id, email, applicantName, mode, voterName) {
   const approveActive = mode === 'approve' ? 'true' : 'false';

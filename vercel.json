@@ -18,7 +18,7 @@
       "maxDuration": 15
     },
     "api/admin/vote.js": {
-      "maxDuration": 15
+      "maxDuration": 60
     },
     "api/admin/votes.js": {
       "maxDuration": 15
