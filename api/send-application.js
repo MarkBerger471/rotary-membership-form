@@ -3,6 +3,7 @@ const { kv } = require('@vercel/kv');
 const settingsLib = require('../lib/settings');
 const { LOG_KEY } = require('../lib/applications');
 const membersLib = require('../lib/members');
+const photosLib = require('../lib/photos');
 const mailer = require('../lib/mailer');
 module.exports = async (req, res) => {
   // CORS
@@ -155,14 +156,17 @@ module.exports = async (req, res) => {
       jobTitle: fields.jobTitle,
     }, appId);
     if (pending) {
-      // Keep the applicant's own photo as their directory picture.
-      if (files.photo && files.photo.buffer.length <= 600 * 1024) {
+      // Keep the applicant's own photo as their directory picture - the file
+      // they uploaded, or failing that the one embedded in the application PDF.
+      const photo = photosLib.choosePhoto(files);
+      if (photo) {
         try {
           await kv.set(`file:photo:${pending.memberNo}`, {
-            content: files.photo.buffer.toString('base64'),
-            mimeType: files.photo.mimeType || 'image/jpeg',
+            content: photo.content.toString('base64'),
+            mimeType: photo.mimeType,
           });
           pending.hasPhoto = true;
+          console.log(`Stored photo for member ${pending.memberNo} from ${photo.source} (${photo.content.length} bytes)`);
         } catch (photoErr) {
           console.error(`Could not store photo for member ${pending.memberNo}:`, photoErr);
         }
