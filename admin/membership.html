@@ -355,6 +355,7 @@
           </td>
           <td class="px-6 py-4">
             ${voteSummaryHtml}
+            ${pollStatusHtml(app)}
             ${voteDetailHtml}
           </td>
           <td class="px-6 py-4">${filesHtml}</td>
@@ -365,6 +366,33 @@
           </td>
         </tr>`;
       }).join('');
+    }
+
+    // Where an application sits in the 5/12/14-day board poll.
+    const POLL_CLOSE_DAYS = 14;
+
+    function pollStatusHtml(app) {
+      if (!app.pollOpenedAt) return '';
+
+      if (app.pollStatus === 'closed') {
+        const colour = app.pollResult === 'Approved'
+          ? 'bg-green-500/20 text-green-400'
+          : app.pollResult === 'Rejected'
+            ? 'bg-red-500/20 text-red-400'
+            : 'bg-white/10 text-white/50';
+        return `<div class="mt-1.5"><span class="inline-flex items-center gap-1 text-[11px] ${colour} px-2 py-0.5 rounded-full font-medium">
+          Poll closed${app.pollResult ? ' &middot; ' + escapeHtml(app.pollResult) : ''}
+        </span></div>`;
+      }
+
+      const days = Math.floor((Date.now() - new Date(app.pollOpenedAt).getTime()) / 86400000);
+      if (!isFinite(days)) return '';
+      const left = Math.max(0, POLL_CLOSE_DAYS - days);
+      const reminders = Array.isArray(app.remindersSent) ? app.remindersSent : [];
+      const remindedNote = reminders.length ? ` &middot; reminded day ${reminders.join(', ')}` : '';
+      return `<div class="mt-1.5"><span class="inline-flex items-center gap-1 text-[11px] bg-rotary-gold/15 text-rotary-gold/90 px-2 py-0.5 rounded-full font-medium">
+        Day ${days} of ${POLL_CLOSE_DAYS} &middot; ${left === 0 ? 'closing' : left + ' day' + (left === 1 ? '' : 's') + ' left'}${remindedNote}
+      </span></div>`;
     }
 
     function toggleVoteDetail(appId) {

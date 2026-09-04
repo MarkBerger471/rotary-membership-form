@@ -30,6 +30,19 @@ module.exports = async (req, res) => {
     const app = apps.find(a => a.id === id);
     const applicantName = app ? app.name : 'Unknown Applicant';
 
+    if (app && app.pollStatus === 'closed') {
+      const closedOn = app.pollClosedAt
+        ? new Date(app.pollClosedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : null;
+      return res.send(renderPage(
+        'Voting Closed',
+        `<p>The voting period for <strong>${escapeHtml(applicantName)}</strong> has closed${closedOn ? ' on ' + closedOn : ''}.</p>
+        ${app.pollResult ? `<p style="margin-top:12px;">Recorded result: <strong>${escapeHtml(app.pollResult)}</strong>.</p>` : ''}
+        <p style="margin-top:16px;color:#888;font-size:13px;">If you still need to register an opinion, please contact the admin.</p>`,
+        'error'
+      ));
+    }
+
     if (action === 'approve') {
       return res.send(renderVotePage(id, email, applicantName, 'approve', voterNameParam));
     } else if (action === 'reject') {
@@ -52,6 +65,12 @@ module.exports = async (req, res) => {
 
     if (vote === 'rejected' && !comment.trim()) {
       return res.status(400).json({ error: 'A comment is required when rejecting an application.' });
+    }
+
+    const applications = (await kv.get('admin:applications')) || [];
+    const application = applications.find(a => a.id === id);
+    if (application && application.pollStatus === 'closed') {
+      return res.status(403).json({ error: 'Voting for this application has closed.' });
     }
 
     try {

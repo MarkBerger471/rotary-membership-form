@@ -1,44 +1,8 @@
 const busboy = require('busboy');
-const nodemailer = require('nodemailer');
 const { kv } = require('@vercel/kv');
-
-const SETTINGS_KEY = 'admin:settings';
-const LOG_KEY = 'admin:applications';
-
-const DEFAULT_SETTINGS = {
-  recipients: [
-    { email: 'markberger471@gmail.com', name: 'Mark Berger', active: true }
-  ],
-  emailSubject: 'New Membership Application: {{name}}',
-  emailBody: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: #17458f; padding: 20px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: #fff; margin: 0; font-size: 20px;">New Membership Application</h1>
-    <p style="color: #f7a81b; margin: 5px 0 0;">Rotary Club Bangkok DACH</p>
-  </div>
-  <div style="background: #f8f9fa; padding: 20px; border: 1px solid #e9ecef;">
-    <p>Dear Membership Committee,</p>
-    <p>A new membership application has been submitted by <strong>{{name}}</strong>.</p>
-    <p>Please find the application summary PDF attached{{cv_note}}.</p>
-    <p style="margin-top: 20px; color: #666; font-size: 12px;">
-      This email was sent automatically from the online membership application form.
-    </p>
-  </div>
-  <div style="background: #f7a81b; padding: 8px; text-align: center; border-radius: 0 0 8px 8px;">
-    <span style="color: #17458f; font-size: 11px; font-weight: bold;">Rotary Club Bangkok DACH</span>
-  </div>
-</div>`
-};
-
-async function getSettings() {
-  try {
-    const settings = await kv.get(SETTINGS_KEY);
-    if (settings) return settings;
-  } catch (err) {
-    console.error('Error reading settings:', err);
-  }
-  return DEFAULT_SETTINGS;
-}
-
+const settingsLib = require('../lib/settings');
+const { LOG_KEY } = require('../lib/applications');
+const mailer = require('../lib/mailer');
 module.exports = async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,6 +75,10 @@ module.exports = async (req, res) => {
       pdfFilename: files.pdf.filename,
       cvFilename: files.cv ? files.cv.filename : null,
       emailedTo: [],
+      // Opens the 5/12/14-day board poll that api/cron/poll.js drives.
+      pollOpenedAt: new Date().toISOString(),
+      pollStatus: 'open',
+      remindersSent: [],
     });
     await kv.set(LOG_KEY, apps);
     stored = true;
@@ -171,13 +139,9 @@ module.exports = async (req, res) => {
   await updateLogEntry({ hasPdf, hasCv });
 
   // Load admin settings for recipients and email template
-  const settings = await getSettings();
-  const recipientList = Array.isArray(settings.recipients)
-    ? settings.recipients
-    : DEFAULT_SETTINGS.recipients;
-  const activeRecipients = recipientList
-    .filter(r => r && r.active && r.email)
-    .map(r => r.email);
+  const settings = await settingsLib.getSettings();
+  const recipientList = settingsLib.recipientList(settings);
+  const activeRecipients = settingsLib.activeRecipients(settings);
 
   if (activeRecipients.length === 0) {
     const error = 'No active email recipients configured';
@@ -187,25 +151,15 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER || 'markberger471@gmail.com',
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
+    const transporter = mailer.createTransporter();
 
     // Build email content from template
     const cvNote = files.cv ? ", along with the applicant's CV" : '';
     const subject = (settings.emailSubject || 'New Membership Application: {{name}}')
       .replace(/\{\{name\}\}/g, fields.applicantName || 'Unknown');
-    const bodyHtml = (settings.emailBody || DEFAULT_SETTINGS.emailBody)
+    const bodyHtml = (settings.emailBody || settingsLib.DEFAULT_SETTINGS.emailBody)
       .replace(/\{\{name\}\}/g, fields.applicantName || 'Unknown')
       .replace(/\{\{cv_note\}\}/g, cvNote);
-
-    const siteUrl = process.env.SITE_URL
-      || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : '')
-      || 'https://rotary-bkkdach.vercel.app';
 
     // Send individual emails so each recipient gets unique vote links
     const results = [];
@@ -213,28 +167,13 @@ module.exports = async (req, res) => {
     for (const recipientEmail of activeRecipients) {
       const recipient = recipientList.find(r => r.email === recipientEmail);
       const recipientName = recipient ? recipient.name : '';
-      const approveUrl = `${siteUrl}/api/admin/vote?id=${encodeURIComponent(appId)}&email=${encodeURIComponent(recipientEmail)}&name=${encodeURIComponent(recipientName)}&action=approve`;
-      const rejectUrl = `${siteUrl}/api/admin/vote?id=${encodeURIComponent(appId)}&email=${encodeURIComponent(recipientEmail)}&name=${encodeURIComponent(recipientName)}&action=reject`;
-
-      const voteSection = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 24px auto 0;">
-          <div style="background: #f0f4f8; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center;">
-            <p style="margin: 0 0 6px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Board Member Action Required</p>
-            <p style="margin: 0 0 20px; font-size: 14px; color: #475569;">Please review the attached application and cast your vote.</p>
-            <div style="display: inline-block;">
-              <a href="${approveUrl}" style="display: inline-block; background: #16a34a; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; margin-right: 12px;">&#10003; Approve</a>
-              <a href="${rejectUrl}" style="display: inline-block; background: #dc2626; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px;">&#10007; Reject</a>
-            </div>
-            <p style="margin: 16px 0 0; font-size: 11px; color: #94a3b8;">This link is unique to you. Do not forward this email.</p>
-          </div>
-        </div>`;
-
-      const fullHtml = bodyHtml + voteSection;
+      const fullHtml =
+        bodyHtml + mailer.voteSection(appId, recipientEmail, recipientName);
 
       // One bad address must not stop the rest of the board being notified.
       try {
         const info = await transporter.sendMail({
-          from: `"Rotary Club Bangkok DACH" <${process.env.GMAIL_USER || 'markberger471@gmail.com'}>`,
+          from: mailer.fromAddress(),
           to: recipientEmail,
           subject,
           html: fullHtml,

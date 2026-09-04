@@ -1,5 +1,7 @@
 {
-  "regions": ["sin1"],
+  "regions": [
+    "sin1"
+  ],
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
@@ -29,12 +31,19 @@
     },
     "api/cron/keepalive.js": {
       "maxDuration": 10
+    },
+    "api/cron/poll.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cron/keepalive",
       "schedule": "0 12 * * 1"
+    },
+    {
+      "path": "/api/cron/poll",
+      "schedule": "0 3 * * *"
     }
   ]
 }
