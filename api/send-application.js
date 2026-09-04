@@ -198,10 +198,12 @@ module.exports = async (req, res) => {
       .replace(/\{\{name\}\}/g, fields.applicantName || 'Unknown')
       .replace(/\{\{cv_note\}\}/g, cvNote);
 
-    // Send individual emails so each recipient gets unique vote links
+    // Send individual emails so each recipient gets unique vote links.
+    // Capped concurrency: sequential sends timed out the function at four
+    // recipients, one attachment upload at a time.
     const results = [];
     const failures = [];
-    for (const recipientEmail of activeRecipients) {
+    await mailer.mapLimit(activeRecipients, 4, async (recipientEmail) => {
       const recipient = recipientList.find(r => r.email === recipientEmail);
       const recipientName = recipient ? recipient.name : '';
       const fullHtml =
@@ -221,7 +223,7 @@ module.exports = async (req, res) => {
         console.error(`Email to ${recipientEmail} failed:`, sendErr);
         failures.push({ email: recipientEmail, error: sendErr.message });
       }
-    }
+    });
 
     const delivered = results.map(r => r.email);
     const emailError = failures.length
