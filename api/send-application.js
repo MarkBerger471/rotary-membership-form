@@ -96,32 +96,18 @@ module.exports = async (req, res) => {
   const safeName = (fields.applicantName || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '-');
   const appId = timestamp + '_' + safeName;
 
+  // Write the small log entry first. The file blobs are orders of magnitude
+  // larger and are the ones at risk of exceeding the KV request size limit; if
+  // one of them fails, the application must still show up in the admin list.
   let stored = false;
   try {
-    // Store PDF in KV as base64
-    await kv.set(`file:pdf:${appId}`, {
-      content: files.pdf.buffer.toString('base64'),
-      filename: files.pdf.filename,
-      mimeType: 'application/pdf',
-    });
-
-    // Store CV if present
-    if (files.cv) {
-      await kv.set(`file:cv:${appId}`, {
-        content: files.cv.buffer.toString('base64'),
-        filename: files.cv.filename,
-        mimeType: files.cv.mimeType,
-      });
-    }
-
-    // Log the application
     const apps = (await kv.get(LOG_KEY)) || [];
     apps.unshift({
       id: appId,
       name: fields.applicantName || 'Unknown',
       date: new Date().toISOString(),
-      hasPdf: true,
-      hasCv: !!files.cv,
+      hasPdf: false,
+      hasCv: false,
       pdfFilename: files.pdf.filename,
       cvFilename: files.cv ? files.cv.filename : null,
       emailedTo: [],
@@ -129,25 +115,60 @@ module.exports = async (req, res) => {
     await kv.set(LOG_KEY, apps);
     stored = true;
   } catch (kvErr) {
-    console.error('KV storage error (non-fatal):', kvErr);
-    // Continue with email sending even if storage fails
+    console.error(`KV storage error (non-fatal): could not log application ${appId}:`, kvErr);
+    // Continue: the notification email is still worth sending.
   }
 
-  // Record what was actually delivered, so the admin list reflects reality
-  // rather than intent.
-  async function recordDelivery(emailedTo, emailError) {
+  // Patch the log entry in place - used for the stored-file flags below and
+  // for the delivery result after the emails go out.
+  async function updateLogEntry(patch) {
     if (!stored) return;
     try {
       const apps = (await kv.get(LOG_KEY)) || [];
       const entry = apps.find(a => a.id === appId);
       if (!entry) return;
-      entry.emailedTo = emailedTo;
-      if (emailError) entry.emailError = emailError;
+      Object.assign(entry, patch);
       await kv.set(LOG_KEY, apps);
     } catch (err) {
-      console.error('Could not record delivery status:', err);
+      console.error(`Could not update log entry for ${appId}:`, err);
     }
   }
+
+  function recordDelivery(emailedTo, emailError) {
+    return updateLogEntry(emailError ? { emailedTo, emailError } : { emailedTo });
+  }
+
+  // Store each file under its own guard: an oversized CV must not cost us the
+  // PDF, and neither must cost us the log entry above. hasPdf/hasCv then
+  // describe what is actually retrievable, so admin only offers real downloads.
+  let hasPdf = false;
+  let hasCv = false;
+
+  try {
+    await kv.set(`file:pdf:${appId}`, {
+      content: files.pdf.buffer.toString('base64'),
+      filename: files.pdf.filename,
+      mimeType: 'application/pdf',
+    });
+    hasPdf = true;
+  } catch (kvErr) {
+    console.error(`KV storage error (non-fatal): PDF for ${appId} not stored (${files.pdf.buffer.length} bytes):`, kvErr);
+  }
+
+  if (files.cv) {
+    try {
+      await kv.set(`file:cv:${appId}`, {
+        content: files.cv.buffer.toString('base64'),
+        filename: files.cv.filename,
+        mimeType: files.cv.mimeType,
+      });
+      hasCv = true;
+    } catch (kvErr) {
+      console.error(`KV storage error (non-fatal): CV for ${appId} not stored (${files.cv.buffer.length} bytes):`, kvErr);
+    }
+  }
+
+  await updateLogEntry({ hasPdf, hasCv });
 
   // Load admin settings for recipients and email template
   const settings = await getSettings();
