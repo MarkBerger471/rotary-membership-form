@@ -311,13 +311,13 @@
           if (approved.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">${approved.length} approved</span>`);
           if (rejected.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">${rejected.length} rejected</span>`);
           if (pending.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded-full">${pending.length} pending</span>`);
-          voteSummaryHtml = `<div class="flex flex-wrap gap-1.5 cursor-pointer" onclick="toggleVoteDetail('${app.id}')">${pills.join('')}</div>`;
+          voteSummaryHtml = `<div class="flex flex-wrap gap-1.5 cursor-pointer" onclick="toggleVoteDetail('${app.id}')" title="Click to collapse the breakdown">${pills.join('')}</div>`;
         }
 
-        let voteDetailHtml = '<div id="votes-' + app.id + '" class="hidden">';
+        let voteDetailHtml = '<div id="votes-' + app.id + '" class="mt-2 pt-2 border-t border-white/10">';
         const allVoters = [...approved.map(v => ({...v, status: 'approved'})), ...rejected.map(v => ({...v, status: 'rejected'})), ...pending.map(v => ({...v, status: 'pending'}))];
         allVoters.forEach(v => {
-          const name = v.voterName || v.email;
+          const name = v.voterName || recipientDisplayName(v.email);
           let icon, color, label;
           if (v.status === 'approved') {
             icon = '<svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
@@ -335,7 +335,7 @@
           const dateInfo = v.date ? ' &middot; ' + new Date(v.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
           const commentHtml = v.comment ? `<div class="text-xs text-red-300/70 mt-1 ml-5 italic">"${escapeHtml(v.comment)}"</div>` : '';
           voteDetailHtml += `<div class="py-1.5">
-            <div class="flex items-center gap-1.5 text-xs">
+            <div class="flex items-center gap-1.5 text-xs" title="${escapeHtml(v.email)}">
               ${icon}
               <span class="${color} font-medium">${escapeHtml(name)}</span>
               <span class="text-white/30">${label}${dateInfo}</span>
@@ -366,6 +366,14 @@
           </td>
         </tr>`;
       }).join('');
+    }
+
+    // Board members who have not voted have no voterName of their own yet;
+    // fall back to the name on the recipient list before the raw address.
+    function recipientDisplayName(email) {
+      const list = settings && Array.isArray(settings.recipients) ? settings.recipients : [];
+      const match = list.find(r => r && (r.email || '').toLowerCase() === (email || '').toLowerCase());
+      return (match && match.name) || email;
     }
 
     // Where an application sits in the 5/12/14-day board poll.
