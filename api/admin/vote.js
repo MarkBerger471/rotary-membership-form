@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     const app = apps.find(a => a.id === id);
     const applicantName = app ? app.name : 'Unknown Applicant';
 
-    if (app && app.pollStatus === 'closed') {
+    if (app && (app.pollStatus === 'closed' || app.archived)) {
       const closedOn = app.pollClosedAt
         ? new Date(app.pollClosedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : null;
@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
 
     const applications = (await kv.get('admin:applications')) || [];
     const application = applications.find(a => a.id === id);
-    if (application && application.pollStatus === 'closed') {
+    if (application && (application.pollStatus === 'closed' || application.archived)) {
       return res.status(403).json({ error: 'Voting for this application has closed.' });
     }
 

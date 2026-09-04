@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
   for (const app of list) {
     // Applications submitted before the poll feature existed have no
     // pollOpenedAt; leave them alone rather than mailing about old records.
-    if (!app.pollOpenedAt || app.pollStatus === 'closed') continue;
+    if (!app.pollOpenedAt || app.pollStatus === 'closed' || app.archived) continue;
 
     const age = apps.daysSince(app.pollOpenedAt, now);
     if (age === null) continue;

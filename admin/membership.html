@@ -98,10 +98,13 @@
     <div class="glass-card rounded-2xl overflow-hidden">
       <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
         <h2 class="font-bold text-lg">Application Log</h2>
-        <button onclick="loadApplications()" class="btn-secondary px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          Refresh
-        </button>
+        <div class="flex items-center gap-2">
+          <span id="archivedAppsToggle"></span>
+          <button onclick="loadApplications()" class="btn-secondary px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+        </div>
       </div>
       <div id="applicationsLoading" class="px-6 py-12 text-center text-white/40">
         <svg class="w-6 h-6 animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -264,8 +267,26 @@
       document.getElementById('applicationsEmpty').classList.add('hidden');
       document.getElementById('applicationsTable').classList.remove('hidden');
 
+      const archivedCount = applications.filter(a => a.archived).length;
+      const visible = showArchivedApplications ? applications : applications.filter(a => !a.archived);
+      renderArchivedToggle(archivedCount);
+
+      if (visible.length === 0) {
+        const empty = document.getElementById('applicationsEmpty');
+        empty.querySelector('p.font-medium').textContent =
+          archivedCount ? 'No active applications' : 'No applications yet';
+        empty.querySelector('p.text-sm').textContent = archivedCount
+          ? `${archivedCount} archived application${archivedCount === 1 ? '' : 's'} - use "Show archived" above to see them.`
+          : 'Applications will appear here once submitted through the form.';
+        empty.classList.remove('hidden');
+        document.getElementById('applicationsTable').classList.add('hidden');
+        return;
+      }
+      document.getElementById('applicationsEmpty').classList.add('hidden');
+      document.getElementById('applicationsTable').classList.remove('hidden');
+
       const tbody = document.getElementById('applicationsBody');
-      tbody.innerHTML = applications.map(app => {
+      tbody.innerHTML = visible.map(app => {
         const date = new Date(app.date);
         const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -345,9 +366,10 @@
         });
         voteDetailHtml += '</div>';
 
-        return `<tr class="hover:bg-white/5 transition-colors">
+        return `<tr class="hover:bg-white/5 transition-colors ${app.archived ? 'opacity-50' : ''}">
           <td class="px-6 py-4">
             <span class="font-semibold text-white">${escapeHtml(app.name)}</span>
+            ${app.archived ? '<span class="ml-2 text-[10px] uppercase tracking-wider bg-white/10 text-white/40 px-2 py-0.5 rounded-full font-bold">Archived</span>' : ''}
           </td>
           <td class="px-6 py-4 text-white/60">
             <div>${dateStr}</div>
@@ -360,9 +382,13 @@
           </td>
           <td class="px-6 py-4">${filesHtml}</td>
           <td class="px-6 py-4">
-            <button onclick="deleteApplication('${app.id}')" class="text-white/20 hover:text-red-400 transition-colors p-1" title="Delete application">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
+            ${app.archived
+              ? `<button onclick="restoreApplication('${app.id}')" class="text-white/20 hover:text-white transition-colors p-1" title="Restore application">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                 </button>`
+              : `<button onclick="archiveApplication('${app.id}')" class="text-white/20 hover:text-rotary-gold transition-colors p-1" title="Archive application">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                 </button>`}
           </td>
         </tr>`;
       }).join('');
@@ -403,22 +429,51 @@
       </span></div>`;
     }
 
+    let showArchivedApplications = false;
+
+    function renderArchivedToggle(count) {
+      let el = document.getElementById('archivedAppsToggle');
+      if (!el) return;
+      if (!count) { el.innerHTML = ''; return; }
+      el.innerHTML = `<button onclick="toggleArchivedApplications()"
+        class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${showArchivedApplications ? 'bg-rotary-gold/20 text-rotary-gold' : 'bg-white/5 text-white/50 hover:text-white/80'}">
+        ${showArchivedApplications ? 'Hide' : 'Show'} archived (${count})
+      </button>`;
+    }
+
+    function toggleArchivedApplications() {
+      showArchivedApplications = !showArchivedApplications;
+      renderApplications();
+    }
+
     function toggleVoteDetail(appId) {
       const el = document.getElementById('votes-' + appId);
       if (el) el.classList.toggle('hidden');
     }
 
-    async function deleteApplication(appId) {
+    // Applications are archived, never deleted: the PDF, the CV and the board's
+    // votes stay on the record.
+    async function setApplicationArchived(appId, archived) {
       const app = applications.find(a => a.id === appId);
-      if (!confirm('Delete application from ' + (app ? app.name : 'unknown') + '? This cannot be undone.')) return;
+      const who = app ? app.name : 'this applicant';
+      if (archived && !confirm(
+            `Archive the application from ${who}?\n\n`
+            + 'It moves out of the active list. The PDF, CV and votes are kept, '
+            + 'and you can restore it at any time.')) return;
       try {
-        await apiFetch('/api/admin/applications?id=' + encodeURIComponent(appId), { method: 'DELETE' });
-        showToast('Application deleted', 'success');
+        await apiFetch('/api/admin/applications', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: appId, archived }),
+        });
+        showToast(archived ? 'Application archived' : 'Application restored', 'success');
         loadApplications();
       } catch (err) {
-        if (err.message !== 'Unauthorized') showToast('Failed to delete application', 'error');
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Failed to update application', 'error');
       }
     }
+    const archiveApplication = (id) => setApplicationArchived(id, true);
+    const restoreApplication = (id) => setApplicationArchived(id, false);
 
     // ==================== SETTINGS ====================
     async function loadSettings() {
