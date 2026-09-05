@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invite · Admin | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rotary: { blue: '#17458f', gold: '#f7a81b', azure: '#0067c8', sky: '#00a2e0', cranberry: '#d41367' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: { 'fade-in': 'fadeIn 0.6s ease-out' },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body class="font-sans text-white antialiased">
+
+  <header class="sticky top-0 z-50 glass-header">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity" title="Application page">
+        <img src="https://rotary-bkkdach.clubdesk.com/clubdesk/wwwfiles/logo.png" alt="Rotary Club Bangkok DACH" class="h-12 w-auto rounded-lg" />
+        <div>
+          <h1 class="text-lg font-bold text-white leading-tight">Rotary Club</h1>
+          <p class="text-xs text-glass-gold font-medium -mt-0.5">Bangkok DACH</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-4 text-sm text-glass-secondary">
+        <div class="hidden sm:flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span>office@rotary-club-bangkok-dach.org</span>
+        </div>
+        <button onclick="adminLogout()" class="text-white/40 hover:text-white/70 text-sm transition-colors flex items-center gap-1" title="Logout">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <header class="px-4 py-3" style="background: rgba(10, 22, 40, 0.6); backdrop-filter: blur(40px); border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <div class="max-w-6xl mx-auto flex items-center">
+      <div class="flex items-center gap-3">
+        <a href="/admin" class="text-white/50 hover:text-white/80 transition-colors" title="Back to Admin">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+        </a>
+        <div class="h-5 w-px bg-white/20"></div>
+        <h1 class="text-lg font-bold">Invite</h1>
+        <span class="text-xs bg-rotary-gold/20 text-rotary-gold px-2 py-0.5 rounded-full font-medium">Admin</span>
+      </div>
+    </div>
+  </header>
+
+  
+  <main class="max-w-6xl mx-auto px-4 py-8 animate-fade-in space-y-6">
+
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10">
+        <h2 class="font-bold text-lg">Invite to a meeting</h2>
+        <p class="text-white/40 text-xs mt-0.5">Each person gets their own WhatsApp chat with their own name already typed. You tap send.</p>
+      </div>
+
+      <div class="p-6 space-y-5">
+        <div>
+          <label class="text-xs text-white/50">Message <span class="text-white/30">- use {name} for their first name</span>
+            <textarea id="msgTemplate" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+              oninput="saveTemplate(); renderTargets()"></textarea></label>
+        </div>
+
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="text-xs text-white/50 flex-1 min-w-[220px]">Invite image or page link <span class="text-white/30">- optional</span>
+            <input id="msgLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
+              placeholder="https://rotary-bkkdach.vercel.app/..." oninput="saveTemplate(); renderTargets()" /></label>
+          <label class="text-xs text-white/50">Show
+            <select id="poolSelect" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="renderTargets()">
+              <option value="guests">Guests</option>
+              <option value="members">Members</option>
+              <option value="both">Guests + members</option>
+            </select></label>
+          <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
+        </div>
+
+        <div id="msgPreview" class="rounded-lg bg-[#0a1628]/60 border border-white/10 p-3 text-[13px] text-white/80 whitespace-pre-wrap"></div>
+      </div>
+    </div>
+
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="font-bold text-lg">Recipients</h2>
+          <p id="targetMeta" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="selectAllShown(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
+          <button onclick="selectAllShown(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
+          <button onclick="resetSent()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Reset ticks</button>
+        </div>
+      </div>
+      <div id="targetList" class="divide-y divide-white/5 max-h-[560px] overflow-y-auto"></div>
+    </div>
+  </main>
+
+  <script src="/admin/admin.js"></script>
+  <script>
+    requireAuthOrRedirect();
+
+    const TEMPLATE_KEY = 'rcbd:invite:template:v1';
+    const DEFAULT_TEMPLATE =
+      'Hello {name}, I would like to invite you for the next Rotary meeting. I hope you can make it. Mark.';
+
+    let guests = [], members = [], selected = new Set(), sentThisRound = new Set();
+
+    const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
+    // Only the stored first name counts. Falling back to the display name
+    // would resurrect exactly the bug we fixed on the guests page - WhatsApp
+    // names are surname-first, so the first word is often the surname. An
+    // empty first name means "not invitable yet", and must stay that way.
+    const firstNameOf = (p) => (p.firstName || '').trim();
+
+    function personId(p) { return (p.kind || '') + ':' + p.waNumber; }
+
+    async function loadPeople() {
+      try {
+        const [g, m] = await Promise.all([
+          apiFetch('/api/admin/guests'),
+          apiFetch('/api/admin/contacts'),
+        ]);
+        guests = (g.guests || [])
+          .filter(x => x.status !== 'archived')
+          .map(x => ({ kind: 'guest', id: x.id, name: x.name, firstName: x.firstName,
+                       waNumber: digits(x.waNumber || x.phone), phone: x.phone,
+                       note: x.notes || '', invites: (x.invites || []).length }));
+        members = (m.contacts || [])
+          .filter(x => (x.status || 'active') === 'active')
+          .map(x => ({ kind: 'member', id: x.memberNo, name: [x.firstName, x.lastName].filter(Boolean).join(' '),
+                       firstName: x.firstName, waNumber: digits(x.phone), phone: x.phone,
+                       note: x.company || '', invites: 0 }));
+        renderTargets();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not load people', 'error');
+      }
+    }
+
+    function pool() {
+      const which = document.getElementById('poolSelect').value;
+      const list = which === 'guests' ? guests : which === 'members' ? members : guests.concat(members);
+      // Nobody can be messaged without a number, and nobody should be greeted
+      // without a first name - both are surfaced rather than silently dropped.
+      return list;
+    }
+
+    function buildMessage(person) {
+      const tpl = document.getElementById('msgTemplate').value || DEFAULT_TEMPLATE;
+      const link = document.getElementById('msgLink').value.trim();
+      const body = tpl.replace(/\{name\}/g, firstNameOf(person) || '');
+      return link ? body + '\n\n' + link : body;
+    }
+
+    function waLink(person) {
+      return 'https://wa.me/' + person.waNumber + '?text=' + encodeURIComponent(buildMessage(person));
+    }
+
+    function renderTargets() {
+      const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
+      const all = pool();
+      const list = q ? all.filter(p => (p.name + ' ' + p.phone + ' ' + p.note).toLowerCase().includes(q)) : all;
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
+
+      const ready = list.filter(p => p.waNumber && firstNameOf(p));
+      document.getElementById('targetMeta').textContent =
+        `${selected.size} selected · ${sentThisRound.size} sent · ${ready.length} of ${list.length} ready to message`;
+
+      document.getElementById('msgPreview').textContent =
+        buildMessage(ready[0] || { firstName: 'Anna' });
+
+      document.getElementById('targetList').innerHTML = list.map(p => {
+        const id = personId(p);
+        const first = firstNameOf(p);
+        const blocked = !p.waNumber ? 'no phone number' : !first ? 'no first name' : '';
+        const done = sentThisRound.has(id);
+        return `
+        <div class="flex items-center gap-3 px-5 py-2.5 ${done ? 'opacity-45' : ''} ${blocked ? 'opacity-50' : 'hover:bg-white/5'}">
+          <input type="checkbox" ${selected.has(id) ? 'checked' : ''} ${blocked ? 'disabled' : ''}
+            onchange="toggleTarget('${id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-shrink-0" />
+          <div class="min-w-0 flex-1">
+            <div class="text-sm truncate">${escapeHtml(p.name || '(unnamed)')}
+              ${p.kind === 'member' ? '<span class="text-[10px] uppercase tracking-wide text-rotary-gold/60 ml-1">member</span>' : ''}
+              ${p.invites ? `<span class="text-[10px] text-white/30 ml-1">invited ${p.invites}x</span>` : ''}</div>
+            ${blocked
+              ? `<div class="text-[11px] text-red-300/80">${blocked} - fix on the Guests page</div>`
+              : `<div class="text-[11px] text-white/35 truncate">&ldquo;Hello ${escapeHtml(first)}, ...&rdquo;</div>`}
+          </div>
+          ${blocked ? '' : `
+          <a href="${waLink(p)}" target="_blank" rel="noopener"
+             onclick="markSent('${id}', ${p.kind === 'guest' ? `'${p.id}'` : 'null'})"
+             class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.1-.2.3-.7 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5 0-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.7.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z"/></svg>
+            ${done ? 'Sent' : 'WhatsApp'}
+          </a>`}
+        </div>`;
+      }).join('');
+    }
+
+    function toggleTarget(id, on) { on ? selected.add(id) : selected.delete(id); renderTargets(); }
+
+    function selectAllShown(on) {
+      const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
+      const all = pool();
+      const list = q ? all.filter(p => (p.name + ' ' + p.phone + ' ' + p.note).toLowerCase().includes(q)) : all;
+      list.forEach(p => {
+        if (!p.waNumber || !firstNameOf(p)) return;
+        on ? selected.add(personId(p)) : selected.delete(personId(p));
+      });
+      renderTargets();
+    }
+
+    // Opening the chat is as far as we can automate - WhatsApp requires the
+    // person to press send. Tick it here so a long list can be worked down and
+    // picked up again later.
+    function markSent(id, guestId) {
+      sentThisRound.add(id);
+      selected.delete(id);
+      if (guestId) {
+        apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: guestId, invited: 'whatsapp' }),
+        }).catch(() => {});
+      }
+      setTimeout(renderTargets, 50);
+    }
+
+    function resetSent() { sentThisRound = new Set(); renderTargets(); }
+
+    function saveTemplate() {
+      try {
+        localStorage.setItem(TEMPLATE_KEY, JSON.stringify({
+          template: document.getElementById('msgTemplate').value,
+          link: document.getElementById('msgLink').value,
+        }));
+      } catch {}
+    }
+
+    (function restoreTemplate() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(TEMPLATE_KEY) || 'null'); } catch {}
+      document.getElementById('msgTemplate').value = (saved && saved.template) || DEFAULT_TEMPLATE;
+      document.getElementById('msgLink').value = (saved && saved.link) || '';
+    })();
+
+    if (adminPassword) loadPeople();
+  </script>
+</body>
+</html>
