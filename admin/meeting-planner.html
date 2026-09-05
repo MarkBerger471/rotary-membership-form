@@ -23,6 +23,34 @@
     }
   </script>
   <link rel="stylesheet" href="/admin/admin.css" />
+  <style>
+    /* Cards are built from strings at render time, so the type colours live in
+       CSS custom properties rather than generated Tailwind classes. */
+    .mtype-club       { --mt: #f7a81b; --mt-bg: rgba(247, 168, 27, 0.20); --mt-br: rgba(247, 168, 27, 0.55); }
+    .mtype-fellowship { --mt: #ff5f9e; --mt-bg: rgba(212, 19, 103, 0.30); --mt-br: rgba(255, 95, 158, 0.55); }
+    .mtype-service    { --mt: #00a2e0; --mt-bg: rgba(0, 162, 224, 0.22); --mt-br: rgba(0, 162, 224, 0.55); }
+    .mtype-other      { --mt: #b06ae8; --mt-bg: rgba(176, 106, 232, 0.22); --mt-br: rgba(176, 106, 232, 0.55); }
+
+    .mcard { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.10); transition: all 0.25s ease; }
+    .mcard:hover { background: rgba(255, 255, 255, 0.10); }
+    .mcard.is-draft { border-color: var(--mt-br); border-style: dashed; }
+    .mcard.is-active { background: var(--mt-bg); border-color: var(--mt-br); }
+    .mcard.is-active:hover { background: var(--mt-bg); }
+
+    .mcard .mday { color: rgba(255, 255, 255, 0.40); }
+    .mcard.is-active .mday, .mcard.is-draft .mday { color: var(--mt); }
+    .mcard .mnum { color: rgba(255, 255, 255, 0.50); }
+    .mcard.is-active .mnum { color: #fff; }
+    .mcard .mfield { border-top: 1px solid var(--mt-br); }
+    .mcard .mfield:focus { background: rgba(255, 255, 255, 0.06); }
+    .mcard select.mfield option { background: #0a1628; color: #fff; }
+    .mcard .mflyer { color: var(--mt); border-top: 1px solid var(--mt-br); }
+    .mcard .mflyer:hover { background: var(--mt-bg); }
+    .mcard .mdot { background: var(--mt); }
+
+    .mlegend { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 11px; color: rgba(255,255,255,0.65); }
+    .mlegend i { width: 10px; height: 10px; border-radius: 3px; background: var(--mt); display: block; }
+  </style>
 </head>
 <body class="font-sans text-white antialiased">
 
@@ -69,9 +97,19 @@
           <p id="meetingsMeta" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
         </div>
         <div class="flex gap-2">
+          <button onclick="openAddDate()" class="btn-primary px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add a date
+          </button>
           <button onclick="selectAllMeetings()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium">Select all</button>
           <button onclick="clearAllMeetings()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium">Clear</button>
         </div>
+      </div>
+      <div class="px-6 py-3 border-b border-white/10 flex flex-wrap gap-x-5 gap-y-2">
+        <span class="mlegend mtype-club"><i></i>Club Meeting</span>
+        <span class="mlegend mtype-fellowship"><i></i>Fellowship Dinner</span>
+        <span class="mlegend mtype-service"><i></i>Service Project</span>
+        <span class="mlegend mtype-other"><i></i>Other</span>
       </div>
       <div id="meetingsLoading" class="px-6 py-12 text-center text-white/40">
         <svg class="w-6 h-6 animate-spin mx-auto mb-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -80,6 +118,30 @@
       <div id="meetingsContent" class="hidden p-6 space-y-7"></div>
     </div>
   </main>
+
+  <!-- ==================== ADD DATE MODAL ==================== -->
+  <div id="addDateModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeAddDate()"></div>
+    <div class="relative h-full flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
+        <h3 class="font-bold text-lg mb-1">Add a date</h3>
+        <p class="text-white/50 text-xs mb-4">Any day of the week — not every club event falls on a Wednesday.</p>
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Date</label>
+        <input type="date" id="addDateInput" class="glass-input w-full px-3 py-2 rounded-lg text-sm mb-4" />
+        <label class="block text-xs font-semibold text-white/60 mb-1.5">Type</label>
+        <select id="addTypeInput" class="glass-input w-full px-3 py-2 rounded-lg text-sm mb-5">
+          <option value="club">Club Meeting</option>
+          <option value="fellowship">Fellowship Dinner</option>
+          <option value="service">Service Project</option>
+          <option value="other">Other</option>
+        </select>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeAddDate()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Cancel</button>
+          <button onclick="confirmAddDate()" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ==================== FLYER MODAL ==================== -->
   <div id="flyerModal" class="fixed inset-0 z-50 hidden">
@@ -110,25 +172,55 @@
   <script>
     requireAuthOrRedirect();
 
-    const YEAR = new Date().getFullYear();
     const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    let allWednesdays = [];
-    let meetings = {}; // { 'YYYY-MM-DD': topic }
-    let pendingSave = null;
+    const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const TYPES = [
+      { id: 'club',       label: 'Club Meeting' },
+      { id: 'fellowship', label: 'Fellowship Dinner' },
+      { id: 'service',    label: 'Service Project' },
+      { id: 'other',      label: 'Other' },
+    ];
 
-    function generateAllWednesdays(year) {
+    // The club plans by Rotary year (1 July – 30 June), not calendar year, so
+    // the grid rolls over on 1 July rather than 1 January.
+    function currentRotaryYear(today = new Date()) {
+      const y = today.getUTCFullYear();
+      const start = today.getUTCMonth() >= 6 ? y : y - 1;
+      return { start: `${start}-07-01`, end: `${start + 1}-06-30`, label: `${start}/${String(start + 1).slice(2)}` };
+    }
+    const RY = currentRotaryYear();
+
+    let gridDates = [];
+    let meetings = {}; // { 'YYYY-MM-DD': { active, type, topic, presenter, venue, ... } }
+    let pendingSave = null;
+    let dirty = false;
+
+    function toDs(d) {
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    }
+    function parseDs(ds) {
+      const [y, m, d] = ds.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d));
+    }
+
+    function generateWednesdays(startDs, endDs) {
       const out = [];
-      const d = new Date(Date.UTC(year, 0, 1));
+      const d = parseDs(startDs);
+      const end = parseDs(endDs);
       while (d.getUTCDay() !== 3) d.setUTCDate(d.getUTCDate() + 1);
-      while (d.getUTCFullYear() === year) {
-        const yyyy = d.getUTCFullYear();
-        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-        const dd = String(d.getUTCDate()).padStart(2, '0');
-        out.push(`${yyyy}-${mm}-${dd}`);
+      while (d <= end) {
+        out.push(toDs(d));
         d.setUTCDate(d.getUTCDate() + 7);
       }
       return out;
+    }
+
+    // Every Wednesday of the Rotary year plus whatever else is already stored —
+    // one-off dates added by hand would otherwise be invisible in the grid.
+    function buildGrid() {
+      const set = new Set(generateWednesdays(RY.start, RY.end));
+      for (const ds of Object.keys(meetings)) set.add(ds);
+      gridDates = [...set].sort();
     }
 
     async function loadMeetings() {
@@ -137,8 +229,8 @@
       try {
         const data = await apiFetch('/api/admin/meetings');
         meetings = data.meetings || {};
-        allWednesdays = generateAllWednesdays(YEAR);
-        document.getElementById('meetingsTitle').textContent = `${YEAR} Meetings`;
+        buildGrid();
+        document.getElementById('meetingsTitle').textContent = `Rotary Year ${RY.label}`;
         renderMeetings();
       } catch (err) {
         if (err.message !== 'Unauthorized') showToast('Failed to load meetings', 'error');
@@ -148,59 +240,69 @@
 
     function renderMeetings() {
       const byMonth = {};
-      for (const ds of allWednesdays) {
-        const m = parseInt(ds.slice(5, 7), 10) - 1;
-        (byMonth[m] = byMonth[m] || []).push(ds);
+      for (const ds of gridDates) {
+        const key = ds.slice(0, 7);
+        (byMonth[key] = byMonth[key] || []).push(ds);
       }
 
-      const selectedCount = Object.values(meetings).filter(m => m && m.active).length;
+      const activeCount = Object.values(meetings).filter(m => m && m.active).length;
       document.getElementById('meetingsMeta').textContent =
-        `${selectedCount} of ${allWednesdays.length} Wednesdays selected`;
+        `${activeCount} meeting${activeCount === 1 ? '' : 's'} scheduled · 1 July ${RY.start.slice(0, 4)} – 30 June ${RY.end.slice(0, 4)}`;
 
-      const html = Object.keys(byMonth).map(Number).sort((a, b) => a - b).map(m => {
-        const items = byMonth[m].map(ds => {
+      const html = Object.keys(byMonth).sort().map(key => {
+        const [yy, mm] = key.split('-').map(Number);
+        const items = byMonth[key].map(ds => {
           const day = parseInt(ds.slice(8, 10), 10);
-          const entry = meetings[ds] || { active: false, topic: '', presenter: '' };
-          const isSel = !!entry.active;
-          const hasDraft = !isSel && (entry.topic || entry.presenter);
-          const cardClasses = isSel
-            ? 'bg-rotary-gold/20 border-rotary-gold/50'
-            : hasDraft
-              ? 'bg-white/5 border-rotary-gold/30 border-dashed hover:bg-white/10'
-              : 'bg-white/5 border-white/10 hover:bg-white/10';
-          const draftPreview = hasDraft
-            ? `<div class="px-3 pb-2 text-[10px] text-rotary-gold/70 italic truncate" title="${escapeHtml(entry.topic)}${entry.presenter ? ' — ' + escapeHtml(entry.presenter) : ''}">${escapeHtml(entry.topic || entry.presenter)}</div>`
+          const weekday = WEEKDAYS[parseDs(ds).getUTCDay()];
+          const entry = meetings[ds];
+          const isSel = !!(entry && entry.active);
+          // A deselected date only earns the dashed "draft" outline if something
+          // was actually typed for it; a date toggled off and back is just blank.
+          const hasDraft = !!entry && !isSel &&
+            !!(entry.topic || entry.presenter || entry.venue || entry.description || entry.photoUrl);
+          const type = (entry && entry.type) || 'club';
+          const state = isSel ? 'is-active' : hasDraft ? 'is-draft' : '';
+
+          const deleteBtn = entry
+            ? `<button type="button" onclick="deleteMeeting('${ds}')" title="Delete this meeting"
+                 class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-red-300 hover:bg-red-500/20 transition-colors">
+                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 4h4a1 1 0 011 1v2H9V5a1 1 0 011-1z"/></svg>
+               </button>`
             : '';
-          const draftDot = hasDraft
-            ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rotary-gold ring-2 ring-rotary-gold/30" title="Draft saved"></span>`
+
+          const draftPreview = hasDraft && (entry.topic || entry.presenter)
+            ? `<div class="px-3 pb-2 text-[10px] text-white/50 italic truncate" title="${escapeHtml(entry.topic)}${entry.presenter ? ' — ' + escapeHtml(entry.presenter) : ''}">${escapeHtml(entry.topic || entry.presenter)}</div>`
             : '';
+
+          const typeOptions = TYPES.map(t =>
+            `<option value="${t.id}"${t.id === type ? ' selected' : ''}>${t.label}</option>`).join('');
+
           const editorHtml = isSel
-            ? `<input type="text"
-                class="w-full bg-transparent border-0 border-t border-rotary-gold/20 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
-                placeholder="Topic…"
-                value="${escapeHtml(entry.topic)}"
-                onchange="updateTopic('${ds}', this.value)" />
-              <input type="text"
-                class="w-full bg-transparent border-0 border-t border-rotary-gold/10 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:bg-white/5"
-                placeholder="Presenter…"
-                value="${escapeHtml(entry.presenter)}"
-                onchange="updatePresenter('${ds}', this.value)" />
-              <button type="button" onclick="openFlyer('${ds}')" class="block w-full border-t border-rotary-gold/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-rotary-gold/80 hover:text-rotary-gold hover:bg-rotary-gold/10 transition-colors text-center">
+            ? `<select class="mfield w-full bg-transparent border-0 px-3 py-2 text-[11px] font-semibold text-white focus:outline-none"
+                 onchange="updateField('${ds}', 'type', this.value, true)">${typeOptions}</select>
+              <input type="text" class="mfield w-full bg-transparent border-0 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none"
+                placeholder="Topic…" value="${escapeHtml(entry.topic)}" onchange="updateField('${ds}', 'topic', this.value)" />
+              <input type="text" class="mfield w-full bg-transparent border-0 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none"
+                placeholder="Presenter…" value="${escapeHtml(entry.presenter)}" onchange="updateField('${ds}', 'presenter', this.value)" />
+              <input type="text" class="mfield w-full bg-transparent border-0 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none"
+                placeholder="Venue…" value="${escapeHtml(entry.venue || '')}" onchange="updateField('${ds}', 'venue', this.value)" />
+              <button type="button" onclick="openFlyer('${ds}')" class="mflyer block w-full px-3 py-2 text-[11px] font-bold uppercase tracking-wider hover:opacity-90 transition-colors text-center">
                 Flyer →
               </button>`
             : '';
-          return `<div class="relative rounded-xl border transition-all overflow-hidden ${cardClasses}">
-            ${draftDot}
+
+          return `<div class="mcard mtype-${type} ${state} relative rounded-xl overflow-hidden">
+            ${deleteBtn}
             <button type="button" onclick="toggleMeeting('${ds}')" class="w-full text-left px-3 py-2.5">
-              <div class="text-[10px] font-bold uppercase tracking-wider ${isSel ? 'text-rotary-gold' : 'text-white/40'}">Wed</div>
-              <div class="text-2xl font-extrabold ${isSel ? 'text-white' : 'text-white/50'} leading-tight">${day}</div>
+              <div class="mday text-[10px] font-bold uppercase tracking-wider">${weekday}</div>
+              <div class="mnum text-2xl font-extrabold leading-tight">${day}</div>
             </button>
             ${draftPreview}
             ${editorHtml}
           </div>`;
         }).join('');
         return `<div>
-          <h3 class="text-xs font-bold text-white/60 mb-3 uppercase tracking-wider">${MONTH_NAMES[m]}</h3>
+          <h3 class="text-xs font-bold text-white/60 mb-3 uppercase tracking-wider">${MONTH_NAMES[mm - 1]} ${yy}</h3>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 items-start">${items}</div>
         </div>`;
       }).join('');
@@ -209,23 +311,30 @@
       document.getElementById('meetingsContent').classList.remove('hidden');
     }
 
-    function scheduleSave() {
+    async function saveNow() {
       clearTimeout(pendingSave);
-      pendingSave = setTimeout(async () => {
-        try {
-          await apiFetch('/api/admin/meetings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ meetings }),
-          });
-        } catch (err) {
-          if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
-        }
-      }, 350);
+      pendingSave = null;
+      if (!dirty) return;
+      dirty = false;
+      try {
+        await apiFetch('/api/admin/meetings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meetings }),
+        });
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Save failed', 'error');
+      }
+    }
+
+    function scheduleSave() {
+      dirty = true;
+      clearTimeout(pendingSave);
+      pendingSave = setTimeout(saveNow, 350);
     }
 
     function ensureEntry(ds) {
-      if (!meetings[ds]) meetings[ds] = { active: false, topic: '', presenter: '' };
+      if (!meetings[ds]) meetings[ds] = { active: false, type: 'club', topic: '', presenter: '', venue: '' };
       return meetings[ds];
     }
 
@@ -236,24 +345,40 @@
       scheduleSave();
     }
 
-    function updateTopic(ds, value) {
+    function updateField(ds, field, value, rerender) {
       const e = ensureEntry(ds);
-      const trimmed = (value || '').trim();
-      if (e.topic === trimmed) return;
-      e.topic = trimmed;
+      const next = field === 'type' ? value : (value || '').trim();
+      if (e[field] === next) return;
+      e[field] = next;
+      if (rerender) renderMeetings();
       scheduleSave();
     }
 
-    function updatePresenter(ds, value) {
-      const e = ensureEntry(ds);
-      const trimmed = (value || '').trim();
-      if (e.presenter === trimmed) return;
-      e.presenter = trimmed;
-      scheduleSave();
+    async function deleteMeeting(ds) {
+      if (!confirm(`Delete the meeting on ${formatFlyerDate(ds)}?\n\nThis removes the topic, speaker and flyer text for that date and cannot be undone.`)) return;
+      // Flush first: a debounced save still holding this date would otherwise
+      // land after the delete and resurrect it.
+      await saveNow();
+      delete meetings[ds];
+      buildGrid();
+      renderMeetings();
+      try {
+        await apiFetch('/api/admin/meetings', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: ds }),
+        });
+        showToast('Meeting deleted', 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') {
+          showToast('Delete failed', 'error');
+          loadMeetings();
+        }
+      }
     }
 
     function selectAllMeetings() {
-      for (const ds of allWednesdays) ensureEntry(ds).active = true;
+      for (const ds of gridDates) ensureEntry(ds).active = true;
       renderMeetings();
       scheduleSave();
     }
@@ -262,6 +387,42 @@
       for (const ds in meetings) meetings[ds].active = false;
       renderMeetings();
       scheduleSave();
+    }
+
+    // ==================== ADD DATE ====================
+    function openAddDate() {
+      const input = document.getElementById('addDateInput');
+      const today = toDs(new Date());
+      input.value = today >= RY.start && today <= RY.end ? today : RY.start;
+      document.getElementById('addTypeInput').value = 'club';
+      document.getElementById('addDateModal').classList.remove('hidden');
+      input.focus();
+    }
+
+    function closeAddDate() {
+      document.getElementById('addDateModal').classList.add('hidden');
+    }
+
+    async function confirmAddDate() {
+      const ds = document.getElementById('addDateInput').value;
+      const type = document.getElementById('addTypeInput').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) { showToast('Pick a date first', 'error'); return; }
+      if (meetings[ds] && meetings[ds].active) { showToast('That date is already in the planner', 'error'); return; }
+      closeAddDate();
+      await saveNow();
+      try {
+        const res = await apiFetch('/api/admin/meetings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: ds, active: true, type }),
+        });
+        meetings[ds] = res.meeting;
+        buildGrid();
+        renderMeetings();
+        showToast('Date added', 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not add that date', 'error');
+      }
     }
 
     if (adminPassword) loadMeetings();
@@ -304,9 +465,9 @@
     }
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !document.getElementById('flyerModal').classList.contains('hidden')) {
-        closeFlyer();
-      }
+      if (e.key !== 'Escape') return;
+      if (!document.getElementById('flyerModal').classList.contains('hidden')) closeFlyer();
+      else if (!document.getElementById('addDateModal').classList.contains('hidden')) closeAddDate();
     });
   </script>
 </body>

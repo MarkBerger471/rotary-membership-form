@@ -321,7 +321,7 @@
         <textarea id="description" rows="10" class="glass-input w-full px-3 py-2 rounded-lg text-sm leading-relaxed" placeholder="Talk abstract and speaker bio. Separate paragraphs with a blank line."></textarea>
       </div>
 
-      <p class="text-xs text-white/40">Saves automatically as you type. Date, time, venue, and footer are standard.</p>
+      <p class="text-xs text-white/40">Saves automatically as you type. Date, time and footer are standard; the venue is set in the planner.</p>
     </div>
 
     <!-- Preview -->
@@ -333,7 +333,7 @@
         <div class="flyer-info">
           <div class="flyer-info-row"><span class="flyer-info-label">Date</span><span class="flyer-info-value" id="fDate"></span></div>
           <div class="flyer-info-row"><span class="flyer-info-label">Time</span><span class="flyer-info-value">18:30 – 20:00 H</span></div>
-          <div class="flyer-info-row"><span class="flyer-info-label">Venue</span><span class="flyer-info-value">Grand Hyatt Erawan Bangkok (The Residence 303)</span></div>
+          <div class="flyer-info-row"><span class="flyer-info-label">Venue</span><span class="flyer-info-value" id="fVenue">Grand Hyatt Erawan Bangkok (The Residence 303)</span></div>
         </div>
 
         <div class="flyer-hero">
@@ -402,7 +402,9 @@
     document.getElementById('fDate').textContent = formatFlyerDate(dateStr);
     document.getElementById('dateBadge').textContent = formatFlyerDate(dateStr);
 
-    let entry = { active: true, topic: '', presenter: '', presenterTitle: '', photoUrl: '', description: '' };
+    // Not every event is at the Hyatt, so the planner's venue wins when it is set.
+    const DEFAULT_VENUE = 'Grand Hyatt Erawan Bangkok (The Residence 303)';
+    let entry = { active: true, type: 'club', topic: '', presenter: '', presenterTitle: '', venue: '', photoUrl: '', description: '' };
     let pendingSave = null;
     let allMeetings = {};
 
@@ -423,6 +425,8 @@
     }
 
     function renderPreview() {
+      document.getElementById('fVenue').textContent = (entry.venue || '').trim() || DEFAULT_VENUE;
+
       const t = (entry.topic || '').trim();
       const topicEl = document.getElementById('fTopic');
       topicEl.textContent = t ? (t.startsWith('«') ? t : `« ${t} »`) : '';
