@@ -328,8 +328,7 @@
       }
       for (const id of wanted) {
         try {
-          const res = await fetch('/api/admin/meeting-attachment?id=' + encodeURIComponent(id),
-            { headers: { 'X-Admin-Password': adminPassword } });
+          const res = await fetch(attachUrl(id), { headers: { 'X-Admin-Password': adminPassword } });
           if (!res.ok) continue;
           const url = URL.createObjectURL(await res.blob());
           thumbCache.set(id, url);
@@ -591,10 +590,13 @@
     // Whatever the page is still holding goes first. The server appends to the
     // stored meeting and hands back the result, so a debounced save landing
     // afterwards with a stale copy in it cannot wipe the attachment.
-    async function attachApi(options) {
+    // Attachments hang off the meetings endpoint under ?att - the project is at
+    // its serverless function limit, and they belong to a meeting anyway.
+    const attachUrl = (att) => `/api/admin/meetings?att=${encodeURIComponent(att)}`;
+
+    async function attachApi(att, init) {
       await saveNow();
-      const res = await apiFetch('/api/admin/meeting-attachment?date=' + encodeURIComponent(attachDate)
-        + (options.id ? '&id=' + encodeURIComponent(options.id) : ''), options.init);
+      const res = await apiFetch(`${attachUrl(att)}&date=${encodeURIComponent(attachDate)}`, init);
       meetings[attachDate] = res.meeting;
       renderAttachList();
       renderMeetings();
@@ -648,10 +650,10 @@
             showToast(`${file.name} is too big - add it as a link instead`, 'error');
             continue;
           }
-          await attachApi({ init: {
+          await attachApi('new', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content, mimeType, name: file.name }),
-          } });
+          });
           added++;
         } catch (err) {
           if (err.message !== 'Unauthorized') showToast(err.message || `Could not add ${file.name}`, 'error');
@@ -667,10 +669,10 @@
       const url = document.getElementById('attachLinkUrl').value.trim();
       if (!url) { showToast('Paste a web address first', 'error'); return; }
       try {
-        await attachApi({ init: {
+        await attachApi('new', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ kind: 'link', name, url }),
-        } });
+        });
         document.getElementById('attachLinkName').value = '';
         document.getElementById('attachLinkUrl').value = '';
         showToast('Link added', 'success');
@@ -685,7 +687,7 @@
       if (!att) return;
       if (!confirm(`Remove “${att.name}” from this meeting?`)) return;
       try {
-        await attachApi({ id, init: { method: 'DELETE' } });
+        await attachApi(id, { method: 'DELETE' });
         thumbCache.delete(id);
         showToast('Removed', 'success');
       } catch (err) {
@@ -700,8 +702,7 @@
       if (!att) return;
       if (att.kind === 'link') { window.open(att.url, '_blank', 'noopener'); return; }
       try {
-        const res = await fetch('/api/admin/meeting-attachment?id=' + encodeURIComponent(id),
-          { headers: { 'X-Admin-Password': adminPassword } });
+        const res = await fetch(attachUrl(id), { headers: { 'X-Admin-Password': adminPassword } });
         if (res.status === 401) { handleUnauthorized(); return; }
         if (!res.ok) { showToast('Could not open that', 'error'); return; }
         window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
@@ -709,6 +710,12 @@
         showToast('Could not open that', 'error');
       }
     }
+
+    // Typing an address and pressing Enter is what anyone will try first.
+    ['attachLinkName', 'attachLinkUrl'].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addAttachLink(); });
+    });
 
     (function wireAttachDrop() {
       const zone = document.getElementById('attachDrop');

@@ -40,9 +40,6 @@
     },
     "api/invite-image.js": {
       "maxDuration": 15
-    },
-    "api/admin/meeting-attachment.js": {
-      "maxDuration": 15
     }
   },
   "crons": [
