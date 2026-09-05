@@ -76,6 +76,10 @@
           <input id="qaLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Meier" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[180px]">Mobile (with country code)
           <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
+        <label class="text-xs text-white/50">Language
+          <select id="qaLang" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block"><option value="en">English</option><option value="de">German</option></select></label>
+        <label class="text-xs text-white/50">Title
+          <select id="qaHon" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select></label>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">Note (optional)
           <input id="qaNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
         <button onclick="quickAdd()" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold">Add</button>
@@ -98,6 +102,8 @@
           <span id="importCount" class="text-xs text-white/40"></span>
           <button onclick="toggleAllImport(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
           <button onclick="toggleAllImport(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
+          <select id="importLang" class="glass-input px-2 py-1.5 rounded-lg text-xs" title="Language for everyone in this batch"><option value="en">English</option><option value="de">German</option></select>
+          <select id="importHon" class="glass-input px-2 py-1.5 rounded-lg text-xs" title="Title for everyone in this batch"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select>
           <button onclick="saveSelected()" id="importSaveBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add selected</button>
           <button onclick="closeImport()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white">Close</button>
         </div>
@@ -145,6 +151,11 @@
           <input id="gfPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <label class="text-xs text-white/50">Company
           <input id="gfCompany" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50">Language
+          <select id="gfLang" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateGreetingPreview()"><option value="en">English</option><option value="de">German</option></select></label>
+        <label class="text-xs text-white/50">Title
+          <select id="gfHon" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateGreetingPreview()"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select>
+          <span class="text-[11px] text-white/35">Khun for Thai guests</span></label>
         <label class="text-xs text-white/50 sm:col-span-2">Note
           <input id="gfNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
         <p id="gfPreview" class="sm:col-span-2 text-xs text-rotary-gold/80"></p>
@@ -211,7 +222,8 @@
             <div class="min-w-0 flex-1">
               <div class="font-semibold text-[13px] leading-tight break-words">${escapeHtml(g.name)}</div>
               ${g.firstName
-                ? `<div class="text-[11px] text-white/35">greeted as &ldquo;${escapeHtml(g.firstName)}&rdquo;</div>`
+                ? `<div class="text-[11px] text-white/35">greeted as &ldquo;${escapeHtml([g.honorific, g.firstName].filter(Boolean).join(' '))}&rdquo;
+                     <span class="text-white/25">&middot; ${g.language === 'de' ? 'DE' : 'EN'}</span></div>`
                 : `<div class="text-[11px] text-red-300/80">no first name - add one before inviting</div>`}
               ${g.notes ? `<div class="text-[11px] text-white/45">${escapeHtml(g.notes)}</div>` : ''}
               ${invites ? `<div class="text-[10px] text-rotary-gold/70 mt-0.5">invited ${invites}x</div>` : ''}
@@ -248,7 +260,9 @@
       try {
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone), source: 'manual' }),
+          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone),
+            language: document.getElementById('qaLang').value,
+            honorific: document.getElementById('qaHon').value, source: 'manual' }),
         });
         if (res.added) {
           showToast(name + ' added', 'success');
@@ -363,6 +377,8 @@
           body: JSON.stringify({ guests: chosen.map(c => ({
             name: c.name, firstName: c.firstName, lastName: c.lastName,
             phone: c.phone, waNumber: c.waNumber, notes: c.notes,
+            language: document.getElementById('importLang').value,
+            honorific: document.getElementById('importHon').value,
           })), source: 'whatsapp' }),
         });
         showToast(`${res.added} guest${res.added === 1 ? '' : 's'} added`, 'success');
@@ -415,7 +431,8 @@
     }
 
     let editingGuestId = null;
-    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company', gfNotes:'notes' };
+    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company',
+                           gfNotes:'notes', gfLang:'language', gfHon:'honorific' };
 
     function editGuest(id) {
       const g = guests.find(x => x.id === id);
@@ -440,8 +457,11 @@
     // before it is sent rather than after.
     function updateGreetingPreview() {
       const first = document.getElementById('gfFirst').value.trim();
+      const hon = document.getElementById('gfHon').value;
+      const de = document.getElementById('gfLang').value === 'de';
+      const who = [hon, first].filter(Boolean).join(' ');
       document.getElementById('gfPreview').textContent = first
-        ? `Message will start: \u201cHello ${first}, ...\u201d`
+        ? `Message will start: \u201c${de ? 'Hallo' : 'Hello'} ${who}, ...\u201d  (${de ? 'German' : 'English'})`
         : 'No first name - this guest cannot be invited until one is set.';
     }
 

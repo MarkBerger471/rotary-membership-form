@@ -18,6 +18,19 @@ async function getGuests() {
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
 const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'notes', 'company'];
 
+// Which language to write to them in, and how to address them. Thai guests are
+// normally addressed as "Khun Somchai" - by the first name, with the honorific
+// in front - so this is a prefix to the greeting, not a replacement for it.
+const LANGUAGES = ['en', 'de'];
+const HONORIFICS = ['', 'Khun', 'Mr.', 'Ms.', 'Dr.'];
+const asLanguage = (v, fallback) => (LANGUAGES.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : fallback);
+const asHonorific = (v, fallback) => {
+  const t = String(v == null ? '' : v).trim();
+  if (t === '') return '';
+  const hit = HONORIFICS.find(h => h.toLowerCase() === t.toLowerCase());
+  return hit !== undefined ? hit : fallback;
+};
+
 // WhatsApp hands us full international numbers, but a number typed by hand is
 // usually local ("081 234 5678"). Both must resolve to the same key or the same
 // person gets added twice. DEFAULT_COUNTRY_CODE overrides the Thailand default.
@@ -63,6 +76,8 @@ function normalise(input, source) {
     waNumber: wa,
     notes: String(input.notes || '').trim(),
     company: String(input.company || '').trim(),
+    language: asLanguage(input.language, 'en'),
+    honorific: asHonorific(input.honorific, ''),
     status: 'active',
     source: source || 'manual',
     createdAt: new Date().toISOString(),
@@ -80,7 +95,12 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
-      return res.json({ guests: await getGuests() });
+      const list = await getGuests();
+      return res.json({ guests: list.map(g => ({
+        ...g,
+        language: asLanguage(g.language, 'en'),
+        honorific: asHonorific(g.honorific, ''),
+      })) });
     }
 
     // Accepts one guest or a batch from the import picker. Existing WhatsApp
@@ -124,6 +144,8 @@ module.exports = async (req, res) => {
         g.lastName = last;
       }
       if (b.status === 'active' || b.status === 'archived') g.status = b.status;
+      if (b.language !== undefined) g.language = asLanguage(b.language, g.language || 'en');
+      if (b.honorific !== undefined) g.honorific = asHonorific(b.honorific, g.honorific || '');
       if (b.phone !== undefined || b.waNumber !== undefined) g.waNumber = toE164(b.phone || b.waNumber);
       // Record that an invite went out, so repeat non-attenders are visible.
       if (b.invited) {

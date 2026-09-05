@@ -71,11 +71,15 @@
       </div>
 
       <div class="p-6 space-y-5">
-        <div>
-          <label class="text-xs text-white/50">Message <span class="text-white/30">- use {name} for their first name</span>
-            <textarea id="msgTemplate" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <label class="text-xs text-white/50">English message <span class="text-white/30">- {name} becomes their name</span>
+            <textarea id="msgEn" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+              oninput="saveTemplate(); renderTargets()"></textarea></label>
+          <label class="text-xs text-white/50">German message <span class="text-white/30">- {name} wird zum Namen</span>
+            <textarea id="msgDe" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
               oninput="saveTemplate(); renderTargets()"></textarea></label>
         </div>
+        <p class="text-[11px] text-white/35 -mt-2">Each person gets the version matching their language, set on the Guests page. {name} includes their title, so a Thai guest reads &ldquo;Khun Somchai&rdquo;.</p>
 
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50 flex-1 min-w-[220px]">Invite image or page link <span class="text-white/30">- optional</span>
@@ -87,6 +91,11 @@
               <option value="members">Members</option>
               <option value="both">Guests + members</option>
             </select></label>
+          <label class="text-xs text-white/50">Default language
+            <select id="defaultLang" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="saveTemplate(); renderTargets()">
+              <option value="en">English</option><option value="de">German</option>
+            </select>
+            <span class="text-[11px] text-white/30">for anyone without one, incl. members</span></label>
           <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
         </div>
 
@@ -115,8 +124,10 @@
     requireAuthOrRedirect();
 
     const TEMPLATE_KEY = 'rcbd:invite:template:v1';
-    const DEFAULT_TEMPLATE =
+    const DEFAULT_EN =
       'Hello {name}, I would like to invite you for the next Rotary meeting. I hope you can make it. Mark.';
+    const DEFAULT_DE =
+      'Hallo {name}, ich moechte Dich gerne zum naechsten Rotary-Meeting einladen. Ich hoffe, Du kannst es einrichten. Mark.';
 
     let guests = [], members = [], selected = new Set(), sentThisRound = new Set();
 
@@ -126,6 +137,17 @@
     // names are surname-first, so the first word is often the surname. An
     // empty first name means "not invitable yet", and must stay that way.
     const firstNameOf = (p) => (p.firstName || '').trim();
+
+    // Thai guests are addressed "Khun Somchai" - the title sits in front of the
+    // first name, it does not replace it.
+    function greetingName(p) {
+      const first = firstNameOf(p);
+      if (!first) return '';
+      return [(p.honorific || '').trim(), first].filter(Boolean).join(' ');
+    }
+    const langOf = (p) => (p.language === 'de' || p.language === 'en')
+      ? p.language
+      : document.getElementById('defaultLang').value;
 
     function personId(p) { return (p.kind || '') + ':' + p.waNumber; }
 
@@ -138,6 +160,7 @@
         guests = (g.guests || [])
           .filter(x => x.status !== 'archived')
           .map(x => ({ kind: 'guest', id: x.id, name: x.name, firstName: x.firstName,
+                       honorific: x.honorific || '', language: x.language || '',
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
                        note: x.notes || '', invites: (x.invites || []).length }));
         members = (m.contacts || [])
@@ -160,9 +183,11 @@
     }
 
     function buildMessage(person) {
-      const tpl = document.getElementById('msgTemplate').value || DEFAULT_TEMPLATE;
+      const de = langOf(person) === 'de';
+      const tpl = (de ? document.getElementById('msgDe').value : document.getElementById('msgEn').value)
+        || (de ? DEFAULT_DE : DEFAULT_EN);
       const link = document.getElementById('msgLink').value.trim();
-      const body = tpl.replace(/\{name\}/g, firstNameOf(person) || '');
+      const body = tpl.replace(/\{name\}/g, greetingName(person));
       return link ? body + '\n\n' + link : body;
     }
 
@@ -181,7 +206,7 @@
         `${selected.size} selected · ${sentThisRound.size} sent · ${ready.length} of ${list.length} ready to message`;
 
       document.getElementById('msgPreview').textContent =
-        buildMessage(ready[0] || { firstName: 'Anna' });
+        buildMessage(ready[0] || { firstName: 'Anna', language: document.getElementById('defaultLang').value });
 
       document.getElementById('targetList').innerHTML = list.map(p => {
         const id = personId(p);
@@ -198,7 +223,9 @@
               ${p.invites ? `<span class="text-[10px] text-white/30 ml-1">invited ${p.invites}x</span>` : ''}</div>
             ${blocked
               ? `<div class="text-[11px] text-red-300/80">${blocked} - fix on the Guests page</div>`
-              : `<div class="text-[11px] text-white/35 truncate">&ldquo;Hello ${escapeHtml(first)}, ...&rdquo;</div>`}
+              : `<div class="text-[11px] text-white/35 truncate">
+                   &ldquo;${escapeHtml(buildMessage(p).split('\n')[0].slice(0, 46))}...&rdquo;
+                   <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span></div>`}
           </div>
           ${blocked ? '' : `
           <a href="${waLink(p)}" target="_blank" rel="noopener"
@@ -244,8 +271,10 @@
     function saveTemplate() {
       try {
         localStorage.setItem(TEMPLATE_KEY, JSON.stringify({
-          template: document.getElementById('msgTemplate').value,
+          en: document.getElementById('msgEn').value,
+          de: document.getElementById('msgDe').value,
           link: document.getElementById('msgLink').value,
+          defaultLang: document.getElementById('defaultLang').value,
         }));
       } catch {}
     }
@@ -253,8 +282,10 @@
     (function restoreTemplate() {
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem(TEMPLATE_KEY) || 'null'); } catch {}
-      document.getElementById('msgTemplate').value = (saved && saved.template) || DEFAULT_TEMPLATE;
+      document.getElementById('msgEn').value = (saved && saved.en) || DEFAULT_EN;
+      document.getElementById('msgDe').value = (saved && saved.de) || DEFAULT_DE;
       document.getElementById('msgLink').value = (saved && saved.link) || '';
+      document.getElementById('defaultLang').value = (saved && saved.defaultLang) || 'en';
     })();
 
     if (adminPassword) loadPeople();
