@@ -267,7 +267,8 @@
       document.getElementById('sendAllBtn').textContent =
         `Send to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
       document.getElementById('targetMeta').textContent =
-        `${selected.size} selected · ${queuedCount} waiting to be sent · ${ready.length} of ${list.length} ready`;
+        `${selected.size} selected · ${ready.length} of ${list.length} ready`
+        + (queuedCount ? ` · ${queuedCount} waiting for the sender` : '');
 
       document.getElementById('targetList').innerHTML = list.map(p => {
         const id = personId(p);
@@ -337,6 +338,7 @@
       if (!p) return;
       const { ok } = await queue([p]);
       showToast(ok ? `${p.name} queued` : 'Could not queue', ok ? 'success' : 'error');
+      watchQueue();
     }
 
     async function sendToSelected() {
@@ -349,7 +351,8 @@
       btn.disabled = true;
       try {
         const { ok, failed } = await queue(people);
-        showToast(`${ok} queued${failed ? `, ${failed} failed` : ''} - start the sender to deliver`, failed ? 'error' : 'success');
+        showToast(`${ok} queued${failed ? `, ${failed} failed` : ''} - the sender is delivering them`, failed ? 'error' : 'success');
+        watchQueue();
       } finally { btn.disabled = false; }
     }
 
@@ -544,11 +547,32 @@
       showToast('Meeting details added to the message', 'success');
     }
 
+    // The local sender clears each queue entry as it delivers, on the server.
+    // Without this the page keeps showing "Queued" for messages that already
+    // went out, because it only ever fetched once.
+    let queueWatch = null;
+    function watchQueue() {
+      if (queueWatch) return;
+      queueWatch = setInterval(async () => {
+        if (document.hidden) return;                 // don't poll a background tab
+        const before = guests.filter(g => g.queued).length;
+        if (!before) { clearInterval(queueWatch); queueWatch = null; return; }
+        try {
+          await loadPeople();
+          const after = guests.filter(g => g.queued).length;
+          if (after < before) {
+            showToast(`${before - after} delivered`, 'success');
+          }
+          if (!after) { clearInterval(queueWatch); queueWatch = null; }
+        } catch { /* keep trying */ }
+      }, 8000);
+    }
+
     buildVariantList();
     updateDeNote();
     loadSelection();
     loadMeetings();
-    if (adminPassword) loadPeople();
+    if (adminPassword) loadPeople().then(watchQueue);
   </script>
 </body>
 </html>
