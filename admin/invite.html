@@ -120,6 +120,66 @@
       </div>
     </div>
 
+    <!-- Second sender: the monthly programme, not an invitation to one meeting -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <button type="button" onclick="toggleOverview()" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <div class="flex-1 min-w-0">
+          <h2 class="font-bold text-lg">Monthly overview</h2>
+          <p class="text-white/40 text-xs mt-0.5">Send the programme for the coming weeks, not an invitation to a single meeting.</p>
+        </div>
+        <svg id="ovChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+
+      <div id="ovPanel" class="p-6 space-y-5 hidden">
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="text-xs text-white/50 flex-1 min-w-[240px]">Wording
+            <select id="ovVariant" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyOvVariant(true)"></select></label>
+          <button onclick="nextOvVariant()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap">Try another</button>
+          <label class="flex items-center gap-2 text-xs text-white/50 pb-2">
+            <input type="checkbox" id="ovRolling" class="accent-rotary-gold w-4 h-4" onchange="saveOverview()" checked />
+            rotate automatically
+          </label>
+        </div>
+
+        <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name, the programme is added below it</span>
+          <textarea id="ovMsg" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+            oninput="onOvEdited()"></textarea></label>
+        <textarea id="ovMsgDe" class="hidden"></textarea>
+        <p id="ovNote" class="text-[11px] text-white/35 -mt-2"></p>
+
+        <div id="ovDrop" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
+             onclick="document.getElementById('ovImgInput').click()">
+          <div id="ovDropIdle">
+            <p class="text-sm text-white/60">Drop the programme slide here, or click to choose one</p>
+            <p class="text-[11px] text-white/30 mt-0.5">Sent as a real photo with the text as its caption.</p>
+          </div>
+          <div id="ovDropBusy" class="hidden text-sm text-white/60">Uploading...</div>
+          <div id="ovDropDone" class="hidden flex items-center gap-3 justify-center">
+            <img id="ovThumb" alt="" class="w-16 h-16 rounded-lg object-cover" />
+            <div class="text-left">
+              <p id="ovName" class="text-sm text-white/80"></p>
+              <button onclick="event.stopPropagation(); clearOvImage()" class="text-[11px] text-white/40 hover:text-red-300">remove</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="ovImgInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="pickOvImage(this.files && this.files[0])" />
+        <input type="hidden" id="ovImage" />
+
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="text-xs text-white/50">Meetings to list
+            <select id="ovCount" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="saveOverview(); renderOvPreview()">
+              <option value="3">next 3</option><option value="4" selected>next 4</option>
+              <option value="6">next 6</option><option value="0">none, text only</option>
+            </select></label>
+          <div class="flex-1 min-w-[200px]">
+            <p class="text-xs text-white/50 mb-1">Programme that will be included</p>
+            <div id="ovPreview" class="rounded-lg bg-[#0a1628]/60 border border-white/10 p-3 text-[12px] text-white/70 whitespace-pre-wrap"></div>
+          </div>
+          <button onclick="sendOverviewToSelected()" id="ovSendBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send overview to selected</button>
+        </div>
+      </div>
+    </div>
+
     <div class="glass-card rounded-2xl overflow-hidden">
       <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -390,6 +450,250 @@
       if (saved && saved.link) show('dropDone');
     })();
 
+    // ---------- monthly overview ----------
+    // Ten wordings for the programme mailing. It announces what is coming up
+    // rather than inviting to one meeting, so the tone is different: an
+    // update, not a request.
+    const OV_VARIANTS = [
+      { label: 'Programme update',
+        en: 'Hello {name}, here is what is coming up at Rotary Club Bangkok DACH over the next weeks. Mark.',
+        de: 'Hallo {name}, hier ist unser Programm beim Rotary Club Bangkok DACH fuer die naechsten Wochen. Mark.' },
+      { label: 'Thought you would like to see',
+        en: 'Hi {name}, thought you would like to see what we have lined up at Rotary in the coming weeks. Mark.',
+        de: 'Hallo {name}, ich dachte, Dich interessiert, was bei Rotary in den naechsten Wochen ansteht. Mark.' },
+      { label: 'Dates for the diary',
+        en: 'Hello {name}, a few dates for your diary - our Rotary programme for the weeks ahead. Mark.',
+        de: 'Hallo {name}, ein paar Termine fuer den Kalender - unser Rotary-Programm der naechsten Wochen. Mark.' },
+      { label: 'Pick one that suits',
+        en: 'Hi {name}, our next Rotary meetings are below. Pick whichever suits you and let me know - you are welcome at any of them. Mark.',
+        de: 'Hallo {name}, unsere naechsten Rotary-Termine stehen unten. Such Dir aus, was passt, und sag mir Bescheid - Du bist bei jedem willkommen. Mark.' },
+      { label: 'What is on',
+        en: 'Hello {name}, here is what is on at Rotary over the coming weeks. Mark.',
+        de: 'Hallo {name}, hier ist, was bei Rotary in den naechsten Wochen los ist. Mark.' },
+      { label: 'Speakers coming up',
+        en: 'Hi {name}, some good speakers coming up at Rotary. The programme is below if anything catches your eye. Mark.',
+        de: 'Hallo {name}, bei Rotary stehen ein paar gute Referenten an. Das Programm findest Du unten, falls Dich etwas anspricht. Mark.' },
+      { label: 'Keeping you posted',
+        en: 'Hello {name}, keeping you posted on our Rotary programme for the next few weeks. Mark.',
+        de: 'Hallo {name}, ich halte Dich zu unserem Rotary-Programm der naechsten Wochen auf dem Laufenden. Mark.' },
+      { label: 'In case you are free',
+        en: 'Hi {name}, in case you are free on any of these - our Rotary meetings for the coming weeks. Mark.',
+        de: 'Hallo {name}, falls Du an einem der Termine Zeit hast - unsere Rotary-Treffen der naechsten Wochen. Mark.' },
+      { label: 'Monthly programme',
+        en: 'Hello {name}, please find our Rotary Club Bangkok DACH programme for the coming weeks below. Mark.',
+        de: 'Hallo {name}, anbei unser Programm des Rotary Club Bangkok DACH fuer die naechsten Wochen. Mark.' },
+      { label: 'Open invitation',
+        en: 'Hi {name}, our Rotary programme for the next weeks is below - the invitation is open for any of them. Mark.',
+        de: 'Hallo {name}, unser Rotary-Programm der naechsten Wochen steht unten - die Einladung gilt fuer jeden Termin. Mark.' },
+    ];
+    const OV_KEY = 'rcbd:overview:v1';
+    const OV_ROLL_KEY = 'rcbd:overview:rolling:v1';
+
+    function toggleOverview() {
+      const panel = document.getElementById('ovPanel');
+      const open = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !open);
+      document.getElementById('ovChev').style.transform = open ? '' : 'rotate(-90deg)';
+      if (open) renderOvPreview();
+    }
+
+    function buildOvVariantList() {
+      document.getElementById('ovVariant').innerHTML =
+        OV_VARIANTS.map((v, i) => `<option value="${i}">${i + 1}. ${escapeHtml(v.label)}</option>`).join('')
+        + '<option value="custom">Custom (edited below)</option>';
+    }
+
+    function applyOvVariant(fromUser) {
+      const sel = document.getElementById('ovVariant').value;
+      if (sel === 'custom') { saveOverview(); renderOvPreview(); return; }
+      const v = OV_VARIANTS[Number(sel)] || OV_VARIANTS[0];
+      document.getElementById('ovMsg').value = v.en;
+      document.getElementById('ovMsgDe').value = v.de;
+      if (fromUser) document.getElementById('ovRolling').checked = false;
+      updateOvNote(); saveOverview(); renderOvPreview();
+    }
+
+    function nextOvVariant() {
+      const cur = Number(document.getElementById('ovVariant').value);
+      const next = (Number.isFinite(cur) ? cur + 1 : 0) % OV_VARIANTS.length;
+      document.getElementById('ovVariant').value = String(next);
+      applyOvVariant(true);
+    }
+
+    function onOvEdited() {
+      document.getElementById('ovVariant').value = 'custom';
+      document.getElementById('ovMsgDe').value = '';
+      document.getElementById('ovRolling').checked = false;
+      updateOvNote(); saveOverview(); renderOvPreview();
+    }
+
+    function updateOvNote() {
+      const custom = document.getElementById('ovVariant').value === 'custom';
+      document.getElementById('ovNote').textContent = custom
+        ? 'Your own wording goes to everyone, in English.'
+        : 'German-speaking guests get the German version of this wording automatically.';
+    }
+
+    // The programme itself is built from the meeting planner, so it is always
+    // the real schedule rather than something retyped by hand.
+    function upcomingMeetings(limit) {
+      const today = new Date().toISOString().slice(0, 10);
+      return Object.entries(meetings)
+        .filter(([d, m]) => d >= today && m && m.active)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, limit);
+    }
+
+    function programmeLines(lang) {
+      const limit = Number(document.getElementById('ovCount').value || 4);
+      if (!limit) return '';
+      const rows = upcomingMeetings(limit);
+      if (!rows.length) return '';
+      const loc = lang === 'de' ? 'de-DE' : 'en-GB';
+      return rows.map(([d, m]) => {
+        const when = new Date(d).toLocaleDateString(loc, { weekday: 'short', day: '2-digit', month: 'short' });
+        const what = m.topic || m.presenter || (lang === 'de' ? 'Clubtreffen' : 'Club meeting');
+        const where = m.venue ? ` (${m.venue})` : '';
+        return `- ${when}: ${what}${where}`;
+      }).join('\n');
+    }
+
+    function buildOverview(person) {
+      const de = langOf(person) === 'de';
+      const tpl = (de ? document.getElementById('ovMsgDe').value : '')
+        || document.getElementById('ovMsg').value || OV_VARIANTS[0].en;
+      const body = tpl.replace(/\{name\}/g, greetingName(person));
+      const list = programmeLines(de ? 'de' : 'en');
+      const web = document.getElementById('webLink').value.trim();
+      return [body, list, web].filter(Boolean).join('\n\n');
+    }
+
+    function renderOvPreview() {
+      const el = document.getElementById('ovPreview');
+      if (!el) return;
+      const list = programmeLines('en');
+      el.textContent = list || 'No upcoming meetings found in the planner.';
+    }
+
+    // ---- overview image, kept separate from the invite image
+    async function pickOvImage(file) {
+      if (!file) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showToast('JPEG, PNG or WebP only', 'error'); return; }
+      ovShow('ovDropBusy');
+      try {
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
+        });
+        const shrunk = await shrink(dataUrl);
+        const out = await apiFetch('/api/invite-image', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: shrunk.split(',')[1], mimeType: 'image/jpeg', name: file.name }),
+        });
+        document.getElementById('ovImage').value = location.origin + '/api/invite-image?id=' + out.id;
+        document.getElementById('ovThumb').src = shrunk;
+        document.getElementById('ovName').textContent = file.name;
+        ovShow('ovDropDone');
+        saveOverview();
+        showToast('Programme image uploaded', 'success');
+      } catch (err) {
+        ovShow('ovDropIdle');
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Upload failed', 'error');
+      }
+    }
+
+    function ovShow(which) {
+      ['ovDropIdle', 'ovDropBusy', 'ovDropDone'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== which);
+      });
+    }
+
+    function clearOvImage() {
+      document.getElementById('ovImage').value = '';
+      ovShow('ovDropIdle');
+      saveOverview();
+    }
+
+    (function wireOvDrop() {
+      const zone = document.getElementById('ovDrop');
+      if (!zone) return;
+      ['dragenter', 'dragover'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.add('border-rotary-gold');
+      }));
+      ['dragleave', 'drop'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.remove('border-rotary-gold');
+      }));
+      zone.addEventListener('drop', (ev) => {
+        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (f) pickOvImage(f);
+      });
+    })();
+
+    async function sendOverviewToSelected() {
+      const people = pool().filter(p => selected.has(personId(p)) && p.waNumber && firstNameOf(p));
+      if (!people.length) { showToast('Nobody selected', 'error'); return; }
+      if (!confirm(`Send the monthly overview to ${people.length} guest${people.length === 1 ? '' : 's'}?`)) return;
+      const btn = document.getElementById('ovSendBtn');
+      btn.disabled = true;
+      try {
+        const img = document.getElementById('ovImage').value.trim();
+        let ok = 0, failed = 0;
+        for (const p of people) {
+          try {
+            await apiFetch('/api/admin/guests', {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: p.id, queued: { text: buildOverview(p), imageUrl: img } }),
+            });
+            ok++;
+          } catch { failed++; }
+        }
+        await loadPeople();
+        showToast(`${ok} queued${failed ? `, ${failed} failed` : ''} - the sender is delivering them`, failed ? 'error' : 'success');
+        watchQueue();
+      } finally { btn.disabled = false; }
+    }
+
+    function saveOverview() {
+      try {
+        localStorage.setItem(OV_KEY, JSON.stringify({
+          msg: document.getElementById('ovMsg').value,
+          de: document.getElementById('ovMsgDe').value,
+          image: document.getElementById('ovImage').value,
+          count: document.getElementById('ovCount').value,
+          variant: document.getElementById('ovVariant').value,
+          rolling: document.getElementById('ovRolling').checked,
+        }));
+      } catch {}
+    }
+
+    function ovRollingIndex() {
+      let n = 0;
+      try { n = Number(localStorage.getItem(OV_ROLL_KEY) || '0') || 0; } catch {}
+      try { localStorage.setItem(OV_ROLL_KEY, String((n + 1) % OV_VARIANTS.length)); } catch {}
+      return n % OV_VARIANTS.length;
+    }
+
+    (function restoreOverview() {
+      buildOvVariantList();
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(OV_KEY) || 'null'); } catch {}
+      const rolling = !saved || saved.rolling !== false;
+      document.getElementById('ovRolling').checked = rolling;
+      document.getElementById('ovCount').value = (saved && saved.count) || '4';
+      document.getElementById('ovImage').value = (saved && saved.image) || '';
+      if (saved && saved.image) ovShow('ovDropDone');
+      if (rolling) {
+        const i = ovRollingIndex();
+        document.getElementById('ovVariant').value = String(i);
+        document.getElementById('ovMsg').value = OV_VARIANTS[i].en;
+        document.getElementById('ovMsgDe').value = OV_VARIANTS[i].de;
+      } else {
+        document.getElementById('ovVariant').value = (saved && saved.variant) || '0';
+        document.getElementById('ovMsg').value = (saved && saved.msg) || OV_VARIANTS[0].en;
+        document.getElementById('ovMsgDe').value = (saved && saved.de) || OV_VARIANTS[0].de;
+      }
+      updateOvNote();
+    })();
+
     // ---------- wording variants ----------
     function buildVariantList() {
       document.getElementById('variantSelect').innerHTML =
@@ -514,6 +818,7 @@
       try {
         meetings = (await apiFetch('/api/admin/meetings')).meetings || {};
       } catch { meetings = {}; }
+      renderOvPreview();
       const today = new Date().toISOString().slice(0, 10);
       const upcoming = Object.entries(meetings)
         .filter(([d, m]) => d >= today && m.active)
@@ -525,6 +830,7 @@
           const what = m.topic || m.presenter || 'Club meeting';
           return `<option value="${d}">${when} - ${escapeHtml(what).slice(0, 40)}</option>`;
         }).join('');
+      renderOvPreview();
     }
 
     // Puts the meeting's own details into the message rather than hiding them
