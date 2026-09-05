@@ -64,13 +64,21 @@
   
   <main class="max-w-6xl mx-auto px-4 py-8 animate-fade-in space-y-6">
 
+    <!-- Three senders, one open at a time. The open one is the one that gets
+         sent - there is no second send button hiding inside a panel, which is
+         how an overview once went out as a meeting invitation. -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-white/10">
-        <h2 class="font-bold text-lg">Invite to a meeting</h2>
-        <p class="text-white/40 text-xs mt-0.5">Each person gets their own WhatsApp chat with their own name already typed. You tap send.</p>
-      </div>
+      <button type="button" onclick="openPanel('invite')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <span id="invDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
+        <div class="flex-1 min-w-0">
+          <h2 class="font-bold text-lg">Invite to a meeting</h2>
+          <p class="text-white/40 text-xs mt-0.5">One evening, one date. Each guest gets their own name in the message.</p>
+        </div>
+        <span id="invTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
+        <svg id="invChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
 
-      <div class="p-6 space-y-5">
+      <div id="invPanel" class="p-6 space-y-5">
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50 flex-1 min-w-[240px]">Wording
             <select id="variantSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyVariant(true)"></select></label>
@@ -107,19 +115,19 @@
             <input type="url" id="webLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
               placeholder="https://rotary-bkkdach.vercel.app/quiz"
               oninput="saveTemplate(); renderTargets()" /></label>
-
-          <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
         </div>
       </div>
     </div>
 
-    <!-- Second sender: the monthly programme, not an invitation to one meeting -->
+    <!-- The monthly programme, not an invitation to one meeting -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <button type="button" onclick="toggleOverview()" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+      <button type="button" onclick="openPanel('overview')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <span id="ovDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
         <div class="flex-1 min-w-0">
           <h2 class="font-bold text-lg">Monthly overview</h2>
-          <p class="text-white/40 text-xs mt-0.5">Send the programme for the coming weeks, not an invitation to a single meeting.</p>
+          <p class="text-white/40 text-xs mt-0.5">The programme for the coming weeks, not an invitation to a single meeting.</p>
         </div>
+        <span id="ovTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
         <svg id="ovChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
 
@@ -134,7 +142,7 @@
           </label>
         </div>
 
-        <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name, the programme is added below it</span>
+        <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name, the programme is added above your closing line</span>
           <textarea id="ovMsg" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
             oninput="onOvEdited()"></textarea></label>
         <textarea id="ovMsgDe" class="hidden"></textarea>
@@ -153,26 +161,68 @@
 
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50">Meetings to list
-            <select id="ovCount" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="saveOverview(); renderOvPreview()">
+            <select id="ovCount" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="saveOverview(); renderOvPreview(); renderTargets()">
               <option value="0" selected>none, text only</option><option value="3">next 3</option>
               <option value="4">next 4</option><option value="6">next 6</option>
             </select></label>
-          <div class="flex-1 min-w-[200px]">
+          <label class="text-xs text-white/50 flex-1 min-w-[200px]">Website link <span class="text-white/30">(optional)</span>
+            <input type="url" id="ovWebLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
+              placeholder="https://rotary-bkkdach.vercel.app"
+              oninput="saveOverview(); renderTargets()" /></label>
+          <div class="flex-1 min-w-[240px]">
             <p class="text-xs text-white/50 mb-1">Programme that will be included</p>
             <div id="ovPreview" class="rounded-lg bg-[#0a1628]/60 border border-white/10 p-3 text-[12px] text-white/70 whitespace-pre-wrap"></div>
           </div>
-          <button onclick="sendOverviewToSelected()" id="ovSendBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send overview to selected</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Anything else: written once, sent as typed, with {name} still filled in -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <button type="button" onclick="openPanel('free')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <span id="ftDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
+        <div class="flex-1 min-w-0">
+          <h2 class="font-bold text-lg">Free text</h2>
+          <p class="text-white/40 text-xs mt-0.5">Your own message, sent exactly as you write it.</p>
+        </div>
+        <span id="ftTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
+        <svg id="ftChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+
+      <div id="ftPanel" class="p-6 space-y-5 hidden">
+        <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name and title</span>
+          <textarea id="ftMsg" rows="6" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+            placeholder="Hello {name}, ...&#10;&#10;Best regards, Mark"
+            oninput="saveFreeText(); renderTargets()"></textarea></label>
+        <p class="text-[11px] text-white/35 -mt-2">Sent as written, in one language, to everyone selected. No programme and no meeting details are added - only a website link, and that goes above your closing line.</p>
+
+        <div id="ftDrop" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
+             onclick="document.getElementById('ftImgInput').click()">
+          <div id="ftDropIdle">
+            <p class="text-sm text-white/60">Drop pictures here, or click to choose them</p>
+            <p class="text-[11px] text-white/30 mt-0.5">Optional. One or more images, sent as real photos with your text as the caption on the first.</p>
+          </div>
+          <div id="ftDropBusy" class="hidden text-sm text-white/60">Uploading...</div>
+          <div id="ftThumbs" class="hidden flex flex-wrap gap-2 justify-center items-center"></div>
+        </div>
+        <input type="file" id="ftImgInput" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="pickFtImages(this.files)" />
+
+        <label class="text-xs text-white/50 block max-w-md">Website link <span class="text-white/30">(optional)</span>
+          <input type="url" id="ftWebLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
+            placeholder="https://rotary-bkkdach.vercel.app"
+            oninput="saveFreeText(); renderTargets()" /></label>
       </div>
     </div>
 
     <div class="glass-card rounded-2xl overflow-hidden">
       <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
-        <div>
+        <div class="min-w-0">
           <h2 class="font-bold text-lg">Recipients</h2>
+          <p id="sendWhat" class="text-rotary-gold/80 text-xs mt-0.5">&nbsp;</p>
           <p id="targetMeta" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
+          <input type="search" id="targetSearch" class="glass-input px-3 py-1.5 rounded-lg text-sm w-40" placeholder="Search..." oninput="renderTargets()" />
           <button onclick="selectAllShown(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
           <button onclick="selectAllShown(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
           <button onclick="sendToSelected()" id="sendAllBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send to selected</button>
@@ -233,7 +283,18 @@
     // The two lists are kept entirely separate. Capped so a message never turns
     // into a flood of photos.
     const MAX_IMAGES = 10;
-    let inviteImages = [], overviewImages = [];
+    let inviteImages = [], overviewImages = [], freeImages = [];
+
+    // Exactly one sender is armed at a time. The panel you have open IS the
+    // one that gets sent - two send buttons on one page is what let a monthly
+    // overview go out as a meeting invitation.
+    const MODE_KEY = 'rcbd:invite:mode:v1';
+    const PANELS = {
+      invite:   { panel:'invPanel', chev:'invChev', dot:'invDot', tag:'invTag', what:'invite',        verb:'the invite' },
+      overview: { panel:'ovPanel',  chev:'ovChev',  dot:'ovDot',  tag:'ovTag',  what:'overview',      verb:'the monthly overview' },
+      free:     { panel:'ftPanel',  chev:'ftChev',  dot:'ftDot',  tag:'ftTag',  what:'free text',     verb:'your free text' },
+    };
+    let activeMode = 'invite';
 
     // The same people usually get invited each time, so last round's ticks come
     // back as the starting point rather than an empty list.
@@ -330,8 +391,48 @@
       return insertBeforeSignoff(body, [web]);
     }
 
+    // Free text is whatever Mark typed - no wording list, no programme, no
+    // meeting details. Only {name} and an optional link.
+    function buildFreeText(person) {
+      const body = (document.getElementById('ftMsg').value || '').replace(/\{name\}/g, greetingName(person));
+      const web = (document.getElementById('ftWebLink').value || '').trim();
+      return insertBeforeSignoff(body, [web]);
+    }
+
+    // Everything downstream - the row previews, the queue, the send button -
+    // goes through these two, so there is only ever one answer to "what is
+    // being sent".
+    function buildFor(person) {
+      if (activeMode === 'overview') return buildOverview(person);
+      if (activeMode === 'free') return buildFreeText(person);
+      return buildMessage(person);
+    }
+
+    function imagesFor() {
+      if (activeMode === 'overview') return overviewImages.slice();
+      if (activeMode === 'free') return freeImages.slice();
+      return inviteImages.slice();
+    }
+
+    function openPanel(mode) {
+      activeMode = PANELS[mode] ? mode : 'invite';
+      Object.keys(PANELS).forEach((key) => {
+        const p = PANELS[key], on = key === activeMode;
+        document.getElementById(p.panel).classList.toggle('hidden', !on);
+        document.getElementById(p.chev).style.transform = on ? '' : 'rotate(-90deg)';
+        const dot = document.getElementById(p.dot);
+        dot.classList.toggle('border-rotary-gold', on);
+        dot.classList.toggle('bg-rotary-gold', on);
+        dot.classList.toggle('border-white/25', !on);
+        document.getElementById(p.tag).classList.toggle('hidden', !on);
+      });
+      try { localStorage.setItem(MODE_KEY, activeMode); } catch {}
+      if (activeMode === 'overview') renderOvPreview();
+      renderTargets();
+    }
+
     function waLink(person) {
-      return 'https://wa.me/' + person.waNumber + '?text=' + encodeURIComponent(buildMessage(person));
+      return 'https://wa.me/' + person.waNumber + '?text=' + encodeURIComponent(buildFor(person));
     }
 
     function renderTargets() {
@@ -342,8 +443,13 @@
 
       const ready = list.filter(p => p.waNumber && firstNameOf(p));
       const queuedCount = all.filter(p => p.queued).length;
+      const mode = PANELS[activeMode] || PANELS.invite;
       document.getElementById('sendAllBtn').textContent =
-        `Send to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
+        `Send ${mode.what} to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
+      const imgs = imagesFor().length;
+      document.getElementById('sendWhat').textContent =
+        `Sending: ${mode.what}` + (imgs ? ` with ${imgs} image${imgs === 1 ? '' : 's'}` : ', no image')
+        + ' - open another box above to switch';
       document.getElementById('targetMeta').textContent =
         `${selected.size} selected · ${ready.length} of ${list.length} ready`
         + (queuedCount ? ` · ${queuedCount} waiting for the sender` : '');
@@ -364,7 +470,7 @@
             ${blocked
               ? `<div class="text-[11px] text-red-300/80">${blocked} - fix on the Guests page</div>`
               : `<div class="text-[11px] text-white/35 truncate">
-                   &ldquo;${escapeHtml(buildMessage(p).split('\n')[0].slice(0, 46))}...&rdquo;
+                   &ldquo;${escapeHtml(buildFor(p).split('\n')[0].slice(0, 46))}...&rdquo;
                    <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span></div>`}
           </div>
           ${blocked ? '' : `
@@ -396,13 +502,13 @@
     // WhatsApp, which is the only way to attach a real image and send without
     // pressing send for each person.
     async function queue(people) {
-      const imageUrls = inviteImages.slice();
+      const imageUrls = imagesFor();
       let ok = 0, failed = 0;
       for (const p of people) {
         try {
           await apiFetch('/api/admin/guests', {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: p.id, queued: { text: buildMessage(p), imageUrls } }),
+            body: JSON.stringify({ id: p.id, queued: { text: buildFor(p), imageUrls } }),
           });
           ok++;
         } catch { failed++; }
@@ -422,7 +528,11 @@
     async function sendToSelected() {
       const people = pool().filter(p => selected.has(personId(p)) && p.waNumber && firstNameOf(p));
       if (!people.length) { showToast('Nobody selected', 'error'); return; }
-      if (!confirm(`Send the invite to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
+      if (activeMode === 'free' && !(document.getElementById('ftMsg').value || '').trim()) {
+        showToast('The free text box is empty', 'error'); return;
+      }
+      const mode = PANELS[activeMode] || PANELS.invite;
+      if (!confirm(`Send ${mode.verb} to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
                  + 'They are queued now and the WhatsApp sender on your Mac delivers them, '
                  + 'about one every 20-40 seconds so the account is not flagged.')) return;
       const btn = document.getElementById('sendAllBtn');
@@ -510,14 +620,6 @@
     const OV_KEY = 'rcbd:overview:v1';
     const OV_ROLL_KEY = 'rcbd:overview:rolling:v1';
 
-    function toggleOverview() {
-      const panel = document.getElementById('ovPanel');
-      const open = panel.classList.contains('hidden');
-      panel.classList.toggle('hidden', !open);
-      document.getElementById('ovChev').style.transform = open ? '' : 'rotate(-90deg)';
-      if (open) renderOvPreview();
-    }
-
     function buildOvVariantList() {
       document.getElementById('ovVariant').innerHTML =
         OV_VARIANTS.map((v, i) => `<option value="${i}">${i + 1}. ${escapeHtml(v.label)}</option>`).join('')
@@ -585,7 +687,7 @@
         || document.getElementById('ovMsg').value || OV_VARIANTS[0].en;
       const body = tpl.replace(/\{name\}/g, greetingName(person));
       const list = programmeLines(de ? 'de' : 'en');
-      const web = document.getElementById('webLink').value.trim();
+      const web = document.getElementById('ovWebLink').value.trim();
       return insertBeforeSignoff(body, [list, web]);
     }
 
@@ -644,30 +746,6 @@
       });
     })();
 
-    async function sendOverviewToSelected() {
-      const people = pool().filter(p => selected.has(personId(p)) && p.waNumber && firstNameOf(p));
-      if (!people.length) { showToast('Nobody selected', 'error'); return; }
-      if (!confirm(`Send the monthly overview to ${people.length} guest${people.length === 1 ? '' : 's'}?`)) return;
-      const btn = document.getElementById('ovSendBtn');
-      btn.disabled = true;
-      try {
-        const imageUrls = overviewImages.slice();
-        let ok = 0, failed = 0;
-        for (const p of people) {
-          try {
-            await apiFetch('/api/admin/guests', {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: p.id, queued: { text: buildOverview(p), imageUrls } }),
-            });
-            ok++;
-          } catch { failed++; }
-        }
-        await loadPeople();
-        showToast(`${ok} queued${failed ? `, ${failed} failed` : ''} - the sender is delivering them`, failed ? 'error' : 'success');
-        watchQueue();
-      } finally { btn.disabled = false; }
-    }
-
     function saveOverview() {
       try {
         localStorage.setItem(OV_KEY, JSON.stringify({
@@ -675,6 +753,7 @@
           de: document.getElementById('ovMsgDe').value,
           images: overviewImages,
           count: document.getElementById('ovCount').value,
+          web: document.getElementById('ovWebLink').value,
           variant: document.getElementById('ovVariant').value,
           rolling: document.getElementById('ovRolling').checked,
         }));
@@ -695,6 +774,7 @@
       const rolling = !saved || saved.rolling !== false;
       document.getElementById('ovRolling').checked = rolling;
       document.getElementById('ovCount').value = (saved && saved.count) || '0';
+      document.getElementById('ovWebLink').value = (saved && saved.web) || '';
       // New images array; fall back to a single `image` from an older visit.
       overviewImages = (saved && Array.isArray(saved.images)) ? saved.images.slice()
                      : (saved && saved.image) ? [saved.image] : [];
@@ -839,6 +919,69 @@
       saveTemplate(); renderTargets();
     }
 
+    // ---------- free text ----------
+    const FT_KEY = 'rcbd:freetext:v1';
+
+    async function pickFtImages(files) {
+      await addImagesTo(freeImages, files, {
+        busy: () => ftShow('ftDropBusy'),
+        render: () => { renderFreeImages(); renderTargets(); },
+        save: saveFreeText,
+      });
+      document.getElementById('ftImgInput').value = '';
+    }
+
+    function ftShow(which) {
+      ['ftDropIdle', 'ftDropBusy', 'ftThumbs'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== which);
+      });
+    }
+
+    function renderFreeImages() {
+      renderImageList('ftThumbs', freeImages, 'removeFreeImage');
+      ftShow(freeImages.length ? 'ftThumbs' : 'ftDropIdle');
+    }
+
+    function removeFreeImage(i) {
+      freeImages.splice(i, 1);
+      renderFreeImages();
+      saveFreeText(); renderTargets();
+    }
+
+    function saveFreeText() {
+      try {
+        localStorage.setItem(FT_KEY, JSON.stringify({
+          msg: document.getElementById('ftMsg').value,
+          images: freeImages,
+          web: document.getElementById('ftWebLink').value,
+        }));
+      } catch {}
+    }
+
+    (function restoreFreeText() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(FT_KEY) || 'null'); } catch {}
+      document.getElementById('ftMsg').value = (saved && saved.msg) || '';
+      document.getElementById('ftWebLink').value = (saved && saved.web) || '';
+      freeImages = (saved && Array.isArray(saved.images)) ? saved.images.slice() : [];
+      renderFreeImages();
+    })();
+
+    (function wireFtDrop() {
+      const zone = document.getElementById('ftDrop');
+      if (!zone) return;
+      ['dragenter', 'dragover'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.add('border-rotary-gold');
+      }));
+      ['dragleave', 'drop'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.remove('border-rotary-gold');
+      }));
+      zone.addEventListener('drop', (ev) => {
+        const files = ev.dataTransfer && ev.dataTransfer.files;
+        if (files && files.length) pickFtImages(files);
+      });
+    })();
+
     // A phone photo is several megabytes; a preview card needs nothing like it.
     function shrink(dataUrl, max = 1200) {
       return new Promise((resolve) => {
@@ -949,6 +1092,11 @@
     buildVariantList();
     updateDeNote();
     loadSelection();
+    // Reopen whichever sender was armed last time, so the panel you see is
+    // still the one that sends.
+    let startMode = 'invite';
+    try { startMode = localStorage.getItem(MODE_KEY) || 'invite'; } catch {}
+    openPanel(startMode);
     loadMeetings();
     if (adminPassword) loadPeople().then(watchQueue);
   </script>
