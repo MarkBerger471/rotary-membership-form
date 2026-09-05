@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const qrimage = require('qrcode');
 
 const BASE = process.env.BASE_URL || 'https://rotary-bkkdach.vercel.app';
 const PW = process.env.ADMIN_PASSWORD;
@@ -150,11 +151,29 @@ async function drain(client) {
     },
   });
 
-  client.on('qr', (qr) => {
+  // The QR also opens as an image. Printing it to a terminal is no use when
+  // the sender is started for you, or when the terminal font mangles the
+  // blocks - a PNG in Preview always scans.
+  const QR_PNG = path.join(__dirname, 'link-whatsapp.png');
+  let qrOpened = false;
+  client.on('qr', async (qr) => {
     console.log('\nScan this in WhatsApp > Settings > Linked devices > Link a device:\n');
     qrcode.generate(qr, { small: true });
+    try {
+      await qrimage.toFile(QR_PNG, qr, { width: 520, margin: 2 });
+      if (!qrOpened) {
+        qrOpened = true;
+        require('child_process').spawn('open', [QR_PNG], { stdio: 'ignore', detached: true }).unref();
+        console.log(`(also opened as an image: ${QR_PNG})`);
+      }
+    } catch (err) {
+      console.log('could not write the QR image:', err.message);
+    }
   });
-  client.on('authenticated', () => log('authenticated'));
+  client.on('authenticated', () => {
+    log('authenticated');
+    try { fs.unlinkSync(path.join(__dirname, 'link-whatsapp.png')); } catch {}
+  });
   client.on('auth_failure', (m) => { log('auth failed:', m); process.exit(1); });
   client.on('disconnected', (r) => { log('disconnected:', r); process.exit(1); });
 

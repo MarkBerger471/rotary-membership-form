@@ -8,3 +8,6 @@ package-lock.json
 tools/whatsapp-sender/node_modules/
 tools/whatsapp-sender/.wwebjs_auth/
 tools/whatsapp-sender/.wwebjs_cache/
+
+# the QR image is a live login link
+tools/whatsapp-sender/link-whatsapp.png

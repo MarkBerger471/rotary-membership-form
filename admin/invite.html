@@ -92,7 +92,7 @@
           <div id="dropIdle">
             <svg class="w-8 h-8 mx-auto mb-2 text-white/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             <p class="text-sm text-white/60">Drop an invite image here, or click to choose one</p>
-            <p class="text-[11px] text-white/30 mt-0.5">JPEG, PNG or WebP. WhatsApp shows it as a preview under your message.</p>
+            <p class="text-[11px] text-white/30 mt-0.5">JPEG, PNG or WebP. Sent as a real photo with your message as the caption - no link.</p>
           </div>
           <div id="dropBusy" class="hidden text-sm text-white/60">Uploading...</div>
           <div id="dropDone" class="hidden flex items-center gap-3 justify-center">
@@ -108,9 +108,7 @@
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50 flex-1 min-w-[200px]">Or use a meeting from the planner
             <select id="meetingSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyMeeting()"></select></label>
-          <label class="text-xs text-white/50 flex-1 min-w-[200px]">Link sent with the message
-            <input id="msgLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
-              placeholder="uploaded image or any URL" oninput="saveTemplate(); renderTargets()" /></label>
+          <input type="hidden" id="msgLink" />
 
           <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
         </div>
@@ -243,9 +241,7 @@
       // the case whenever the message was written by hand.
       const tpl = (de ? document.getElementById('msgDe').value : '')
         || document.getElementById('msgEn').value || DEFAULT_EN;
-      const link = document.getElementById('msgLink').value.trim();
-      const body = tpl.replace(/\{name\}/g, greetingName(person));
-      return link ? body + '\n\n' + link : body;
+      return tpl.replace(/\{name\}/g, greetingName(person));
     }
 
     function waLink(person) {
