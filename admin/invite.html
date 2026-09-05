@@ -358,7 +358,6 @@
           en: document.getElementById('msgEn').value,
           de: document.getElementById('msgDe').value,
           link: document.getElementById('msgLink').value,
-          defaultLang: document.getElementById('defaultLang').value,
           variant: document.getElementById('variantSelect').value,
           rolling: document.getElementById('rollingToggle').checked,
         }));
@@ -371,7 +370,6 @@
       buildVariantList();
       const rolling = !saved || saved.rolling !== false;
       document.getElementById('rollingToggle').checked = rolling;
-      document.getElementById('defaultLang').value = (saved && saved.defaultLang) || 'en';
       document.getElementById('msgLink').value = (saved && saved.link) || '';
       if (rolling) {
         const i = rollingIndex();
