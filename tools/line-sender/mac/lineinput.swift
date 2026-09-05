@@ -76,7 +76,15 @@ case "where":
   let h = (NSScreen.screens.first?.frame.height ?? 0)
   print(String(format: "%.0f %.0f", p.x, h - p.y))
 case "trusted":
-  print(AXIsProcessTrusted() ? "trusted" : "NOT trusted")
+  // With --prompt, macOS shows its own "wants to control this computer" dialog
+  // with a button straight to the right settings pane. Without it, this is a
+  // silent check. The dialog is shown at most once per app by the system.
+  if a.count > 2 && a[2] == "--prompt" {
+    let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+    print(AXIsProcessTrustedWithOptions(opts) ? "trusted" : "NOT trusted")
+  } else {
+    print(AXIsProcessTrusted() ? "trusted" : "NOT trusted")
+  }
 default:
   print("usage: lineinput click x y | type TEXT | key CODE [cmd,shift] | scroll x y CLICKS | where | trusted")
 }

@@ -42,9 +42,10 @@
  * WHAT IT NEEDS
  *
  *   - macOS, LINE installed and logged in, the Mac awake and unlocked.
- *   - Terminal permissions: Accessibility (to activate LINE and read its
- *     window) and Screen Recording (to read the screen). Both are granted to
- *     the terminal app this runs in, in System Settings > Privacy & Security.
+ *   - Accessibility (to activate LINE and read its window) and Screen
+ *     Recording (to read the screen), in System Settings > Privacy & Security.
+ *     macOS grants those to an application, so they belong to whatever runs
+ *     this: the Rotary Senders app at login, or the terminal when run by hand.
  *   - Xcode command line tools, for the two small Swift helpers in mac/.
  *
  * While it runs it owns the keyboard and the mouse. Leave the machine alone.
@@ -56,7 +57,17 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const BASE = process.env.BASE_URL || 'https://rotary-bkkdach.vercel.app';
-const PW = process.env.ADMIN_PASSWORD;
+// The password lives in the login keychain, so nothing has to be typed to run
+// this and it is in no file anyone can read by accident. Put it there with:
+//   security add-generic-password -a rotary -s rotary-admin -w '<password>' -U -A
+const keychainPassword = () => {
+  try {
+    return require('child_process')
+      .execFileSync('/usr/bin/security', ['find-generic-password', '-s', 'rotary-admin', '-w'], { encoding: 'utf8' })
+      .trim();
+  } catch { return ''; }
+};
+const PW = process.env.ADMIN_PASSWORD || keychainPassword();
 const DRY = process.argv.includes('--dry-run');
 const WATCH = process.argv.includes('--watch');
 // --find "Andy" answers "would this name find one chat, and only one?" without
@@ -76,6 +87,13 @@ const MIN_GAP_MS = 8000;
 const MAX_GAP_MS = 20000;
 const MAX_PER_RUN = Number(process.env.MAX_PER_RUN || 40);
 const POLL_MS = 15000;
+
+// This sender types on the real keyboard, so a batch that starts while Mark is
+// mid-sentence lands half of itself in his email. When it is watching in the
+// background it waits for the machine to be left alone first. A run someone
+// started by hand does not wait - they are sitting there asking for it.
+const IDLE_BEFORE_SEND_S = Number(process.env.LINE_IDLE_SECONDS || 12);
+const IDLE_WAIT_LIMIT_MS = 15 * 60 * 1000;
 
 // LINE's own English placeholder in an empty message box. It is how the sender
 // knows the box is empty, both before typing and after pressing Enter.
@@ -153,6 +171,26 @@ function imageUrlsOf(queued) {
 // ------------------------------------------------------------------- the Mac
 
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts });
+
+// Seconds since the last key or mouse movement, from the HID system itself.
+function idleSeconds() {
+  try {
+    const m = sh('/usr/sbin/ioreg', ['-c', 'IOHIDSystem']).match(/"HIDIdleTime"\s*=\s*(\d+)/);
+    return m ? Number(m[1]) / 1e9 : 0;
+  } catch { return 0; }
+}
+
+// Running in the background, the log is not where Mark is looking.
+function notify(text) {
+  try {
+    sh('/usr/bin/osascript', ['-e', `display notification ${JSON.stringify(text)} with title "Rotary LINE sender"`]);
+  } catch {}
+}
+
+const frontApp = () => {
+  try { return osa('tell application "System Events" to return name of first process whose frontmost is true'); }
+  catch { return ''; }
+};
 // stdio is spelled out so osascript's own error text does not print itself over
 // the top of the plain-English message this catches it with.
 const osa = (script) => sh('/usr/bin/osascript', [], { input: script, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -176,8 +214,18 @@ function ensureTools() {
     }
   }
   if (sh(INPUT, ['trusted']).trim() !== 'trusted') {
-    throw new EnvironmentError('this terminal has no Accessibility permission.\n'
-      + '  System Settings > Privacy & Security > Accessibility - switch your terminal on, then run this again.');
+    // Ask properly rather than only refusing. The first call shows macOS's own
+    // dialog with a button straight to the right settings pane; attempting a
+    // capture is what puts this in the Screen Recording list at all. Started
+    // by the Rotary Senders app this is what a first run looks like, and the
+    // app starts the sender again by itself once both are ticked.
+    try { sh(INPUT, ['trusted', '--prompt']); } catch {}
+    try { sh('/usr/sbin/screencapture', ['-x', path.join(TMP, 'permission-probe.png')]); } catch {}
+    notify('Tick "Rotary Senders" under Accessibility and Screen Recording, then it sends by itself.');
+    throw new EnvironmentError('no Accessibility permission yet.\n'
+      + '  System Settings > Privacy & Security > Accessibility - switch on whatever runs this:\n'
+      + '  "Rotary Senders" when it starts at login, your terminal when you run it by hand.\n'
+      + '  Then the same under Screen Recording.');
   }
 }
 
@@ -687,6 +735,22 @@ async function drain() {
   if (!queue.length) return 0;
 
   log(`${queue.length} queued for LINE`);
+
+  // Watching in the background: wait until the keyboard is free before taking
+  // it. Nothing is lost by waiting - the queue is on the server.
+  if (WATCH && !DRY && idleSeconds() < IDLE_BEFORE_SEND_S) {
+    notify(`${queue.length} LINE message${queue.length === 1 ? '' : 's'} to send - it will go when you leave the keyboard for a moment.`);
+    log(`   waiting for the keyboard to be free (${queue.length} to send)`);
+    const until = Date.now() + IDLE_WAIT_LIMIT_MS;
+    while (Date.now() < until && idleSeconds() < IDLE_BEFORE_SEND_S) await sleep(3000);
+    if (idleSeconds() < IDLE_BEFORE_SEND_S) {
+      log('   still in use - leaving them queued for now');
+      return 0;
+    }
+  }
+
+  // Whatever Mark was in the middle of gets the focus back at the end.
+  const cameFrom = DRY ? '' : frontApp();
   let sent = 0;
   for (const guest of queue.slice(0, MAX_PER_RUN)) {
     const who = guest.name || guest.lineName;
@@ -726,6 +790,12 @@ async function drain() {
     const gap = jitter();
     log(`   waiting ${Math.round(gap / 1000)}s`);
     await sleep(gap);
+  }
+  if (sent) {
+    notify(`${sent} invitation${sent === 1 ? '' : 's'} sent on LINE.`);
+    if (cameFrom && cameFrom !== 'LINE') {
+      try { osa(`tell application "${cameFrom}" to activate`); } catch {}
+    }
   }
   return sent;
 }
@@ -788,7 +858,11 @@ async function main() {
       // Mark is using his Mac, or LINE is not up. Nothing has been lost and
       // nothing is wrong with the queue; it will go out when the machine is
       // free. Said once, not every fifteen seconds.
-      if (waiting !== e.message) { log(e.message); log('   still queued - trying again shortly'); }
+      if (waiting !== e.message) {
+        log(e.message);
+        log('   still queued - trying again shortly');
+        notify(`Waiting to send on LINE: ${e.message}`);
+      }
       waiting = e.message;
       return;
     }

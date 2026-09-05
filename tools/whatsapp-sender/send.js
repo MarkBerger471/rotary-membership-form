@@ -28,7 +28,17 @@ const qrcode = require('qrcode-terminal');
 const qrimage = require('qrcode');
 
 const BASE = process.env.BASE_URL || 'https://rotary-bkkdach.vercel.app';
-const PW = process.env.ADMIN_PASSWORD;
+// The password lives in the login keychain, so the sender can be started for
+// Mark at login without it sitting in a file. Put it there with:
+//   security add-generic-password -a rotary -s rotary-admin -w '<password>' -U -A
+const keychainPassword = () => {
+  try {
+    return require('child_process')
+      .execFileSync('/usr/bin/security', ['find-generic-password', '-s', 'rotary-admin', '-w'], { encoding: 'utf8' })
+      .trim();
+  } catch { return ''; }
+};
+const PW = process.env.ADMIN_PASSWORD || keychainPassword();
 const DRY = process.argv.includes('--dry-run');
 const WATCH = process.argv.includes('--watch');
 
