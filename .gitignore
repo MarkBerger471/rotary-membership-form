@@ -3,3 +3,8 @@ output/
 package-lock.json
 .vercel
 .env*.local
+
+# Local WhatsApp sender: its session is a live login to Mark's account
+tools/whatsapp-sender/node_modules/
+tools/whatsapp-sender/.wwebjs_auth/
+tools/whatsapp-sender/.wwebjs_cache/

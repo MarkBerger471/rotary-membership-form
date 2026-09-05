@@ -81,15 +81,11 @@
           </label>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <label class="text-xs text-white/50">English message <span class="text-white/30">- {name} becomes their name</span>
-            <textarea id="msgEn" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
-              oninput="saveTemplate(); renderTargets()"></textarea></label>
-          <label class="text-xs text-white/50">German message <span class="text-white/30">- {name} wird zum Namen</span>
-            <textarea id="msgDe" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
-              oninput="saveTemplate(); renderTargets()"></textarea></label>
-        </div>
-        <p class="text-[11px] text-white/35 -mt-2">Each person gets the version matching their language, set on the Guests page. {name} includes their title, so a Thai guest reads &ldquo;Khun Somchai&rdquo;.</p>
+        <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name and title</span>
+          <textarea id="msgEn" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+            oninput="onMessageEdited()"></textarea></label>
+        <textarea id="msgDe" class="hidden"></textarea>
+        <p id="deNote" class="text-[11px] text-white/35 -mt-2"></p>
 
         <div id="dropZone" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
              onclick="document.getElementById('imgInput').click()">
@@ -115,17 +111,7 @@
           <label class="text-xs text-white/50 flex-1 min-w-[200px]">Link sent with the message
             <input id="msgLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
               placeholder="uploaded image or any URL" oninput="saveTemplate(); renderTargets()" /></label>
-          <label class="text-xs text-white/50">Show
-            <select id="poolSelect" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="renderTargets()">
-              <option value="guests">Guests</option>
-              <option value="members">Members</option>
-              <option value="both">Guests + members</option>
-            </select></label>
-          <label class="text-xs text-white/50">Default language
-            <select id="defaultLang" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="saveTemplate(); renderTargets()">
-              <option value="en">English</option><option value="de">German</option>
-            </select>
-            <span class="text-[11px] text-white/30">for anyone without one, incl. members</span></label>
+
           <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
         </div>
 
@@ -142,7 +128,7 @@
         <div class="flex items-center gap-2 flex-wrap">
           <button onclick="selectAllShown(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
           <button onclick="selectAllShown(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
-          <button onclick="resetSent()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Reset ticks</button>
+          <button onclick="sendToSelected()" id="sendAllBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send to selected</button>
         </div>
       </div>
       <div id="targetList" class="divide-y divide-white/5 max-h-[560px] overflow-y-auto"></div>
@@ -193,7 +179,17 @@
     const DEFAULT_DE = VARIANTS[0].de;
     let meetings = {};
 
+    const SELECTION_KEY = 'rcbd:invite:selection:v1';
     let guests = [], members = [], selected = new Set(), sentThisRound = new Set();
+
+    // The same people usually get invited each time, so last round's ticks come
+    // back as the starting point rather than an empty list.
+    function loadSelection() {
+      try { selected = new Set(JSON.parse(localStorage.getItem(SELECTION_KEY) || '[]')); } catch { selected = new Set(); }
+    }
+    function saveSelection() {
+      try { localStorage.setItem(SELECTION_KEY, JSON.stringify([...selected])); } catch {}
+    }
 
     const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
     // Only the stored first name counts. Falling back to the display name
@@ -209,9 +205,8 @@
       if (!first) return '';
       return [(p.honorific || '').trim(), first].filter(Boolean).join(' ');
     }
-    const langOf = (p) => (p.language === 'de' || p.language === 'en')
-      ? p.language
-      : document.getElementById('defaultLang').value;
+    // Language comes from the guest record, nothing else.
+    const langOf = (p) => (p.language === 'de' ? 'de' : 'en');
 
     function personId(p) { return (p.kind || '') + ':' + p.waNumber; }
 
@@ -226,7 +221,8 @@
           .map(x => ({ kind: 'guest', id: x.id, name: x.name, firstName: x.firstName,
                        honorific: x.honorific || '', language: x.language || '',
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
-                       note: x.notes || '', invites: (x.invites || []).length }));
+                       note: x.notes || '', invites: (x.invites || []).length,
+                       queued: !!x.queued }));
         members = (m.contacts || [])
           .filter(x => (x.status || 'active') === 'active')
           .map(x => ({ kind: 'member', id: x.memberNo, name: [x.firstName, x.lastName].filter(Boolean).join(' '),
@@ -238,18 +234,15 @@
       }
     }
 
-    function pool() {
-      const which = document.getElementById('poolSelect').value;
-      const list = which === 'guests' ? guests : which === 'members' ? members : guests.concat(members);
-      // Nobody can be messaged without a number, and nobody should be greeted
-      // without a first name - both are surfaced rather than silently dropped.
-      return list;
-    }
+    // Guests only - members are invited by email, not chased on WhatsApp.
+    const pool = () => guests;
 
     function buildMessage(person) {
       const de = langOf(person) === 'de';
-      const tpl = (de ? document.getElementById('msgDe').value : document.getElementById('msgEn').value)
-        || (de ? DEFAULT_DE : DEFAULT_EN);
+      // Fall back to the English box when there is no German wording, which is
+      // the case whenever the message was written by hand.
+      const tpl = (de ? document.getElementById('msgDe').value : '')
+        || document.getElementById('msgEn').value || DEFAULT_EN;
       const link = document.getElementById('msgLink').value.trim();
       const body = tpl.replace(/\{name\}/g, greetingName(person));
       return link ? body + '\n\n' + link : body;
@@ -266,11 +259,14 @@
       list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
 
       const ready = list.filter(p => p.waNumber && firstNameOf(p));
+      const queuedCount = all.filter(p => p.queued).length;
+      document.getElementById('sendAllBtn').textContent =
+        `Send to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
       document.getElementById('targetMeta').textContent =
-        `${selected.size} selected · ${sentThisRound.size} sent · ${ready.length} of ${list.length} ready to message`;
+        `${selected.size} selected · ${queuedCount} waiting to be sent · ${ready.length} of ${list.length} ready`;
 
       document.getElementById('msgPreview').textContent =
-        buildMessage(ready[0] || { firstName: 'Anna', language: document.getElementById('defaultLang').value });
+        buildMessage(ready[0] || { firstName: 'Anna', language: 'en' });
 
       document.getElementById('targetList').innerHTML = list.map(p => {
         const id = personId(p);
@@ -292,17 +288,16 @@
                    <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span></div>`}
           </div>
           ${blocked ? '' : `
-          <a href="${waLink(p)}" target="_blank" rel="noopener"
-             onclick="markSent('${id}', ${p.kind === 'guest' ? `'${p.id}'` : 'null'})"
+          <button onclick="queueOne('${p.id}')"
              class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.1-.2.3-.7 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5 0-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.7.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z"/></svg>
-            ${done ? 'Sent' : 'WhatsApp'}
-          </a>`}
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z"/></svg>
+            ${p.queued ? 'Queued' : done ? 'Sent' : 'Send'}
+          </button>`}
         </div>`;
       }).join('');
     }
 
-    function toggleTarget(id, on) { on ? selected.add(id) : selected.delete(id); renderTargets(); }
+    function toggleTarget(id, on) { on ? selected.add(id) : selected.delete(id); saveSelection(); renderTargets(); }
 
     function selectAllShown(on) {
       const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
@@ -312,25 +307,50 @@
         if (!p.waNumber || !firstNameOf(p)) return;
         on ? selected.add(personId(p)) : selected.delete(personId(p));
       });
+      saveSelection();
       renderTargets();
     }
 
-    // Opening the chat is as far as we can automate - WhatsApp requires the
-    // person to press send. Tick it here so a long list can be worked down and
-    // picked up again later.
-    function markSent(id, guestId) {
-      sentThisRound.add(id);
-      selected.delete(id);
-      if (guestId) {
-        apiFetch('/api/admin/guests', {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: guestId, invited: 'whatsapp' }),
-        }).catch(() => {});
+    // Queueing writes the exact text and image onto the guest record. The
+    // local sender on the Mac drains the queue and delivers through Mark's own
+    // WhatsApp, which is the only way to attach a real image and send without
+    // pressing send for each person.
+    async function queue(people) {
+      const link = document.getElementById('msgLink').value.trim();
+      let ok = 0, failed = 0;
+      for (const p of people) {
+        try {
+          await apiFetch('/api/admin/guests', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: p.id, queued: { text: buildMessage(p), imageUrl: link } }),
+          });
+          ok++;
+        } catch { failed++; }
       }
-      setTimeout(renderTargets, 50);
+      await loadPeople();
+      return { ok, failed };
     }
 
-    function resetSent() { sentThisRound = new Set(); renderTargets(); }
+    async function queueOne(guestId) {
+      const p = guests.find(g => g.id === guestId);
+      if (!p) return;
+      const { ok } = await queue([p]);
+      showToast(ok ? `${p.name} queued` : 'Could not queue', ok ? 'success' : 'error');
+    }
+
+    async function sendToSelected() {
+      const people = pool().filter(p => selected.has(personId(p)) && p.waNumber && firstNameOf(p));
+      if (!people.length) { showToast('Nobody selected', 'error'); return; }
+      if (!confirm(`Send the invite to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
+                 + 'They are queued now and the WhatsApp sender on your Mac delivers them, '
+                 + 'about one every 20-40 seconds so the account is not flagged.')) return;
+      const btn = document.getElementById('sendAllBtn');
+      btn.disabled = true;
+      try {
+        const { ok, failed } = await queue(people);
+        showToast(`${ok} queued${failed ? `, ${failed} failed` : ''} - start the sender to deliver`, failed ? 'error' : 'success');
+      } finally { btn.disabled = false; }
+    }
 
     function saveTemplate() {
       try {
@@ -373,6 +393,22 @@
         + '<option value="custom">Custom (edited below)</option>';
     }
 
+    // The German version is not edited by hand - it comes from the chosen
+    // wording. Typing your own message uses it for everyone.
+    function onMessageEdited() {
+      document.getElementById('variantSelect').value = 'custom';
+      document.getElementById('msgDe').value = '';
+      document.getElementById('rollingToggle').checked = false;
+      updateDeNote(); saveTemplate(); renderTargets();
+    }
+
+    function updateDeNote() {
+      const custom = document.getElementById('variantSelect').value === 'custom';
+      document.getElementById('deNote').textContent = custom
+        ? 'Your own wording goes to everyone, in English.'
+        : 'German-speaking guests get the German version of this wording automatically.';
+    }
+
     function applyVariant(fromUser) {
       const sel = document.getElementById('variantSelect').value;
       if (sel === 'custom') { saveTemplate(); renderTargets(); return; }
@@ -380,7 +416,7 @@
       document.getElementById('msgEn').value = v.en;
       document.getElementById('msgDe').value = v.de;
       if (fromUser) document.getElementById('rollingToggle').checked = false;
-      saveTemplate(); renderTargets();
+      updateDeNote(); saveTemplate(); renderTargets();
     }
 
     function nextVariant() {
@@ -508,6 +544,8 @@
     }
 
     buildVariantList();
+    updateDeNote();
+    loadSelection();
     loadMeetings();
     if (adminPassword) loadPeople();
   </script>

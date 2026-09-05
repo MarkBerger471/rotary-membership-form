@@ -144,6 +144,17 @@ module.exports = async (req, res) => {
         g.lastName = last;
       }
       if (b.status === 'active' || b.status === 'archived') g.status = b.status;
+      // The invite page queues a guest by writing the exact text and image to
+      // send; the local WhatsApp sender drains the queue and clears it. Kept as
+      // a whole object rather than an editable string field so it is not
+      // coerced by the loop above.
+      if (b.queued !== undefined) {
+        g.queued = (b.queued && typeof b.queued === 'object' && b.queued.text)
+          ? { text: String(b.queued.text), imageUrl: String(b.queued.imageUrl || ''), queuedAt: new Date().toISOString() }
+          : null;
+        if (g.queued) delete g.queueError;
+      }
+      if (b.queueError !== undefined) g.queueError = String(b.queueError || '') || undefined;
       if (b.language !== undefined) g.language = asLanguage(b.language, g.language || 'en');
       if (b.honorific !== undefined) g.honorific = asHonorific(b.honorific, g.honorific || '');
       if (b.phone !== undefined || b.waNumber !== undefined) g.waNumber = toE164(b.phone || b.waNumber);

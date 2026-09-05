@@ -65,11 +65,14 @@
 
     <!-- Quick add: the fast path when you have just met someone -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-white/10">
-        <h2 class="font-bold text-lg">Add a guest</h2>
-        <p class="text-white/40 text-xs mt-0.5">Met someone worth inviting? Add them here - takes seconds on a phone.</p>
-      </div>
-      <div class="p-6 flex flex-wrap gap-3 items-end">
+      <button type="button" onclick="togglePanel('addPanel')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <div class="flex-1 min-w-0">
+          <h2 class="font-bold text-lg">Add a guest</h2>
+          <p class="text-white/40 text-xs mt-0.5">Met someone worth inviting? Add them here - takes seconds on a phone.</p>
+        </div>
+        <svg class="w-4 h-4 flex-shrink-0 transition-transform" data-chev fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="addPanel" class="p-6 flex flex-wrap gap-3 items-end">
         <label class="text-xs text-white/50 flex-1 min-w-[130px]">First name
           <input id="qaFirst" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Anna" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[130px]">Last name
@@ -86,11 +89,14 @@
 
     <!-- Bulk import from a contacts export -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
-        <div>
+      <button type="button" onclick="togglePanel('importWrap')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
+        <div class="flex-1 min-w-0">
           <h2 class="font-bold text-lg">Import from WhatsApp</h2>
           <p class="text-white/40 text-xs mt-0.5">Choose your exported contacts file. It is read here in your browser - only the people you tick are saved.</p>
         </div>
+        <svg class="w-4 h-4 flex-shrink-0 transition-transform" data-chev fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="importWrap" class="px-6 py-4">
         <button onclick="document.getElementById('importFile').click()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Choose file</button>
         <input type="file" id="importFile" accept=".json,.vcf,.csv,.txt" class="hidden" onchange="loadImportFile(this)" />
       </div>
@@ -290,6 +296,7 @@
         }
         if (!imported.length) { showToast('No contacts found in that file', 'error'); return; }
         importSelected = new Set();
+        togglePanel('importWrap', true);
         document.getElementById('importPanel').classList.remove('hidden');
         renderImport();
         showToast(`${imported.length} contacts read - tick the ones to keep`, 'success');
@@ -430,6 +437,27 @@
 
     let editingGuestId = null;
     const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company', gfNotes:'notes' };
+
+    // The guest list is what this page is for; the two input panels start
+    // folded so it is not pushed below the fold, and the choice is remembered.
+    const PANEL_KEY = 'rcbd:guests:panels:v1';
+    function panelState() {
+      try { return JSON.parse(localStorage.getItem(PANEL_KEY) || '{}'); } catch { return {}; }
+    }
+    function togglePanel(id, force) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const open = force === undefined ? el.classList.contains('hidden') : force;
+      el.classList.toggle('hidden', !open);
+      const chev = el.previousElementSibling && el.previousElementSibling.querySelector('[data-chev]');
+      if (chev) chev.style.transform = open ? '' : 'rotate(-90deg)';
+      const st = panelState(); st[id] = open;
+      try { localStorage.setItem(PANEL_KEY, JSON.stringify(st)); } catch {}
+    }
+    (function restorePanels() {
+      const st = panelState();
+      ['addPanel', 'importWrap'].forEach(id => togglePanel(id, st[id] === true));
+    })();
 
     // Two controls instead of two dropdowns: a slider that is English on the
     // left and German on the right, and a tick that means "address as Khun".

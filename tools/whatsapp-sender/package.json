@@ -1,0 +1,16 @@
+{
+  "name": "rcbd-whatsapp-sender",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local sender that drives Mark's own WhatsApp Web session to deliver queued meeting invites. Runs on his Mac, never on Vercel.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node send.js --watch",
+    "once": "node send.js",
+    "dry": "node send.js --dry-run"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
