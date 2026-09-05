@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Contacts · Admin | Rotary Club Bangkok DACH</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="https://brandcenter.rotary.org/images/default-source/guidelines-images/color/rotary_masterbrand_simplified-color_rgb.svg" type="image/svg+xml" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rotary: { blue: '#17458f', gold: '#f7a81b', azure: '#0067c8', sky: '#00a2e0', cranberry: '#d41367' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          animation: { 'fade-in': 'fadeIn 0.6s ease-out' },
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body class="font-sans text-white antialiased">
+
+  <header class="sticky top-0 z-50 glass-header">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity" title="Application page">
+        <img src="https://rotary-bkkdach.clubdesk.com/clubdesk/wwwfiles/logo.png" alt="Rotary Club Bangkok DACH" class="h-12 w-auto rounded-lg" />
+        <div>
+          <h1 class="text-lg font-bold text-white leading-tight">Rotary Club</h1>
+          <p class="text-xs text-glass-gold font-medium -mt-0.5">Bangkok DACH</p>
+        </div>
+      </a>
+      <div class="flex items-center gap-4 text-sm text-glass-secondary">
+        <div class="hidden sm:flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span>office@rotary-club-bangkok-dach.org</span>
+        </div>
+        <button onclick="adminLogout()" class="text-white/40 hover:text-white/70 text-sm transition-colors flex items-center gap-1" title="Logout">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-8 animate-fade-in space-y-6">
+
+    <!-- Quick add: the fast path when you have just met someone -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10">
+        <h2 class="font-bold text-lg">Add a guest</h2>
+        <p class="text-white/40 text-xs mt-0.5">Met someone worth inviting? Add them here - takes seconds on a phone.</p>
+      </div>
+      <div class="p-6 flex flex-wrap gap-3 items-end">
+        <label class="text-xs text-white/50 flex-1 min-w-[160px]">Name
+          <input id="qaName" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Anna Meier" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[180px]">Mobile (with country code)
+          <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[160px]">Note (optional)
+          <input id="qaNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
+        <button onclick="quickAdd()" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold">Add</button>
+      </div>
+    </div>
+
+    <!-- Bulk import from a contacts export -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 class="font-bold text-lg">Import from WhatsApp</h2>
+          <p class="text-white/40 text-xs mt-0.5">Choose your exported contacts file. It is read here in your browser - only the people you tick are saved.</p>
+        </div>
+        <button onclick="document.getElementById('importFile').click()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Choose file</button>
+        <input type="file" id="importFile" accept=".json,.vcf,.csv,.txt" class="hidden" onchange="loadImportFile(this)" />
+      </div>
+      <div id="importPanel" class="hidden">
+        <div class="px-6 py-3 border-b border-white/10 flex flex-wrap gap-2 items-center">
+          <input type="search" id="importSearch" class="glass-input flex-1 min-w-[180px] px-3 py-2 rounded-lg text-sm" placeholder="Search the file..." oninput="renderImport()" />
+          <span id="importCount" class="text-xs text-white/40"></span>
+          <button onclick="toggleAllImport(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
+          <button onclick="toggleAllImport(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
+          <button onclick="saveSelected()" id="importSaveBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add selected</button>
+        </div>
+        <div id="importList" class="max-h-[420px] overflow-y-auto divide-y divide-white/5"></div>
+      </div>
+    </div>
+
+    <!-- The guest list itself -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 class="font-bold text-lg">Guest list</h2>
+          <p id="guestsMeta" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="search" id="guestSearch" class="glass-input px-3 py-2 rounded-lg text-sm" placeholder="Search guests..." oninput="renderGuests()" />
+          <span id="guestArchivedToggle"></span>
+        </div>
+      </div>
+      <div id="guestsEmpty" class="hidden px-6 py-12 text-center text-white/40">
+        <p class="font-medium">No guests yet</p>
+        <p class="text-sm mt-1">Add one above, or import your WhatsApp contacts.</p>
+      </div>
+      <div id="guestsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4"></div>
+    </div>
+  </main>
+
+  <script src="/admin/admin.js"></script>
+  <script>
+    requireAuthOrRedirect();
+
+    let guests = [];
+    let imported = [];            // parsed from the chosen file, never uploaded wholesale
+    let importSelected = new Set();
+    let showArchivedGuests = false;
+
+    const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
+
+    async function loadGuests() {
+      try {
+        guests = (await apiFetch('/api/admin/guests')).guests || [];
+        renderGuests();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not load guests', 'error');
+      }
+    }
+
+    function renderGuests() {
+      const q = (document.getElementById('guestSearch').value || '').trim().toLowerCase();
+      const scope = guests.filter(g => showArchivedGuests ? g.status === 'archived' : g.status !== 'archived');
+      const list = q ? scope.filter(g => [g.name, g.phone, g.notes, g.company].some(v => (v || '').toLowerCase().includes(q))) : scope;
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
+
+      const archived = guests.filter(g => g.status === 'archived').length;
+      document.getElementById('guestArchivedToggle').innerHTML = archived
+        ? `<button onclick="toggleArchivedGuests()" class="text-xs px-3 py-2 rounded-lg ${showArchivedGuests ? 'bg-rotary-gold/20 text-rotary-gold' : 'bg-white/5 text-white/50 hover:text-white/80'}">${showArchivedGuests ? 'Show active' : 'Archived (' + archived + ')'}</button>`
+        : '';
+      document.getElementById('guestsMeta').textContent =
+        `${scope.length} ${showArchivedGuests ? 'archived' : 'guest' + (scope.length === 1 ? '' : 's')}` + (q ? ` - ${list.length} match "${q}"` : '');
+
+      const grid = document.getElementById('guestsGrid');
+      const empty = document.getElementById('guestsEmpty');
+      if (!list.length) { grid.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden'); grid.classList.remove('hidden');
+
+      grid.innerHTML = list.map(g => {
+        const initials = (g.name || '?').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+        const invites = Array.isArray(g.invites) ? g.invites.length : 0;
+        return `
+        <div class="rounded-lg bg-[#0a1628]/50 border border-white/10 p-3 flex flex-col gap-2 hover:border-white/30 transition-colors">
+          <div class="flex items-start gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-rotary-sky/20 text-rotary-sky flex items-center justify-center text-xs font-bold flex-shrink-0">${escapeHtml(initials)}</div>
+            <div class="min-w-0 flex-1">
+              <div class="font-semibold text-[13px] leading-tight break-words">${escapeHtml(g.name)}</div>
+              ${g.notes ? `<div class="text-[11px] text-white/45">${escapeHtml(g.notes)}</div>` : ''}
+              ${invites ? `<div class="text-[10px] text-rotary-gold/70 mt-0.5">invited ${invites}x</div>` : ''}
+            </div>
+            <div class="flex gap-0.5 flex-shrink-0">
+              <button onclick="editGuest('${g.id}')" title="Edit" aria-label="Edit" class="w-6 h-6 rounded-md flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button onclick="setGuestArchived('${g.id}', ${g.status === 'archived' ? 'false' : 'true'})" title="${g.status === 'archived' ? 'Restore' : 'Archive'}" aria-label="${g.status === 'archived' ? 'Restore' : 'Archive'}" class="w-6 h-6 rounded-md flex items-center justify-center text-white/30 hover:text-rotary-gold hover:bg-white/10 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="text-[11px] text-white/60">
+            <a href="tel:${escapeHtml((g.phone || '').replace(/\s+/g, ''))}" class="hover:text-rotary-gold transition-colors">${escapeHtml(g.phone || '')}</a>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleArchivedGuests() { showArchivedGuests = !showArchivedGuests; renderGuests(); }
+
+    async function quickAdd() {
+      const name = document.getElementById('qaName').value.trim();
+      const phone = document.getElementById('qaPhone').value.trim();
+      const notes = document.getElementById('qaNotes').value.trim();
+      if (!name) { showToast('Enter a name', 'error'); return; }
+      if (digits(phone).length < 8) { showToast('Enter a mobile number with country code', 'error'); return; }
+      try {
+        const res = await apiFetch('/api/admin/guests', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, notes, waNumber: digits(phone), source: 'manual' }),
+        });
+        if (res.added) {
+          showToast(name + ' added', 'success');
+          ['qaName','qaPhone','qaNotes'].forEach(id => document.getElementById(id).value = '');
+          document.getElementById('qaName').focus();
+          loadGuests();
+        } else {
+          showToast((res.skipped && res.skipped[0] && res.skipped[0].reason) || 'Not added', 'error');
+        }
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not add', 'error');
+      }
+    }
+
+    // ---- import: parsed in the browser, nothing uploaded until you tick it
+    function loadImportFile(input) {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          imported = parseContacts(String(reader.result), file.name);
+        } catch (err) {
+          showToast('Could not read that file', 'error'); return;
+        }
+        if (!imported.length) { showToast('No contacts found in that file', 'error'); return; }
+        importSelected = new Set();
+        document.getElementById('importPanel').classList.remove('hidden');
+        renderImport();
+        showToast(`${imported.length} contacts read - tick the ones to keep`, 'success');
+      };
+      reader.readAsText(file);
+    }
+
+    function parseContacts(text, filename) {
+      const name = (filename || '').toLowerCase();
+      if (name.endsWith('.json') || text.trim().startsWith('[')) {
+        return JSON.parse(text).map(c => ({
+          name: c.name || [c.firstName, c.lastName].filter(Boolean).join(' '),
+          phone: c.phone || c.waNumber, waNumber: digits(c.waNumber || c.phone), notes: c.notes || '',
+        })).filter(c => c.name && c.waNumber);
+      }
+      if (name.endsWith('.vcf') || /BEGIN:VCARD/i.test(text)) {
+        return text.split(/END:VCARD/i).map(card => {
+          const fn = (card.match(/\nFN[^:]*:(.+)/i) || [])[1];
+          const tel = (card.match(/\nTEL[^:]*:(.+)/i) || [])[1];
+          return fn && tel ? { name: fn.trim(), phone: tel.trim(), waNumber: digits(tel), notes: '' } : null;
+        }).filter(c => c && c.waNumber);
+      }
+      // loose paste: "Name +66 81 234 5678" or "Name, 0812345678" per line
+      return text.split(/\r?\n/).map(line => {
+        const m = line.match(/^(.*?)[,;\t]?\s*(\+?[\d][\d\s\-()]{6,})\s*$/);
+        if (!m) return null;
+        const nm = m[1].replace(/[,;]$/, '').trim();
+        return nm ? { name: nm, phone: m[2].trim(), waNumber: digits(m[2]), notes: '' } : null;
+      }).filter(c => c && c.waNumber);
+    }
+
+    function renderImport() {
+      const q = (document.getElementById('importSearch').value || '').trim().toLowerCase();
+      const have = new Set(guests.map(g => digits(g.waNumber || g.phone)));
+      const shown = q ? imported.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q)) : imported;
+      document.getElementById('importCount').textContent =
+        `${importSelected.size} selected of ${imported.length}` + (q ? ` (${shown.length} shown)` : '');
+      document.getElementById('importList').innerHTML = shown.map(c => {
+        const already = have.has(c.waNumber);
+        const on = importSelected.has(c.waNumber);
+        return `<label class="flex items-center gap-3 px-6 py-2 hover:bg-white/5 cursor-pointer ${already ? 'opacity-40' : ''}">
+          <input type="checkbox" ${on ? 'checked' : ''} ${already ? 'disabled' : ''} onchange="toggleImport('${c.waNumber}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-shrink-0" />
+          <span class="text-sm flex-1 min-w-0 truncate">${escapeHtml(c.name)}</span>
+          <span class="text-xs text-white/40 flex-shrink-0">${escapeHtml(c.phone)}</span>
+          ${already ? '<span class="text-[10px] uppercase text-white/30 flex-shrink-0">on list</span>' : ''}
+        </label>`;
+      }).join('');
+    }
+
+    function toggleImport(wa, on) { on ? importSelected.add(wa) : importSelected.delete(wa); renderImport(); }
+    function toggleAllImport(on) {
+      const q = (document.getElementById('importSearch').value || '').trim().toLowerCase();
+      const have = new Set(guests.map(g => digits(g.waNumber || g.phone)));
+      const shown = q ? imported.filter(c => (c.name + ' ' + c.phone).toLowerCase().includes(q)) : imported;
+      shown.forEach(c => { if (!have.has(c.waNumber)) on ? importSelected.add(c.waNumber) : importSelected.delete(c.waNumber); });
+      renderImport();
+    }
+
+    async function saveSelected() {
+      const chosen = imported.filter(c => importSelected.has(c.waNumber));
+      if (!chosen.length) { showToast('Tick at least one contact', 'error'); return; }
+      const btn = document.getElementById('importSaveBtn');
+      btn.disabled = true;
+      try {
+        const res = await apiFetch('/api/admin/guests', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guests: chosen, source: 'whatsapp' }),
+        });
+        showToast(`${res.added} guest${res.added === 1 ? '' : 's'} added`, 'success');
+        importSelected = new Set();
+        await loadGuests();
+        renderImport();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Import failed', 'error');
+      } finally { btn.disabled = false; }
+    }
+
+    async function setGuestArchived(id, archived) {
+      try {
+        await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: archived ? 'archived' : 'active' }),
+        });
+        showToast(archived ? 'Archived' : 'Restored', 'success');
+        loadGuests();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not update', 'error');
+      }
+    }
+
+    async function editGuest(id) {
+      const g = guests.find(x => x.id === id);
+      if (!g) return;
+      const name = prompt('Name', g.name); if (name === null) return;
+      const phone = prompt('Mobile (with country code)', g.phone); if (phone === null) return;
+      const notes = prompt('Note', g.notes || ''); if (notes === null) return;
+      try {
+        await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name: name.trim(), phone: phone.trim(), waNumber: digits(phone), notes: notes.trim() }),
+        });
+        showToast('Saved', 'success');
+        loadGuests();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not save', 'error');
+      }
+    }
+
+    document.getElementById('qaPhone').addEventListener('keydown', e => { if (e.key === 'Enter') quickAdd(); });
+    document.getElementById('qaName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaPhone').focus(); });
+
+    if (adminPassword) loadGuests();
+  </script>
+</body>
+</html>

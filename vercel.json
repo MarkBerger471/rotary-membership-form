@@ -40,6 +40,9 @@
     },
     "api/admin/resend.js": {
       "maxDuration": 60
+    },
+    "api/admin/guests.js": {
+      "maxDuration": 15
     }
   },
   "crons": [
