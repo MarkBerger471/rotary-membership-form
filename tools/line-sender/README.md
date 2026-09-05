@@ -70,9 +70,32 @@ Two rows are told apart by the line or two underneath them - the last message
 and when it was sent - so reading the same row twice while scrolling is not
 mistaken for two chats with one name.
 
+The title above the chat is read word by word, because LINE puts the contact's
+picture in front of the name and an "open in a new window" icon behind it, and
+OCR reads that icon as a different letter almost every time. The name has to be
+the title exactly, either with that last word or without it - which is why a
+chat called "Andy S" is never accepted for a guest called "Andy".
+
 Expanding "See more" can incidentally open whichever chat re-draws under the
 pointer. That marks it read, and nothing else: no chat is ever typed into until
 its title has been checked.
+
+## When it will not start
+
+It stops with a plain sentence rather than a stack trace, and none of these
+lose a queued message - they all leave it to go out later:
+
+| It says | What to do |
+| --- | --- |
+| LINE is logged out | log in on the LINE app - a full quit signs it out |
+| LINE is not running | open it |
+| LINE is running but has no window open | click LINE in the Dock |
+| LINE will not come to the front | leave the Mac alone for a moment |
+| LINE's window cannot be read off the screen | give the terminal Screen Recording, then quit and reopen it |
+
+`npm start` treats all of these as "try again in a minute" and keeps watching.
+It does not need a chat to be open, or LINE to be in front, when you start it -
+it brings LINE forward itself when there is something to send.
 
 ## What it is not
 

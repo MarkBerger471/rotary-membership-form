@@ -97,6 +97,24 @@ const selfChanged = () => {
   try { return fs.statSync(SELF).mtimeMs !== LOADED_MTIME; } catch { return false; }
 };
 
+// Two kinds of thing go wrong here, and they need opposite treatment.
+//
+// Something wrong with the guest - a LINE name that matches no chat, or two,
+// or a chat whose title does not confirm - will go wrong in exactly the same
+// way next time, so their message is taken off the queue with the reason on
+// their record.
+//
+// Something wrong with the machine - LINE in the background because Mark is
+// using his Mac, LINE not running, a screen that cannot be read - says nothing
+// at all about the guest. Their message must survive it, and the run stands
+// down until the machine is free again.
+class EnvironmentError extends Error {}
+
+function failureAction(err) {
+  const environment = err instanceof EnvironmentError;
+  return { clearQueue: !environment, standDown: environment };
+}
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const jitter = () => MIN_GAP_MS + Math.floor(Math.random() * (MAX_GAP_MS - MIN_GAP_MS));
 const stamp = () => new Date().toLocaleTimeString('en-GB');
@@ -135,7 +153,9 @@ function imageUrlsOf(queued) {
 // ------------------------------------------------------------------- the Mac
 
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts });
-const osa = (script) => sh('/usr/bin/osascript', [], { input: script }).trim();
+// stdio is spelled out so osascript's own error text does not print itself over
+// the top of the plain-English message this catches it with.
+const osa = (script) => sh('/usr/bin/osascript', [], { input: script, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 const click = (x, y) => sh(INPUT, ['click', String(Math.round(x)), String(Math.round(y))]);
 const press = (code, mods) => sh(INPUT, ['key', String(code), ...(mods ? [mods] : [])]);
 
@@ -152,11 +172,11 @@ function ensureTools() {
     try {
       sh('swiftc', ['-O', '-o', out, source], { stdio: ['ignore', 'inherit', 'inherit'] });
     } catch {
-      throw new Error('could not build the helpers - install the Xcode command line tools:\n  xcode-select --install');
+      throw new EnvironmentError('could not build the helpers - install the Xcode command line tools:\n  xcode-select --install');
     }
   }
   if (sh(INPUT, ['trusted']).trim() !== 'trusted') {
-    throw new Error('this terminal has no Accessibility permission.\n'
+    throw new EnvironmentError('this terminal has no Accessibility permission.\n'
       + '  System Settings > Privacy & Security > Accessibility - switch your terminal on, then run this again.');
   }
 }
@@ -176,28 +196,94 @@ async function focusLine() {
 end tell
 tell application "LINE" to activate`);
   } catch {
-    throw new Error('LINE is not running - open it, log in, and start this again');
+    throw new EnvironmentError('LINE is not running - open it, log in, and start this again');
   }
   // Activating is not instant, and sometimes it does not take on the first
   // ask - the window comes forward a moment later, or another app is still
   // settling. Asking too early gets the answer from before the switch, and a
   // screenshot taken then still has the old window on top of LINE. So it is
   // asked again, a few times, before giving up.
+  //
+  // It is asked repeatedly rather than once, because the ordinary way to use
+  // this is to press Send in the browser and let the sender pick the message
+  // up - which means another app is in front at the very moment it starts.
   let front = '';
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     await sleep(700);
     front = osa('tell application "System Events" to return name of first process whose frontmost is true');
-    if (front === 'LINE') return;
+    if (front === 'LINE') break;
     osa('tell application "LINE" to activate');
+    if (attempt === 7) {
+      throw new EnvironmentError(`LINE will not come to the front (${front} is there) - nothing sent, and nothing lost`);
+    }
   }
-  throw new Error(`LINE is not the front window (${front} is) - stopping rather than typing into something else`);
+
+  // Closing LINE's window with the red button or Cmd-W leaves the app running
+  // with nothing on screen, and it is the state LINE comes back in after a
+  // restart. Activating does not bring the window back; reopening does - the
+  // same thing as clicking its icon in the Dock.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (hasWindow()) return;
+    osa('tell application "LINE" to reopen');
+    await sleep(1200);
+  }
+  if (!hasWindow()) {
+    if (looksLoggedOut()) {
+      throw new EnvironmentError('LINE is logged out - log in on the LINE app (QR code or password), then start this again');
+    }
+    throw new EnvironmentError('LINE is running but has no window open - click LINE in the Dock so the chat list is showing');
+  }
 }
+
+// Any window LINE has, named or not. A logged-out LINE has exactly one, with
+// no name at all, and that is how the login screen is told apart from a window
+// that has simply been closed.
+function anyWindowFrame() {
+  try {
+    const out = osa(`tell application "System Events" to tell process "LINE"
+  set w to window 1
+  set p to position of w
+  set s to size of w
+  return ((item 1 of p) as text) & " " & ((item 2 of p) as text) & " " & ((item 1 of s) as text) & " " & ((item 2 of s) as text)
+end tell`);
+    const [x, y, w, h] = out.trim().split(/\s+/).map(Number);
+    return h ? { x, y, w, h } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Quitting LINE logs it out, and it comes back on its login screen: one
+// nameless window with an email box and a QR code. Without this the sender
+// would only be able to say it could not find a window, which is true and
+// useless - there is nothing to do about it but log in.
+const LOGGED_OUT = /log ?in|qr code|email address|password/i;
+
+function looksLoggedOut() {
+  const frame = anyWindowFrame();
+  if (!frame) return false;
+  try {
+    return read(frame, 'login').some(l => LOGGED_OUT.test(l.text));
+  } catch {
+    return false;
+  }
+}
+
+const hasWindow = () => {
+  try {
+    return osa('tell application "System Events" to tell process "LINE" to return (exists (first window whose name is "LINE"))') === 'true';
+  } catch {
+    return false;
+  }
+};
 
 // LINE tells accessibility almost nothing, but it does give the frames of the
 // window, the chat list and the chat pane. Those are the anchors everything
 // else is measured against, so a moved or resized window changes nothing.
 function frames() {
-  const out = osa(`tell application "System Events"
+  let out;
+  try {
+    out = osa(`tell application "System Events"
   tell process "LINE"
     set w to first window whose name is "LINE"
     set p to position of w
@@ -212,6 +298,9 @@ function frames() {
     return out
   end tell
 end tell`);
+  } catch {
+    throw new EnvironmentError('LINE\'s window could not be read - make sure its chat list is open, then try again');
+  }
   const f = {};
   for (const line of out.split('\n')) {
     const [role, x, y, w, h] = line.trim().split(/\s+/);
@@ -222,8 +311,23 @@ end tell`);
     else if (role === 'AXTextField') f.search = box;
     else if (role === 'AXSplitGroup') f.pane = box;
   }
-  if (!f.win || !f.list || !f.search || !f.pane) {
-    throw new Error('LINE\'s window is not laid out as expected - open the chat list and try again');
+  if (!f.win || !f.list || !f.search) {
+    throw new EnvironmentError('LINE\'s window is not laid out as expected - open the chat list and try again');
+  }
+  // With no conversation open - LINE's "Start a new conversation!" screen, and
+  // the state it comes back in after a restart - there is no chat pane element
+  // at all. That is not a broken window, it is an empty one, and it is where
+  // every run starts: the chat is opened by this tool a moment later. So the
+  // pane is worked out from what is there, and read again for real once a
+  // chat is on screen.
+  if (!f.pane) {
+    f.pane = {
+      x: f.list.x + f.list.w,
+      y: f.list.y,
+      w: f.win.x + f.win.w - (f.list.x + f.list.w),
+      h: f.win.y + f.win.h - f.list.y,
+    };
+    f.derived = true;
   }
   return f;
 }
@@ -256,9 +360,27 @@ function read(rect, label) {
 // later on for a permission problem.
 function checkScreenReadable(f) {
   if (read(f.win, 'probe').length) return;
-  throw new Error('LINE\'s window cannot be read off the screen.\n'
+  throw new EnvironmentError('LINE\'s window cannot be read off the screen.\n'
     + '  System Settings > Privacy & Security > Screen Recording - switch your terminal on,\n'
     + '  then quit and reopen it (the permission only takes effect on a restart).');
+}
+
+// The same screenshot read word by word, each with its own box. Only the chat
+// title needs this, and only because of the icon beside it.
+function readWords(rect, label) {
+  const file = path.join(TMP, `shot-${++shotNo}-${label || 'x'}.png`);
+  sh('/usr/sbin/screencapture', ['-x', `-R${Math.round(rect.x)},${Math.round(rect.y)},${Math.round(rect.w)},${Math.round(rect.h)}`, file]);
+  return sh(OCR, [file, '--words']).split('\n').filter(Boolean).map((row) => {
+    const [line, x, y, w, h, ...rest] = row.split('\t');
+    return {
+      line: Number(line),
+      text: rest.join('\t').trim(),
+      x: rect.x + Number(x) * rect.w,
+      y: rect.y + Number(y) * rect.h,
+      w: Number(w) * rect.w,
+      h: Number(h) * rect.h,
+    };
+  });
 }
 
 // The clipboard is Mark's, so whatever was on it is put back at the end.
@@ -296,21 +418,30 @@ const SCROLL_STEPS = 3;
 const MAX_PASSES = 20;
 
 // LINE draws the chat title between the contact's picture and a small "open in
-// a new window" icon, and OCR reads both as marks around the name: a bullet in
-// front, an upright stroke behind - "Keep Memo" comes back as "• Keep Memo L".
-// So leading marks are dropped, and what follows the name has to be separated
-// from it and made only of the strokes that icon is read as. Everything else is
-// a different chat: "Lek" matches neither "Lek BKK" nor "Lek B" nor "Leko".
-const ICON_AFTER = /^[\s.,:;·•*|'"`\u2018\u2019\u201c\u201d\-\u2013\u2014\[\]()lit]*$/i;
+// a new window" icon. OCR reads both as marks around the name - a bullet in
+// front, and behind it whichever letter that icon happens to look like, which
+// is not the same letter twice: "Keep Memo L" one run, "Keep Memo E" the next.
+//
+// Guessing which letters an icon might be read as was never going to hold. What
+// does hold is its shape in the line: it is always the last word, and it is
+// never part of the name. So the mark in front is dropped, and the title is
+// read two ways - with the last word and without it. Either may be the name;
+// nothing else is.
+//
+// This is the check that a longer name cannot slip through. A chat called
+// "Andy S" reads as "Andy S" or "Andy S L", and neither of those is "Andy".
+function titleReadings(words) {
+  const tokens = words.map(w => String(w.text || '').trim()).filter(Boolean);
+  while (tokens.length && !/[a-z0-9]/i.test(tokens[0])) tokens.shift();
+  if (!tokens.length) return [];
+  return [tokens.join(' '), tokens.slice(0, -1).join(' ')].filter(Boolean);
+}
 
-function titleConfirms(name, title) {
+function titleConfirms(name, readings) {
   const n = norm(name);
   if (!n) return false;
-  const t = norm(title).replace(/^[^a-z0-9]+/i, '');
-  if (t === n) return true;
-  if (!t.startsWith(n)) return false;
-  const rest = t.slice(n.length);
-  return /^[^a-z0-9]/i.test(rest) && ICON_AFTER.test(rest);
+  const list = Array.isArray(readings) ? readings : [readings];
+  return list.some(r => norm(r) === n);
 }
 
 function setSearch(text) {
@@ -453,9 +584,11 @@ const headerRect = (f) => ({ x: f.pane.x, y: f.win.y + 40, w: f.pane.w, h: f.pan
 const composerRect = (f) => ({ x: f.pane.x, y: f.pane.y + f.pane.h * 0.6, w: f.pane.w, h: f.pane.h * 0.4 });
 
 function headerTitle(f) {
-  const lines = read(headerRect(f), 'header');
-  const left = lines.filter(l => l.x < f.pane.x + f.pane.w * 0.6).sort((a, b) => a.x - b.x);
-  return left.length ? left[0].text : '';
+  const words = readWords(headerRect(f), 'header')
+    .filter(w => w.x < f.pane.x + f.pane.w * 0.6);
+  if (!words.length) return { readings: [], shown: '' };
+  const line = words.filter(w => w.line === words[0].line).sort((a, b) => a.x - b.x);
+  return { readings: titleReadings(line), shown: line.map(w => w.text).join(' ') };
 }
 
 const composerLines = (f) => read(composerRect(f), 'composer');
@@ -474,11 +607,15 @@ async function openChat(guest, f) {
   click(f.list.x + f.list.w * 0.3, row.cy);
   await sleep(1600);
 
-  const title = headerTitle(f);
-  if (!titleConfirms(name, title)) {
-    throw new Error(`the chat that opened is titled "${title || '(unreadable)'}", not "${name}" - nothing sent`);
+  // A chat is on screen now, so the pane is really there even if it had to be
+  // guessed at a moment ago. Read the window again and check the title against
+  // the real thing.
+  const open = frames();
+  const { readings, shown } = headerTitle(open);
+  if (!titleConfirms(name, readings)) {
+    throw new Error(`the chat that opened is titled "${shown || '(unreadable)'}", not "${name}" - nothing sent`);
   }
-  return title;
+  return { title: shown, frames: open };
 }
 
 // Types into the message box and sends. Returns nothing; it throws if the box
@@ -530,9 +667,9 @@ async function sendIntoChat(f, { text, images }) {
 async function sendOne(guest) {
   await focusLine();
   const f = frames();
-  const title = await openChat(guest, f);
+  const { title, frames: open } = await openChat(guest, f);
   const images = imageUrlsOf(guest.queued);
-  const attached = await sendIntoChat(f, { text: guest.queued.text, images });
+  const attached = await sendIntoChat(open, { text: guest.queued.text, images });
   setSearch('');
   return { title, wanted: images.length, attached };
 }
@@ -571,15 +708,20 @@ async function drain() {
       log(`sent to ${who} (${how})  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
       if (note) log('   WARNING: ' + note);
     } catch (err) {
-      // A guest who could not be confirmed is cleared from the queue with the
-      // reason on the record, the same as the WhatsApp sender - otherwise one
-      // unmatchable name jams every run after it. The Invite page shows it.
-      await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, queueError: err.message })
-        .catch(() => {});
+      const { clearQueue, standDown } = failureAction(err);
       log(`NOT SENT to ${who}: ${err.message}`);
-      // If LINE itself is gone or in the background there is no point carrying
-      // on - every following guest would fail the same way.
-      if (/front window|not running|read off the screen/.test(err.message)) throw err;
+      if (clearQueue) {
+        // Something about this guest is wrong and will be wrong again, so it
+        // comes off the queue with the reason on the record - otherwise one
+        // unmatchable name jams every run after it. The Invite page shows it.
+        await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, queueError: err.message })
+          .catch(() => {});
+      } else {
+        log('   still queued - this is the Mac, not the guest');
+      }
+      // No point working through the rest of the queue while the machine is
+      // not in a state to send: every one of them would fail the same way.
+      if (standDown) throw err;
     }
     const gap = jitter();
     log(`   waiting ${Math.round(gap / 1000)}s`);
@@ -626,8 +768,13 @@ async function main() {
   console.log('\nThis drives the LINE app on this Mac. While it runs it owns the');
   console.log('keyboard and the mouse - leave the machine alone until it says done.\n');
 
-  await focusLine();
-  checkScreenReadable(frames());
+  // A one-shot run has to be able to see LINE right now. A watching one does
+  // not: it is started once and left alone, so it checks when there is
+  // something to send rather than refusing to start.
+  if (!WATCH) {
+    await focusLine();
+    checkScreenReadable(frames());
+  }
 
   const total = await drain();
   if (!WATCH) {
@@ -635,7 +782,16 @@ async function main() {
     process.exit(0);
   }
   log('watching for newly queued LINE invites - Ctrl+C to stop');
-  setInterval(() => drain().catch(e => {
+  let waiting = '';
+  setInterval(() => drain().then(() => { waiting = ''; }).catch(e => {
+    if (failureAction(e).standDown) {
+      // Mark is using his Mac, or LINE is not up. Nothing has been lost and
+      // nothing is wrong with the queue; it will go out when the machine is
+      // free. Said once, not every fifteen seconds.
+      if (waiting !== e.message) { log(e.message); log('   still queued - trying again shortly'); }
+      waiting = e.message;
+      return;
+    }
     log('stopping:', e.message);
     process.exit(1);
   }), POLL_MS);
@@ -647,4 +803,5 @@ if (require.main === module) {
 
 // The parts that decide who gets a message are pure, so they can be tested
 // without a Mac, a screen or anybody's LINE account.
-module.exports = { titleConfirms, pickChatRow, chatSection, matchesIn, isQueuedForLine, imageUrlsOf, norm };
+module.exports = { titleConfirms, titleReadings, pickChatRow, chatSection, matchesIn, isQueuedForLine,
+                   imageUrlsOf, norm, EnvironmentError, failureAction };
