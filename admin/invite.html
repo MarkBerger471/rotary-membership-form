@@ -386,7 +386,8 @@
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
                        lineName: (x.lineName || '').trim(),
                        note: x.notes || '', invites: (x.invites || []).length,
-                       queued: x.queued ? (x.queued.channel || 'whatsapp') : '' }));
+                       queued: x.queued ? (x.queued.channel || 'whatsapp') : '',
+                       queueError: x.queueError || '' }));
         members = (m.contacts || [])
           .filter(x => (x.status || 'active') === 'active')
           .map(x => ({ kind: 'member', id: x.memberNo, name: [x.firstName, x.lastName].filter(Boolean).join(' '),
@@ -519,6 +520,7 @@
             <div class="text-sm truncate">${escapeHtml(p.name || '(unnamed)')}
               ${p.kind === 'member' ? '<span class="text-[10px] uppercase tracking-wide text-rotary-gold/60 ml-1">member</span>' : ''}
               ${p.invites ? `<span class="text-[10px] text-white/30 ml-1">invited ${p.invites}x</span>` : ''}</div>
+            ${p.queueError ? `<div class="text-[11px] text-amber-300/90">last try: ${escapeHtml(p.queueError)}</div>` : ''}
             ${blocked
               ? `<div class="text-[11px] text-red-300/80">${blocked} - add it on the Guests page</div>`
               : `<div class="text-[11px] text-white/35 truncate">

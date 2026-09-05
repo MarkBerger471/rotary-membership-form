@@ -69,7 +69,7 @@ const POLL_MS = 15000;
 // knows the box is empty, both before typing and after pressing Enter.
 const PLACEHOLDER = process.env.LINE_PLACEHOLDER || 'Enter a message';
 
-const KEY = { v: 9, enter: 36, esc: 53 };
+const KEY = { v: 9, enter: 36 };
 
 const DIR = __dirname;
 const BIN = path.join(DIR, 'bin');
@@ -152,9 +152,10 @@ function ensureTools() {
 // Bring LINE forward and refuse to do anything unless it really is in front.
 // Everything after this posts real clicks and keystrokes at fixed screen
 // points; if another window were in front they would land in that window.
-function focusLine() {
-  osa(`tell application "System Events"
-  if not (exists process "LINE") then error "LINE is not running"
+async function focusLine() {
+  try {
+    osa(`tell application "System Events"
+  if not (exists process "LINE") then error "no LINE"
   tell process "LINE"
     try
       set value of attribute "AXMinimized" of (first window whose name is "LINE") to false
@@ -162,6 +163,13 @@ function focusLine() {
   end tell
 end tell
 tell application "LINE" to activate`);
+  } catch {
+    throw new Error('LINE is not running - open it, log in, and start this again');
+  }
+  // Activating is not instant. Asking which app is in front too early gets the
+  // answer from before the switch, and a screenshot taken then still has the
+  // old window on top of LINE.
+  await sleep(700);
   const front = osa('tell application "System Events" to return name of first process whose frontmost is true');
   if (front !== 'LINE') {
     throw new Error(`LINE is not the front window (${front} is) - stopping rather than typing into something else`);
@@ -222,12 +230,18 @@ function read(rect, label) {
       get cy() { return this.y + this.h / 2; },
     };
   });
-  if (!lines.length && !process.env.LINE_SENDER_ALLOW_BLANK) {
-    throw new Error('nothing could be read off the screen.\n'
-      + '  System Settings > Privacy & Security > Screen Recording - switch your terminal on,\n'
-      + '  then quit and reopen it (the permission only takes effect on a restart).');
-  }
   return lines;
+}
+
+// Without Screen Recording, screencapture quietly returns a picture of the
+// desktop with every window missing - no error, just nothing to read. Prove the
+// permission once, on LINE's own window, rather than mistaking a blank region
+// later on for a permission problem.
+function checkScreenReadable(f) {
+  if (read(f.win, 'probe').length) return;
+  throw new Error('LINE\'s window cannot be read off the screen.\n'
+    + '  System Settings > Privacy & Security > Screen Recording - switch your terminal on,\n'
+    + '  then quit and reopen it (the permission only takes effect on a restart).');
 }
 
 // The clipboard is Mark's, so whatever was on it is put back at the end.
@@ -257,17 +271,22 @@ async function copyImage(url) {
 const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const SECTION = /^(chats|messages|friends|groups|official accounts)\b/i;
 
-// The title beside a chat has a small "open in a new window" icon after it,
-// which OCR reads as a stray letter or two. So the title has to start with the
-// name, and anything after it has to be separated from the name and tiny -
-// "Lek" must not match a chat called "Lek BKK" or "Leko".
+// LINE draws the chat title between the contact's picture and a small "open in
+// a new window" icon, and OCR reads both as marks around the name: a bullet in
+// front, an upright stroke behind - "Keep Memo" comes back as "• Keep Memo L".
+// So leading marks are dropped, and what follows the name has to be separated
+// from it and made only of the strokes that icon is read as. Everything else is
+// a different chat: "Lek" matches neither "Lek BKK" nor "Lek B" nor "Leko".
+const ICON_AFTER = /^[\s.,:;·•*|'"`\u2018\u2019\u201c\u201d\-\u2013\u2014\[\]()lit]*$/i;
+
 function titleConfirms(name, title) {
-  const n = norm(name), t = norm(title);
+  const n = norm(name);
   if (!n) return false;
+  const t = norm(title).replace(/^[^a-z0-9]+/i, '');
   if (t === n) return true;
   if (!t.startsWith(n)) return false;
   const rest = t.slice(n.length);
-  return /^[^a-z0-9]/i.test(rest) && rest.replace(/[^a-z0-9]/gi, '').length <= 1;
+  return /^[^a-z0-9]/i.test(rest) && ICON_AFTER.test(rest);
 }
 
 function setSearch(text) {
@@ -381,7 +400,7 @@ async function sendIntoChat(f, { text, images }) {
 }
 
 async function sendOne(guest) {
-  focusLine();
+  await focusLine();
   const f = frames();
   const title = await openChat(guest, f);
   const images = imageUrlsOf(guest.queued);
@@ -432,7 +451,7 @@ async function drain() {
       log(`NOT SENT to ${who}: ${err.message}`);
       // If LINE itself is gone or in the background there is no point carrying
       // on - every following guest would fail the same way.
-      if (/front window|not running|Screen Recording/.test(err.message)) throw err;
+      if (/front window|not running|read off the screen/.test(err.message)) throw err;
     }
     const gap = jitter();
     log(`   waiting ${Math.round(gap / 1000)}s`);
@@ -459,6 +478,9 @@ async function main() {
 
   console.log('\nThis drives the LINE app on this Mac. While it runs it owns the');
   console.log('keyboard and the mouse - leave the machine alone until it says done.\n');
+
+  await focusLine();
+  checkScreenReadable(frames());
 
   const total = await drain();
   if (!WATCH) {
