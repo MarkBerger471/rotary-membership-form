@@ -92,7 +92,9 @@
         <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name and title</span>
           <textarea id="msgEn" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
             oninput="onMessageEdited()"></textarea></label>
-        <textarea id="msgDe" class="hidden"></textarea>
+        <label class="text-xs text-white/50 block">German version <span class="text-white/30">- leave it empty and German speakers get the English message</span>
+          <textarea id="msgDe" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+            oninput="onMessageDeEdited()"></textarea></label>
         <p id="deNote" class="text-[11px] text-white/35 -mt-2"></p>
 
         <div id="dropZone" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
@@ -145,7 +147,9 @@
         <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name, the programme is added above your closing line</span>
           <textarea id="ovMsg" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
             oninput="onOvEdited()"></textarea></label>
-        <textarea id="ovMsgDe" class="hidden"></textarea>
+        <label class="text-xs text-white/50 block">German version <span class="text-white/30">- leave it empty and German speakers get the English message, programme and all</span>
+          <textarea id="ovMsgDe" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+            oninput="onOvDeEdited()"></textarea></label>
         <p id="ovNote" class="text-[11px] text-white/35 -mt-2"></p>
 
         <div id="ovDrop" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
@@ -282,6 +286,15 @@
     ];
     const DEFAULT_EN = VARIANTS[0].en;
     const DEFAULT_DE = VARIANTS[0].de;
+
+    // German that came out of a built-in wording, rather than being written by
+    // hand. Typing your own English leaves a built-in German behind that no
+    // longer says the same thing, so that one is cleared - but German you
+    // wrote yourself is never thrown away.
+    const isBuiltInDe = (value, variants) => {
+      const v = String(value || '').trim();
+      return !v || variants.some(x => x.de.trim() === v);
+    };
     let meetings = {};
 
     const SELECTION_KEY = 'rcbd:invite:selection:v1';
@@ -429,11 +442,12 @@
     }
 
     function buildMessage(person) {
-      const de = langOf(person) === 'de';
-      // Fall back to the English box when there is no German wording, which is
-      // the case whenever the message was written by hand.
-      const tpl = (de ? document.getElementById('msgDe').value : '')
-        || document.getElementById('msgEn').value || DEFAULT_EN;
+      // An empty German box means one thing only: German speakers get the
+      // English message. It is never quietly refilled from a wording.
+      const deText = document.getElementById('msgDe').value;
+      const useDe = langOf(person) === 'de' && deText.trim() !== '';
+      const tpl = useDe ? deText
+        : (document.getElementById('msgEn').value || DEFAULT_EN);
       const body = tpl.replace(/\{name\}/g, greetingName(person));
       // A website link is something the guest is meant to open, so it belongs
       // in the text. The invite image is NOT a link - the sender attaches it as
@@ -641,7 +655,10 @@
       } else {
         document.getElementById('variantSelect').value = (saved && saved.variant) || '0';
         document.getElementById('msgEn').value = (saved && saved.en) || DEFAULT_EN;
-        document.getElementById('msgDe').value = (saved && saved.de) || DEFAULT_DE;
+        // Not `|| DEFAULT_DE`: that resurrected a built-in German wording for
+        // every German guest on the next visit, behind a note still promising
+        // English for everyone.
+        document.getElementById('msgDe').value = (saved && saved.de !== undefined) ? saved.de : DEFAULT_DE;
       }
       renderInviteImages();
     })();
@@ -710,16 +727,25 @@
 
     function onOvEdited() {
       document.getElementById('ovVariant').value = 'custom';
-      document.getElementById('ovMsgDe').value = '';
+      const deBox = document.getElementById('ovMsgDe');
+      if (isBuiltInDe(deBox.value, OV_VARIANTS)) deBox.value = '';
       document.getElementById('ovRolling').checked = false;
       updateOvNote(); saveOverview(); renderOvPreview();
     }
 
+    function onOvDeEdited() {
+      document.getElementById('ovVariant').value = 'custom';
+      document.getElementById('ovRolling').checked = false;
+      updateOvNote(); saveOverview(); renderOvPreview();
+    }
+
+    // What the note says has to be what happens, in every combination. It
+    // turns on the one thing that decides it: whether there is German to send.
     function updateOvNote() {
-      const custom = document.getElementById('ovVariant').value === 'custom';
-      document.getElementById('ovNote').textContent = custom
-        ? 'Your own wording goes to everyone, in English.'
-        : 'German-speaking guests get the German version of this wording automatically.';
+      const hasDe = document.getElementById('ovMsgDe').value.trim() !== '';
+      document.getElementById('ovNote').textContent = hasDe
+        ? 'German-speaking guests get the German wording, with the programme in German. Everyone else gets the English one.'
+        : 'The German box is empty, so German-speaking guests get this English wording, programme and all.';
     }
 
     // The programme itself is built from the meeting planner, so it is always
@@ -747,11 +773,15 @@
     }
 
     function buildOverview(person) {
-      const de = langOf(person) === 'de';
-      const tpl = (de ? document.getElementById('ovMsgDe').value : '')
-        || document.getElementById('ovMsg').value || OV_VARIANTS[0].en;
+      const deText = document.getElementById('ovMsgDe').value;
+      const useDe = langOf(person) === 'de' && deText.trim() !== '';
+      const tpl = useDe ? deText
+        : (document.getElementById('ovMsg').value || OV_VARIANTS[0].en);
       const body = tpl.replace(/\{name\}/g, greetingName(person));
-      const list = programmeLines(de ? 'de' : 'en');
+      // The programme is written in the language of the wording that is
+      // actually being sent. Following the guest instead put German dates in
+      // the middle of an English message.
+      const list = programmeLines(useDe ? 'de' : 'en');
       const web = document.getElementById('ovWebLink').value.trim();
       return insertBeforeSignoff(body, [list, web]);
     }
@@ -852,7 +882,7 @@
       } else {
         document.getElementById('ovVariant').value = (saved && saved.variant) || '0';
         document.getElementById('ovMsg').value = (saved && saved.msg) || OV_VARIANTS[0].en;
-        document.getElementById('ovMsgDe').value = (saved && saved.de) || OV_VARIANTS[0].de;
+        document.getElementById('ovMsgDe').value = (saved && saved.de !== undefined) ? saved.de : OV_VARIANTS[0].de;
       }
       updateOvNote();
     })();
@@ -864,20 +894,25 @@
         + '<option value="custom">Custom (edited below)</option>';
     }
 
-    // The German version is not edited by hand - it comes from the chosen
-    // wording. Typing your own message uses it for everyone.
     function onMessageEdited() {
       document.getElementById('variantSelect').value = 'custom';
-      document.getElementById('msgDe').value = '';
+      const deBox = document.getElementById('msgDe');
+      if (isBuiltInDe(deBox.value, VARIANTS)) deBox.value = '';
+      document.getElementById('rollingToggle').checked = false;
+      updateDeNote(); saveTemplate(); renderTargets();
+    }
+
+    function onMessageDeEdited() {
+      document.getElementById('variantSelect').value = 'custom';
       document.getElementById('rollingToggle').checked = false;
       updateDeNote(); saveTemplate(); renderTargets();
     }
 
     function updateDeNote() {
-      const custom = document.getElementById('variantSelect').value === 'custom';
-      document.getElementById('deNote').textContent = custom
-        ? 'Your own wording goes to everyone, in English.'
-        : 'German-speaking guests get the German version of this wording automatically.';
+      const hasDe = document.getElementById('msgDe').value.trim() !== '';
+      document.getElementById('deNote').textContent = hasDe
+        ? 'German-speaking guests get the German wording. Everyone else gets the English one.'
+        : 'The German box is empty, so German-speaking guests get this English wording.';
     }
 
     function applyVariant(fromUser) {
@@ -1128,7 +1163,10 @@
         el.value = insertBeforeSignoff(strip(el.value), [tail]);
       };
       put('msgEn', tailEn);
-      put('msgDe', tailDe);
+      // An empty German box means English for everyone. Dropping the meeting
+      // details into it would turn it into the German wording - a message that
+      // is nothing but a date and a venue.
+      if (document.getElementById('msgDe').value.trim()) put('msgDe', tailDe);
       saveTemplate(); renderTargets();
       showToast('Meeting details added to the message', 'success');
     }
