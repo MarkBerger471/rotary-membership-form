@@ -497,8 +497,12 @@
       const ready = list.filter(p => ch.reach(p) && firstNameOf(p));
       const queuedCount = all.filter(p => p.queued === channel).length;
       const mode = PANELS[activeMode] || PANELS.invite;
+      // Count what would actually go out, not what is ticked: a guest ticked
+      // for WhatsApp is still ticked after the switch to LINE, and the button
+      // promising to send to them when it will skip them is a lie.
+      const sendable = all.filter(p => selected.has(personId(p)) && ch.reach(p) && firstNameOf(p)).length;
       document.getElementById('sendAllBtn').textContent =
-        `Send ${mode.what} ${ch.on} to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
+        `Send ${mode.what} ${ch.on} to selected${sendable ? ' (' + sendable + ')' : ''}`;
       const imgs = imagesFor().length;
       document.getElementById('sendWhat').textContent =
         `Sending: ${mode.what} ${ch.on}` + (imgs ? ` with ${imgs} image${imgs === 1 ? '' : 's'}` : ', no image')
