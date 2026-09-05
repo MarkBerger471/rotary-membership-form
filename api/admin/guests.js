@@ -16,7 +16,14 @@ async function getGuests() {
 }
 
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
-const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'notes', 'company'];
+const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'lineName', 'notes', 'company'];
+
+// A guest can be reachable on WhatsApp, on LINE, or on both. The LINE name
+// is the display name exactly as it appears in Mark's chat list - the LINE
+// sender finds the chat by it and refuses to send if it cannot confirm it,
+// so a sloppy value here means no message rather than a wrong one.
+const CHANNELS = ['whatsapp', 'line'];
+const asChannel = (v) => (CHANNELS.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : 'whatsapp');
 
 // A queued message used to carry a single imageUrl; it now carries an ordered
 // imageUrls array. Accept either shape and always store an array, so a lone
@@ -81,12 +88,13 @@ function normalise(input, source) {
     || String(input.name || '').trim();
   const wa = toE164(input.phone || input.waNumber);
   return {
-    id: 'g_' + wa + '_' + Math.random().toString(36).slice(2, 7),
+    id: 'g_' + (wa || 'line') + '_' + Math.random().toString(36).slice(2, 7),
     name,
     firstName: looksLikeNumber(first) ? '' : first,
     lastName: last,
     phone: String(input.phone || (wa ? '+' + wa : '')).trim(),
     waNumber: wa,
+    lineName: String(input.lineName || '').trim(),
     notes: String(input.notes || '').trim(),
     company: String(input.company || '').trim(),
     language: asLanguage(input.language, 'en'),
@@ -123,13 +131,19 @@ module.exports = async (req, res) => {
       const incoming = Array.isArray(b.guests) ? b.guests : [b];
       const list = await getGuests();
       const seen = new Set(list.map(g => toE164(g.phone || g.waNumber)).filter(Boolean));
+      // Someone Mark only has on LINE has no number to key on, so the LINE name
+      // is the second key. Without this a whole set of LINE-only guests would
+      // collapse into one "already on the list".
+      const seenLine = new Set(list.map(g => String(g.lineName || '').trim().toLowerCase()).filter(Boolean));
 
       const added = [], skipped = [];
       for (const raw of incoming) {
         const g = normalise(raw, b.source || raw.source);
-        if (!g.name || !g.waNumber) { skipped.push({ name: g.name || '(no name)', reason: 'needs a name and a number' }); continue; }
-        if (seen.has(g.waNumber)) { skipped.push({ name: g.name, reason: 'already on the list' }); continue; }
-        seen.add(g.waNumber);
+        if (!g.name || (!g.waNumber && !g.lineName)) { skipped.push({ name: g.name || '(no name)', reason: 'needs a name and either a number or a LINE name' }); continue; }
+        if (g.waNumber && seen.has(g.waNumber)) { skipped.push({ name: g.name, reason: 'already on the list' }); continue; }
+        if (!g.waNumber && seenLine.has(g.lineName.toLowerCase())) { skipped.push({ name: g.name, reason: 'already on the list' }); continue; }
+        if (g.waNumber) seen.add(g.waNumber);
+        if (g.lineName) seenLine.add(g.lineName.toLowerCase());
         list.push(g);
         added.push(g);
       }
@@ -162,10 +176,18 @@ module.exports = async (req, res) => {
       // a whole object rather than an editable string field so it is not
       // coerced by the loop above.
       if (b.queued !== undefined) {
-        g.queued = (b.queued && typeof b.queued === 'object' && b.queued.text)
-          ? { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), queuedAt: new Date().toISOString() }
-          : null;
-        if (g.queued) delete g.queueError;
+        if (b.queued && typeof b.queued === 'object' && b.queued.text) {
+          const channel = asChannel(b.queued.channel);
+          // Queueing on a channel this guest cannot be reached on is a dead
+          // letter: that channel's sender would skip them for ever and the page
+          // would show "waiting for the sender" until someone noticed. Refuse.
+          if (channel === 'line' && !g.lineName) return res.status(400).json({ error: 'No LINE name for this guest' });
+          if (channel === 'whatsapp' && !g.waNumber) return res.status(400).json({ error: 'No WhatsApp number for this guest' });
+          g.queued = { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), channel, queuedAt: new Date().toISOString() };
+          delete g.queueError;
+        } else {
+          g.queued = null;
+        }
       }
       if (b.queueError !== undefined) g.queueError = String(b.queueError || '') || undefined;
       if (b.language !== undefined) g.language = asLanguage(b.language, g.language || 'en');

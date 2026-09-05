@@ -74,9 +74,16 @@ async function api(pathname, method = 'GET', body) {
   return res.json();
 }
 
+// Only what was queued for WhatsApp. The Invite page can now queue a message
+// for LINE instead, and those are for tools/line-sender - picking them up here
+// would deliver a LINE invite to a WhatsApp number, which is exactly the kind
+// of quiet mis-send this whole tool is built to avoid. Anything queued before
+// the channel existed has no channel and is WhatsApp, as it always was.
+const isForWhatsApp = (q) => !q.channel || q.channel === 'whatsapp';
+
 async function queuedGuests() {
   const { guests } = await api('/api/admin/guests');
-  return guests.filter(g => g && g.queued && g.queued.text && g.status !== 'archived');
+  return guests.filter(g => g && g.queued && g.queued.text && isForWhatsApp(g.queued) && g.status !== 'archived');
 }
 
 // The image is fetched from the public endpoint, the same URL a recipient would

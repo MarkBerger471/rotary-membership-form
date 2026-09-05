@@ -11,3 +11,6 @@ tools/whatsapp-sender/.wwebjs_cache/
 
 # the QR image is a live login link
 tools/whatsapp-sender/link-whatsapp.png
+
+# Local LINE sender: the Swift helpers are built from mac/ on first run
+tools/line-sender/bin/

@@ -1,0 +1,11 @@
+{
+  "name": "rotary-line-sender",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sends queued Rotary invites through the LINE app on Mark's Mac",
+  "scripts": {
+    "dry": "node send.js --dry-run",
+    "once": "node send.js",
+    "start": "node send.js --watch"
+  }
+}
