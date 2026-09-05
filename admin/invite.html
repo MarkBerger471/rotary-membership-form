@@ -287,14 +287,6 @@
     const DEFAULT_EN = VARIANTS[0].en;
     const DEFAULT_DE = VARIANTS[0].de;
 
-    // German that came out of a built-in wording, rather than being written by
-    // hand. Typing your own English leaves a built-in German behind that no
-    // longer says the same thing, so that one is cleared - but German you
-    // wrote yourself is never thrown away.
-    const isBuiltInDe = (value, variants) => {
-      const v = String(value || '').trim();
-      return !v || variants.some(x => x.de.trim() === v);
-    };
     let meetings = {};
 
     const SELECTION_KEY = 'rcbd:invite:selection:v1';
@@ -725,10 +717,11 @@
       applyOvVariant(true);
     }
 
+    // Editing one language leaves the other exactly as it is. Both boxes are
+    // on screen, so what is in them is what goes out - and Mark writes his own
+    // German rather than having a machine, or this page, decide it for him.
     function onOvEdited() {
       document.getElementById('ovVariant').value = 'custom';
-      const deBox = document.getElementById('ovMsgDe');
-      if (isBuiltInDe(deBox.value, OV_VARIANTS)) deBox.value = '';
       document.getElementById('ovRolling').checked = false;
       updateOvNote(); saveOverview(); renderOvPreview();
     }
@@ -894,10 +887,9 @@
         + '<option value="custom">Custom (edited below)</option>';
     }
 
+    // As on the overview: editing one language never touches the other.
     function onMessageEdited() {
       document.getElementById('variantSelect').value = 'custom';
-      const deBox = document.getElementById('msgDe');
-      if (isBuiltInDe(deBox.value, VARIANTS)) deBox.value = '';
       document.getElementById('rollingToggle').checked = false;
       updateDeNote(); saveTemplate(); renderTargets();
     }
