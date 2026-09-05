@@ -46,6 +46,10 @@
     .mcard select.mfield option { background: #0a1628; color: #fff; }
     .mcard .mflyer { color: var(--mt); border-top: 1px solid var(--mt-br); }
     .mcard .mflyer:hover { background: var(--mt-bg); }
+    /* Quieter than the flyer call to action - it is a shelf, not an action. */
+    .mcard .mattach { color: rgba(255,255,255,0.55); border-top: 1px solid var(--mt-br); }
+    .mcard .mattach:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .mcard .mattach img { width: 18px; height: 18px; border-radius: 4px; object-fit: cover; background: rgba(255,255,255,0.12); flex: none; }
     .mcard .mdot { background: var(--mt); }
 
     .mlegend { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 11px; color: rgba(255,255,255,0.65); }
@@ -138,6 +142,49 @@
         <div class="flex gap-2 justify-end">
           <button onclick="closeAddDate()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Cancel</button>
           <button onclick="confirmAddDate()" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ATTACHMENTS MODAL ==================== -->
+  <div id="attachModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeAttachments()"></div>
+    <div class="relative h-full flex items-center justify-center p-4">
+      <div class="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="px-6 py-4 border-b border-white/10 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 class="font-bold text-lg">Files &amp; links</h3>
+            <p id="attachDate" class="text-white/50 text-xs mt-0.5">&nbsp;</p>
+          </div>
+          <button onclick="closeAttachments()" class="text-white/40 hover:text-white transition-colors flex-shrink-0" title="Close (Esc)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div id="attachDrop" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
+               onclick="document.getElementById('attachInput').click()">
+            <div id="attachDropIdle">
+              <p class="text-sm text-white/60">Drop pictures and files here, or click to choose them</p>
+              <p class="text-[11px] text-white/30 mt-0.5">Pictures, PDFs and office documents. Anything larger than 900 KB is better as a link.</p>
+            </div>
+            <div id="attachDropBusy" class="hidden text-sm text-white/60">Uploading…</div>
+          </div>
+          <input type="file" id="attachInput" multiple class="hidden"
+                 accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                 onchange="pickAttachFiles(this.files)" />
+
+          <div class="flex flex-wrap gap-2 items-end">
+            <label class="text-xs text-white/50 flex-1 min-w-[120px]">Link label
+              <input id="attachLinkName" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Speaker's website" /></label>
+            <label class="text-xs text-white/50 flex-[2] min-w-[180px]">Address
+              <input id="attachLinkUrl" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="https://…" /></label>
+            <button onclick="addAttachLink()" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add link</button>
+          </div>
+
+          <div id="attachList" class="space-y-1.5"></div>
+          <p id="attachEmpty" class="hidden text-xs text-white/35 text-center py-2">Nothing attached to this meeting yet.</p>
         </div>
       </div>
     </div>
@@ -238,6 +285,59 @@
       document.getElementById('meetingsLoading').classList.add('hidden');
     }
 
+    // ==================== ATTACHMENTS ====================
+    const MAX_ATTACHMENTS = 12;
+    const MAX_ATTACH_BYTES = 900 * 1024;
+    // Blob URLs for pictures, kept for the life of the page: every thumbnail
+    // needs the admin password to fetch, so the bytes cannot go in an <img src>
+    // and re-fetching them on every re-render would flicker and cost.
+    const thumbCache = new Map();
+    let attachDate = null;
+
+    const attachmentsOf = (entry) => (entry && Array.isArray(entry.attachments) ? entry.attachments : []);
+
+    function attachStrip(ds, entry) {
+      const list = attachmentsOf(entry);
+      const pics = list.filter(a => a.kind === 'image');
+      const files = list.filter(a => a.kind === 'file');
+      const links = list.filter(a => a.kind === 'link');
+      const thumbs = pics.slice(0, 3)
+        .map(a => `<img id="thumb-${a.id}" alt="" src="${thumbCache.get(a.id) || ''}" />`).join('');
+      const counts = [
+        pics.length > 3 ? `+${pics.length - 3}` : '',
+        files.length ? `${files.length} file${files.length === 1 ? '' : 's'}` : '',
+        links.length ? `${links.length} link${links.length === 1 ? '' : 's'}` : '',
+      ].filter(Boolean).join(' · ');
+      const label = list.length ? (counts || `${pics.length} picture${pics.length === 1 ? '' : 's'}`) : 'Files & links';
+      return `<button type="button" onclick="openAttachments('${ds}')" title="Files, pictures and links for this meeting"
+        class="mattach w-full px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-medium transition-colors">
+        ${thumbs}
+        <svg class="w-3 h-3 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        <span class="truncate">${escapeHtml(label)}</span>
+      </button>`;
+    }
+
+    // Pictures are fetched once, with the password, and turned into blob URLs
+    // the <img> tags can use. Called after every render for whatever is new.
+    async function hydrateThumbs() {
+      const wanted = [];
+      for (const entry of Object.values(meetings)) {
+        for (const a of attachmentsOf(entry)) {
+          if (a.kind === 'image' && !thumbCache.has(a.id)) wanted.push(a.id);
+        }
+      }
+      for (const id of wanted) {
+        try {
+          const res = await fetch('/api/admin/meeting-attachment?id=' + encodeURIComponent(id),
+            { headers: { 'X-Admin-Password': adminPassword } });
+          if (!res.ok) continue;
+          const url = URL.createObjectURL(await res.blob());
+          thumbCache.set(id, url);
+          document.querySelectorAll(`#thumb-${CSS.escape(id)}`).forEach(img => { img.src = url; });
+        } catch { /* a missing thumbnail is not worth a toast */ }
+      }
+    }
+
     function renderMeetings() {
       const byMonth = {};
       for (const ds of gridDates) {
@@ -288,7 +388,8 @@
                 placeholder="Venue…" value="${escapeHtml(entry.venue || '')}" onchange="updateField('${ds}', 'venue', this.value)" />
               <button type="button" onclick="openFlyer('${ds}')" class="mflyer block w-full px-3 py-2 text-[11px] font-bold uppercase tracking-wider hover:opacity-90 transition-colors text-center">
                 Flyer →
-              </button>`
+              </button>
+              ${attachStrip(ds, entry)}`
             : '';
 
           return `<div class="mcard mtype-${type} ${state} relative rounded-xl overflow-hidden">
@@ -309,6 +410,7 @@
 
       document.getElementById('meetingsContent').innerHTML = html;
       document.getElementById('meetingsContent').classList.remove('hidden');
+      hydrateThumbs();
     }
 
     async function saveNow() {
@@ -427,6 +529,201 @@
 
     if (adminPassword) loadMeetings();
 
+    // ---- the modal itself
+
+    function openAttachments(ds) {
+      attachDate = ds;
+      document.getElementById('attachDate').textContent = formatFlyerDate(ds);
+      document.getElementById('attachLinkName').value = '';
+      document.getElementById('attachLinkUrl').value = '';
+      attachBusy(false);
+      renderAttachList();
+      document.getElementById('attachModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeAttachments() {
+      attachDate = null;
+      document.getElementById('attachModal').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    function attachBusy(on) {
+      document.getElementById('attachDropIdle').classList.toggle('hidden', on);
+      document.getElementById('attachDropBusy').classList.toggle('hidden', !on);
+    }
+
+    const KB = (n) => `${Math.max(1, Math.round((n || 0) / 1024))} KB`;
+
+    function renderAttachList() {
+      const list = attachmentsOf(meetings[attachDate]);
+      document.getElementById('attachEmpty').classList.toggle('hidden', list.length > 0);
+      document.getElementById('attachList').innerHTML = list.map(a => {
+        const thumb = a.kind === 'image'
+          ? `<img id="thumb-${a.id}" alt="" src="${thumbCache.get(a.id) || ''}" class="w-9 h-9 rounded-lg object-cover bg-white/10 flex-none" />`
+          : `<div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-none text-white/50">
+               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${
+                 a.kind === 'link'
+                   ? 'M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5m4.5-4.5l1.5-1.5a4 4 0 115.656 5.656l-3 3a4 4 0 01-5.656 0'
+                   : 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'
+               }"/></svg>
+             </div>`;
+        const sub = a.kind === 'link' ? a.url : KB(a.bytes);
+        return `<div class="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2">
+          ${thumb}
+          <div class="min-w-0 flex-1">
+            <div class="text-sm truncate">${escapeHtml(a.name)}</div>
+            <div class="text-[11px] text-white/35 truncate">${escapeHtml(sub)}</div>
+          </div>
+          <button onclick="openAttachment('${a.id}')" title="Open" class="w-7 h-7 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors flex-none">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </button>
+          <button onclick="removeAttachment('${a.id}')" title="Remove" class="w-7 h-7 rounded-md flex items-center justify-center text-white/40 hover:text-red-300 hover:bg-red-500/20 transition-colors flex-none">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16M10 4h4a1 1 0 011 1v2H9V5a1 1 0 011-1z"/></svg>
+          </button>
+        </div>`;
+      }).join('');
+      hydrateThumbs();
+    }
+
+    // ---- writing
+
+    // Whatever the page is still holding goes first. The server appends to the
+    // stored meeting and hands back the result, so a debounced save landing
+    // afterwards with a stale copy in it cannot wipe the attachment.
+    async function attachApi(options) {
+      await saveNow();
+      const res = await apiFetch('/api/admin/meeting-attachment?date=' + encodeURIComponent(attachDate)
+        + (options.id ? '&id=' + encodeURIComponent(options.id) : ''), options.init);
+      meetings[attachDate] = res.meeting;
+      renderAttachList();
+      renderMeetings();
+      return res;
+    }
+
+    // The same trick the Invite page uses on invite images: a photo off a phone
+    // is several megabytes, and a meeting does not need more than 1200px.
+    function shrink(dataUrl, max = 1200) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    const readDataUrl = (file) => new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    async function pickAttachFiles(files) {
+      const chosen = Array.from(files || []).filter(Boolean);
+      document.getElementById('attachInput').value = '';
+      if (!chosen.length || !attachDate) return;
+      const room = MAX_ATTACHMENTS - attachmentsOf(meetings[attachDate]).length;
+      if (room <= 0) { showToast(`A meeting can hold ${MAX_ATTACHMENTS} attachments`, 'error'); return; }
+      if (chosen.length > room) showToast(`Only ${room} more fit on this meeting`, 'error');
+
+      attachBusy(true);
+      let added = 0;
+      for (const file of chosen.slice(0, room)) {
+        try {
+          const isImage = /^image\/(jpeg|png|webp)$/.test(file.type);
+          let dataUrl = await readDataUrl(file);
+          let mimeType = file.type;
+          if (isImage) { dataUrl = await shrink(dataUrl); mimeType = 'image/jpeg'; }
+          const content = dataUrl.split(',')[1] || '';
+          // Checked here as well as on the server so a big PDF is refused
+          // before it is pushed over the wire.
+          if (!isImage && content.length * 0.75 > MAX_ATTACH_BYTES) {
+            showToast(`${file.name} is too big - add it as a link instead`, 'error');
+            continue;
+          }
+          await attachApi({ init: {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, mimeType, name: file.name }),
+          } });
+          added++;
+        } catch (err) {
+          if (err.message !== 'Unauthorized') showToast(err.message || `Could not add ${file.name}`, 'error');
+        }
+      }
+      attachBusy(false);
+      if (added) showToast(added === 1 ? 'Added' : `${added} added`, 'success');
+    }
+
+    async function addAttachLink() {
+      if (!attachDate) return;
+      const name = document.getElementById('attachLinkName').value.trim();
+      const url = document.getElementById('attachLinkUrl').value.trim();
+      if (!url) { showToast('Paste a web address first', 'error'); return; }
+      try {
+        await attachApi({ init: {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'link', name, url }),
+        } });
+        document.getElementById('attachLinkName').value = '';
+        document.getElementById('attachLinkUrl').value = '';
+        showToast('Link added', 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not add that link', 'error');
+      }
+    }
+
+    async function removeAttachment(id) {
+      if (!attachDate) return;
+      const att = attachmentsOf(meetings[attachDate]).find(a => a.id === id);
+      if (!att) return;
+      if (!confirm(`Remove “${att.name}” from this meeting?`)) return;
+      try {
+        await attachApi({ id, init: { method: 'DELETE' } });
+        thumbCache.delete(id);
+        showToast('Removed', 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not remove that', 'error');
+      }
+    }
+
+    // A link opens where it points; a picture or a file has to be fetched with
+    // the password first, the same way admin.js opens an application PDF.
+    async function openAttachment(id) {
+      const att = attachmentsOf(meetings[attachDate]).find(a => a.id === id);
+      if (!att) return;
+      if (att.kind === 'link') { window.open(att.url, '_blank', 'noopener'); return; }
+      try {
+        const res = await fetch('/api/admin/meeting-attachment?id=' + encodeURIComponent(id),
+          { headers: { 'X-Admin-Password': adminPassword } });
+        if (res.status === 401) { handleUnauthorized(); return; }
+        if (!res.ok) { showToast('Could not open that', 'error'); return; }
+        window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
+      } catch {
+        showToast('Could not open that', 'error');
+      }
+    }
+
+    (function wireAttachDrop() {
+      const zone = document.getElementById('attachDrop');
+      if (!zone) return;
+      ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, (e) => {
+        e.preventDefault(); zone.classList.add('border-rotary-gold');
+      }));
+      ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, (e) => {
+        e.preventDefault(); zone.classList.remove('border-rotary-gold');
+      }));
+      zone.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files) pickAttachFiles(e.dataTransfer.files);
+      });
+    })();
+
     // ==================== FLYER MODAL ====================
     function ordinal(n) {
       const v = n % 100;
@@ -467,6 +764,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (!document.getElementById('flyerModal').classList.contains('hidden')) closeFlyer();
+      else if (!document.getElementById('attachModal').classList.contains('hidden')) closeAttachments();
       else if (!document.getElementById('addDateModal').classList.contains('hidden')) closeAddDate();
     });
   </script>

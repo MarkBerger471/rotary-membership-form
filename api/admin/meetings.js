@@ -1,4 +1,5 @@
 const { kv } = require('@vercel/kv');
+const { normalizeAttachments } = require('../../lib/attachments');
 
 const KEY = 'admin:meetings';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,6 +26,11 @@ function normalizeEntry(v) {
     venue: str(v.venue),
     photoUrl: str(v.photoUrl),
     description: str(v.description),
+    // Pictures, files and links belonging to this evening. Only their
+    // description is here; the bytes live under their own key. Anything not
+    // listed in this shape is dropped, so an attachment that was not written
+    // through the attachment endpoint cannot appear on a card.
+    attachments: normalizeAttachments(v.attachments),
   };
 }
 
@@ -79,7 +85,7 @@ module.exports = async (req, res) => {
       const meetings = normalize(await kv.get(KEY));
       const current = meetings[date] || normalizeEntry({ active: true });
       const patch = {};
-      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description']) {
+      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments']) {
         if (Object.prototype.hasOwnProperty.call(body, f)) patch[f] = body[f];
       }
       meetings[date] = normalizeEntry({ ...current, ...patch });
