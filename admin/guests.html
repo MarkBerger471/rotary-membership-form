@@ -85,6 +85,7 @@
           <button onclick="toggleAllImport(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
           <button onclick="toggleAllImport(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
           <button onclick="saveSelected()" id="importSaveBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add selected</button>
+          <button onclick="closeImport()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white">Close</button>
         </div>
         <div id="importList" class="max-h-[420px] overflow-y-auto divide-y divide-white/5"></div>
       </div>
@@ -100,6 +101,7 @@
         <div class="flex items-center gap-2">
           <input type="search" id="guestSearch" class="glass-input px-3 py-2 rounded-lg text-sm" placeholder="Search guests..." oninput="renderGuests()" />
           <span id="guestArchivedToggle"></span>
+          <span id="clearImportBtn"></span>
         </div>
       </div>
       <div id="guestsEmpty" class="hidden px-6 py-12 text-center text-white/40">
@@ -109,6 +111,39 @@
       <div id="guestsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4"></div>
     </div>
   </main>
+
+  <div id="guestModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70"
+       onclick="if (event.target === this) closeGuestForm()">
+    <div class="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <h3 class="font-bold text-lg">Edit guest</h3>
+        <button onclick="closeGuestForm()" class="text-white/40 hover:text-white transition-colors" title="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="text-xs text-white/50">First name
+          <input id="gfFirst" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" />
+          <span class="text-[11px] text-white/35">used to address messages</span></label>
+        <label class="text-xs text-white/50">Last name
+          <input id="gfLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50">Mobile (with country code)
+          <input id="gfPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50">Company
+          <input id="gfCompany" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50 sm:col-span-2">Note
+          <input id="gfNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
+        <p id="gfPreview" class="sm:col-span-2 text-xs text-rotary-gold/80"></p>
+      </div>
+      <div class="px-6 py-4 border-t border-white/10 flex justify-between gap-2">
+        <button onclick="deleteFromForm()" class="px-4 py-2 rounded-lg text-sm font-medium text-white/40 hover:text-red-300 transition-colors">Delete</button>
+        <div class="flex gap-2">
+          <button onclick="closeGuestForm()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium">Cancel</button>
+          <button id="gfSave" onclick="saveGuestForm()" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="/admin/admin.js"></script>
   <script>
@@ -140,6 +175,10 @@
       document.getElementById('guestArchivedToggle').innerHTML = archived
         ? `<button onclick="toggleArchivedGuests()" class="text-xs px-3 py-2 rounded-lg ${showArchivedGuests ? 'bg-rotary-gold/20 text-rotary-gold' : 'bg-white/5 text-white/50 hover:text-white/80'}">${showArchivedGuests ? 'Show active' : 'Archived (' + archived + ')'}</button>`
         : '';
+      const fromWhatsApp = guests.filter(g => g.source === 'whatsapp').length;
+      document.getElementById('clearImportBtn').innerHTML = fromWhatsApp
+        ? `<button onclick="clearWhatsAppImport()" class="text-xs px-3 py-2 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors whitespace-nowrap">Delete WhatsApp import (${fromWhatsApp})</button>`
+        : '';
       document.getElementById('guestsMeta').textContent =
         `${scope.length} ${showArchivedGuests ? 'archived' : 'guest' + (scope.length === 1 ? '' : 's')}` + (q ? ` - ${list.length} match "${q}"` : '');
 
@@ -169,6 +208,9 @@
               </button>
               <button onclick="setGuestArchived('${g.id}', ${g.status === 'archived' ? 'false' : 'true'})" title="${g.status === 'archived' ? 'Restore' : 'Archive'}" aria-label="${g.status === 'archived' ? 'Restore' : 'Archive'}" class="w-6 h-6 rounded-md flex items-center justify-center text-white/30 hover:text-rotary-gold hover:bg-white/10 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              </button>
+              <button onclick="deleteGuest('${g.id}')" title="Delete" aria-label="Delete" class="w-6 h-6 rounded-md flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-white/10 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
             </div>
           </div>
@@ -281,6 +323,12 @@
       }).join('');
     }
 
+    function closeImport() {
+      imported = []; importSelected = new Set();
+      document.getElementById('importPanel').classList.add('hidden');
+      document.getElementById('importSearch').value = '';
+    }
+
     function toggleImport(wa, on) { on ? importSelected.add(wa) : importSelected.delete(wa); renderImport(); }
     function toggleAllImport(on) {
       const q = (document.getElementById('importSearch').value || '').trim().toLowerCase();
@@ -325,25 +373,99 @@
       }
     }
 
-    async function editGuest(id) {
+    async function deleteGuest(id) {
+      const g = guests.find(x => x.id === id);
+      if (!confirm(`Delete ${g ? g.name : 'this guest'} permanently?\n\nArchive instead if you might invite them later.`)) return;
+      try {
+        await apiFetch('/api/admin/guests?id=' + encodeURIComponent(id), { method: 'DELETE' });
+        showToast('Deleted', 'success');
+        loadGuests();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not delete', 'error');
+      }
+    }
+
+    // Undo a bulk import in one go, for when the wrong people came across.
+    async function clearWhatsAppImport() {
+      const n = guests.filter(g => g.source === 'whatsapp').length;
+      if (!confirm(`Delete all ${n} guest${n === 1 ? '' : 's'} imported from WhatsApp?\n\n`
+                 + 'Guests you added by hand are kept. You can import again from the file at any time.')) return;
+      try {
+        const res = await apiFetch('/api/admin/guests?source=whatsapp', { method: 'DELETE' });
+        showToast(`${res.removed} removed`, 'success');
+        await loadGuests();
+        renderImport();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not clear the import', 'error');
+      }
+    }
+
+    let editingGuestId = null;
+    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company', gfNotes:'notes' };
+
+    function editGuest(id) {
       const g = guests.find(x => x.id === id);
       if (!g) return;
-      const firstName = prompt('First name (used to address messages)', g.firstName || ''); if (firstName === null) return;
-      const lastName = prompt('Last name', g.lastName || ''); if (lastName === null) return;
-      const phone = prompt('Mobile (with country code)', g.phone); if (phone === null) return;
-      const notes = prompt('Note', g.notes || ''); if (notes === null) return;
+      editingGuestId = id;
+      for (const [el, field] of Object.entries(GUEST_FIELDS)) {
+        document.getElementById(el).value = g[field] || '';
+      }
+      updateGreetingPreview();
+      const modal = document.getElementById('guestModal');
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      document.getElementById('gfFirst').focus();
+    }
+
+    function closeGuestForm() {
+      const modal = document.getElementById('guestModal');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+      editingGuestId = null;
+    }
+
+    // Show exactly how the invite will open, so a wrong first name is obvious
+    // before it is sent rather than after.
+    function updateGreetingPreview() {
+      const first = document.getElementById('gfFirst').value.trim();
+      document.getElementById('gfPreview').textContent = first
+        ? `Message will start: \u201cHello ${first}, ...\u201d`
+        : 'No first name - this guest cannot be invited until one is set.';
+    }
+
+    async function saveGuestForm() {
+      if (!editingGuestId) return;
+      const v = {};
+      for (const [el, field] of Object.entries(GUEST_FIELDS)) v[field] = document.getElementById(el).value.trim();
+      if (!v.firstName) { showToast('A first name is required', 'error'); document.getElementById('gfFirst').focus(); return; }
+      if (digits(v.phone).length < 8) { showToast('Enter a mobile number with country code', 'error'); document.getElementById('gfPhone').focus(); return; }
+      const btn = document.getElementById('gfSave');
+      btn.disabled = true;
       try {
         await apiFetch('/api/admin/guests', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, firstName: firstName.trim(), lastName: lastName.trim(),
-                                 phone: phone.trim(), waNumber: digits(phone), notes: notes.trim() }),
+          body: JSON.stringify({ id: editingGuestId, ...v, waNumber: digits(v.phone) }),
         });
         showToast('Saved', 'success');
+        closeGuestForm();
         loadGuests();
       } catch (err) {
-        if (err.message !== 'Unauthorized') showToast('Could not save', 'error');
-      }
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not save', 'error');
+      } finally { btn.disabled = false; }
     }
+
+    function deleteFromForm() {
+      const id = editingGuestId;
+      if (!id) return;
+      closeGuestForm();
+      deleteGuest(id);
+    }
+
+    document.getElementById('gfFirst').addEventListener('input', updateGreetingPreview);
+    document.addEventListener('keydown', (e) => {
+      const open = !document.getElementById('guestModal').classList.contains('hidden');
+      if (!open) return;
+      if (e.key === 'Escape') closeGuestForm();
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); saveGuestForm(); }
+    });
 
     document.getElementById('qaPhone').addEventListener('keydown', e => { if (e.key === 'Enter') quickAdd(); });
     document.getElementById('qaFirst').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaLast').focus(); });

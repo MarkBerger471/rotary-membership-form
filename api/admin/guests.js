@@ -134,8 +134,23 @@ module.exports = async (req, res) => {
       return res.json({ success: true, guest: g });
     }
 
+    // Guests are contacts pulled in from a phone, not a record of anything the
+    // club decided, so removing them for real is right - particularly undoing a
+    // bulk import. Archiving stays for "not inviting them just now".
     if (req.method === 'DELETE') {
-      return res.status(405).json({ error: 'Guests are archived, not deleted. Send status: "archived" instead.' });
+      const id = req.query && req.query.id;
+      const source = req.query && req.query.source;
+      if (!id && !source) return res.status(400).json({ error: 'Pass id or source' });
+
+      const list = await getGuests();
+      const before = list.length;
+      const kept = id
+        ? list.filter(g => g.id !== id)
+        : list.filter(g => (g.source || 'manual') !== source);
+      if (id && kept.length === before) return res.status(404).json({ error: 'Guest not found' });
+
+      await kv.set(KEY, kept);
+      return res.json({ success: true, removed: before - kept.length, remaining: kept.length });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
