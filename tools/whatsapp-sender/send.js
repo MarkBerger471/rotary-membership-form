@@ -37,6 +37,9 @@ const MIN_GAP_MS = 18000;
 const MAX_GAP_MS = 42000;
 const MAX_PER_RUN = Number(process.env.MAX_PER_RUN || 40);
 const POLL_MS = 15000;
+// A short pause between the images of one message so WhatsApp groups them as a
+// set rather than treating each as a separate send.
+const IMAGE_GAP_MS = 1500;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -86,6 +89,15 @@ function chatIdFor(guest) {
   return digits ? `${digits}@c.us` : null;
 }
 
+// The queue now carries an ordered imageUrls array; older entries may still
+// carry a single imageUrl. Read the array, fall back to the old field.
+function imageUrlsOf(queued) {
+  if (!queued) return [];
+  if (Array.isArray(queued.imageUrls)) return queued.imageUrls.filter(Boolean);
+  if (queued.imageUrl) return [queued.imageUrl];
+  return [];
+}
+
 async function sendOne(client, guest) {
   const chatId = chatIdFor(guest);
   if (!chatId) throw new Error('no usable number');
@@ -95,12 +107,32 @@ async function sendOne(client, guest) {
   const registered = await client.isRegisteredUser(chatId);
   if (!registered) throw new Error('not a WhatsApp number');
 
-  const media = await fetchMedia(guest.queued.imageUrl);
-  if (media) {
-    await client.sendMessage(chatId, media, { caption: guest.queued.text });
-  } else {
-    await client.sendMessage(chatId, guest.queued.text);
+  const text = guest.queued.text;
+  const urls = imageUrlsOf(guest.queued);
+
+  if (!urls.length) {
+    await client.sendMessage(chatId, text);
+    return;
   }
+
+  // whatsapp-web.js has no single album call, so the images go one at a time
+  // with a short gap so WhatsApp groups them. The message text rides as the
+  // caption on the FIRST image only; the rest go without a caption. A single
+  // image that fails to fetch is skipped rather than sinking the whole message.
+  let captioned = false;
+  for (const url of urls) {
+    const media = await fetchMedia(url);
+    if (!media) continue;
+    if (!captioned) {
+      await client.sendMessage(chatId, media, { caption: text });
+      captioned = true;
+    } else {
+      await sleep(IMAGE_GAP_MS);
+      await client.sendMessage(chatId, media);
+    }
+  }
+  // If every image failed to fetch, the guest still gets the message text.
+  if (!captioned) await client.sendMessage(chatId, text);
 }
 
 async function drain(client) {
@@ -112,7 +144,8 @@ async function drain(client) {
   for (const guest of queue.slice(0, MAX_PER_RUN)) {
     const who = guest.name || guest.waNumber;
     if (DRY) {
-      log(`WOULD SEND to ${who}${guest.queued.imageUrl ? ' [with image]' : ''}`);
+      const imgs = imageUrlsOf(guest.queued);
+      log(`WOULD SEND to ${who}${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
       log('   ' + guest.queued.text.replace(/\n/g, '\n   '));
       continue;
     }

@@ -18,6 +18,19 @@ async function getGuests() {
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
 const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'notes', 'company'];
 
+// A queued message used to carry a single imageUrl; it now carries an ordered
+// imageUrls array. Accept either shape and always store an array, so a lone
+// imageUrl becomes a one-element array, nothing becomes [], and anything queued
+// in the old shape still sends. Capped so a message never floods with photos.
+const MAX_QUEUE_IMAGES = 10;
+function normaliseImageUrls(q) {
+  const out = [];
+  const push = (u) => { const s = String(u == null ? '' : u).trim(); if (s) out.push(s); };
+  if (q && Array.isArray(q.imageUrls)) q.imageUrls.forEach(push);
+  else if (q && q.imageUrl) push(q.imageUrl);
+  return out.slice(0, MAX_QUEUE_IMAGES);
+}
+
 // Which language to write to them in, and how to address them. Thai guests are
 // normally addressed as "Khun Somchai" - by the first name, with the honorific
 // in front - so this is a prefix to the greeting, not a replacement for it.
@@ -150,7 +163,7 @@ module.exports = async (req, res) => {
       // coerced by the loop above.
       if (b.queued !== undefined) {
         g.queued = (b.queued && typeof b.queued === 'object' && b.queued.text)
-          ? { text: String(b.queued.text), imageUrl: String(b.queued.imageUrl || ''), queuedAt: new Date().toISOString() }
+          ? { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), queuedAt: new Date().toISOString() }
           : null;
         if (g.queued) delete g.queueError;
       }

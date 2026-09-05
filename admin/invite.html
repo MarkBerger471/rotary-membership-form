@@ -91,24 +91,17 @@
              onclick="document.getElementById('imgInput').click()">
           <div id="dropIdle">
             <svg class="w-8 h-8 mx-auto mb-2 text-white/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <p class="text-sm text-white/60">Drop an invite image here, or click to choose one</p>
-            <p class="text-[11px] text-white/30 mt-0.5">JPEG, PNG or WebP. Sent as a real photo with your message as the caption - no link.</p>
+            <p class="text-sm text-white/60">Drop invite images here, or click to choose them</p>
+            <p class="text-[11px] text-white/30 mt-0.5">One or more JPEG, PNG or WebP. Sent as real photos, your message as the caption on the first - no link.</p>
           </div>
           <div id="dropBusy" class="hidden text-sm text-white/60">Uploading...</div>
-          <div id="dropDone" class="hidden flex items-center gap-3 justify-center">
-            <img id="dropThumb" alt="" class="w-16 h-16 rounded-lg object-cover" />
-            <div class="text-left">
-              <p id="dropName" class="text-sm text-white/80"></p>
-              <button onclick="event.stopPropagation(); clearInviteImage()" class="text-[11px] text-white/40 hover:text-red-300">remove</button>
-            </div>
-          </div>
+          <div id="dropThumbs" class="hidden flex flex-wrap gap-2 justify-center items-center"></div>
         </div>
-        <input type="file" id="imgInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="pickInviteImage(this.files && this.files[0])" />
+        <input type="file" id="imgInput" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="pickInviteImages(this.files)" />
 
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50 flex-1 min-w-[200px]">Or use a meeting from the planner
             <select id="meetingSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyMeeting()"></select></label>
-          <input type="hidden" id="msgLink" />
 
           <label class="text-xs text-white/50 flex-1 min-w-[200px]">Website link <span class="text-white/30">(optional)</span>
             <input type="url" id="webLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
@@ -150,20 +143,13 @@
         <div id="ovDrop" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
              onclick="document.getElementById('ovImgInput').click()">
           <div id="ovDropIdle">
-            <p class="text-sm text-white/60">Drop the programme slide here, or click to choose one</p>
-            <p class="text-[11px] text-white/30 mt-0.5">Sent as a real photo with the text as its caption.</p>
+            <p class="text-sm text-white/60">Drop programme slides here, or click to choose them</p>
+            <p class="text-[11px] text-white/30 mt-0.5">One or more images, sent as real photos with the text as the caption on the first.</p>
           </div>
           <div id="ovDropBusy" class="hidden text-sm text-white/60">Uploading...</div>
-          <div id="ovDropDone" class="hidden flex items-center gap-3 justify-center">
-            <img id="ovThumb" alt="" class="w-16 h-16 rounded-lg object-cover" />
-            <div class="text-left">
-              <p id="ovName" class="text-sm text-white/80"></p>
-              <button onclick="event.stopPropagation(); clearOvImage()" class="text-[11px] text-white/40 hover:text-red-300">remove</button>
-            </div>
-          </div>
+          <div id="ovThumbs" class="hidden flex flex-wrap gap-2 justify-center items-center"></div>
         </div>
-        <input type="file" id="ovImgInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="pickOvImage(this.files && this.files[0])" />
-        <input type="hidden" id="ovImage" />
+        <input type="file" id="ovImgInput" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="pickOvImages(this.files)" />
 
         <div class="flex flex-wrap gap-3 items-end">
           <label class="text-xs text-white/50">Meetings to list
@@ -242,6 +228,12 @@
 
     const SELECTION_KEY = 'rcbd:invite:selection:v1';
     let guests = [], members = [], selected = new Set(), sentThisRound = new Set();
+
+    // Each sender holds an ordered list of uploaded image URLs rather than one.
+    // The two lists are kept entirely separate. Capped so a message never turns
+    // into a flood of photos.
+    const MAX_IMAGES = 10;
+    let inviteImages = [], overviewImages = [];
 
     // The same people usually get invited each time, so last round's ticks come
     // back as the starting point rather than an empty list.
@@ -378,13 +370,13 @@
     // WhatsApp, which is the only way to attach a real image and send without
     // pressing send for each person.
     async function queue(people) {
-      const link = document.getElementById('msgLink').value.trim();
+      const imageUrls = inviteImages.slice();
       let ok = 0, failed = 0;
       for (const p of people) {
         try {
           await apiFetch('/api/admin/guests', {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: p.id, queued: { text: buildMessage(p), imageUrl: link } }),
+            body: JSON.stringify({ id: p.id, queued: { text: buildMessage(p), imageUrls } }),
           });
           ok++;
         } catch { failed++; }
@@ -421,7 +413,7 @@
         localStorage.setItem(TEMPLATE_KEY, JSON.stringify({
           en: document.getElementById('msgEn').value,
           de: document.getElementById('msgDe').value,
-          link: document.getElementById('msgLink').value,
+          images: inviteImages,
           web: document.getElementById('webLink').value,
           variant: document.getElementById('variantSelect').value,
           rolling: document.getElementById('rollingToggle').checked,
@@ -435,7 +427,10 @@
       buildVariantList();
       const rolling = !saved || saved.rolling !== false;
       document.getElementById('rollingToggle').checked = rolling;
-      document.getElementById('msgLink').value = (saved && saved.link) || '';
+      // Accept the new images array, and fall back to the single `link` an
+      // older visit may have saved, so a stored image is not lost on upgrade.
+      inviteImages = (saved && Array.isArray(saved.images)) ? saved.images.slice()
+                   : (saved && saved.link) ? [saved.link] : [];
       document.getElementById('webLink').value = (saved && saved.web) || '';
       if (rolling) {
         const i = rollingIndex();
@@ -447,7 +442,7 @@
         document.getElementById('msgEn').value = (saved && saved.en) || DEFAULT_EN;
         document.getElementById('msgDe').value = (saved && saved.de) || DEFAULT_DE;
       }
-      if (saved && saved.link) show('dropDone');
+      renderInviteImages();
     })();
 
     // ---------- monthly overview ----------
@@ -581,41 +576,30 @@
         : 'Text only - no programme will be included.');
     }
 
-    // ---- overview image, kept separate from the invite image
-    async function pickOvImage(file) {
-      if (!file) return;
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showToast('JPEG, PNG or WebP only', 'error'); return; }
-      ovShow('ovDropBusy');
-      try {
-        const dataUrl = await new Promise((res, rej) => {
-          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
-        });
-        const shrunk = await shrink(dataUrl);
-        const out = await apiFetch('/api/invite-image', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: shrunk.split(',')[1], mimeType: 'image/jpeg', name: file.name }),
-        });
-        document.getElementById('ovImage').value = location.origin + '/api/invite-image?id=' + out.id;
-        document.getElementById('ovThumb').src = shrunk;
-        document.getElementById('ovName').textContent = file.name;
-        ovShow('ovDropDone');
-        saveOverview();
-        showToast('Programme image uploaded', 'success');
-      } catch (err) {
-        ovShow('ovDropIdle');
-        if (err.message !== 'Unauthorized') showToast(err.message || 'Upload failed', 'error');
-      }
+    // ---- overview images, kept entirely separate from the invite images
+    async function pickOvImages(files) {
+      await addImagesTo(overviewImages, files, {
+        busy: () => ovShow('ovDropBusy'),
+        render: renderOverviewImages,
+        save: saveOverview,
+      });
+      document.getElementById('ovImgInput').value = '';
     }
 
     function ovShow(which) {
-      ['ovDropIdle', 'ovDropBusy', 'ovDropDone'].forEach(id => {
+      ['ovDropIdle', 'ovDropBusy', 'ovThumbs'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== which);
       });
     }
 
-    function clearOvImage() {
-      document.getElementById('ovImage').value = '';
-      ovShow('ovDropIdle');
+    function renderOverviewImages() {
+      renderImageList('ovThumbs', overviewImages, 'removeOverviewImage');
+      ovShow(overviewImages.length ? 'ovThumbs' : 'ovDropIdle');
+    }
+
+    function removeOverviewImage(i) {
+      overviewImages.splice(i, 1);
+      renderOverviewImages();
       saveOverview();
     }
 
@@ -629,8 +613,8 @@
         ev.preventDefault(); zone.classList.remove('border-rotary-gold');
       }));
       zone.addEventListener('drop', (ev) => {
-        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
-        if (f) pickOvImage(f);
+        const files = ev.dataTransfer && ev.dataTransfer.files;
+        if (files && files.length) pickOvImages(files);
       });
     })();
 
@@ -641,13 +625,13 @@
       const btn = document.getElementById('ovSendBtn');
       btn.disabled = true;
       try {
-        const img = document.getElementById('ovImage').value.trim();
+        const imageUrls = overviewImages.slice();
         let ok = 0, failed = 0;
         for (const p of people) {
           try {
             await apiFetch('/api/admin/guests', {
               method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: p.id, queued: { text: buildOverview(p), imageUrl: img } }),
+              body: JSON.stringify({ id: p.id, queued: { text: buildOverview(p), imageUrls } }),
             });
             ok++;
           } catch { failed++; }
@@ -663,7 +647,7 @@
         localStorage.setItem(OV_KEY, JSON.stringify({
           msg: document.getElementById('ovMsg').value,
           de: document.getElementById('ovMsgDe').value,
-          image: document.getElementById('ovImage').value,
+          images: overviewImages,
           count: document.getElementById('ovCount').value,
           variant: document.getElementById('ovVariant').value,
           rolling: document.getElementById('ovRolling').checked,
@@ -685,8 +669,10 @@
       const rolling = !saved || saved.rolling !== false;
       document.getElementById('ovRolling').checked = rolling;
       document.getElementById('ovCount').value = (saved && saved.count) || '0';
-      document.getElementById('ovImage').value = (saved && saved.image) || '';
-      if (saved && saved.image) ovShow('ovDropDone');
+      // New images array; fall back to a single `image` from an older visit.
+      overviewImages = (saved && Array.isArray(saved.images)) ? saved.images.slice()
+                     : (saved && saved.image) ? [saved.image] : [];
+      renderOverviewImages();
       if (rolling) {
         const i = ovRollingIndex();
         document.getElementById('ovVariant').value = String(i);
@@ -750,31 +736,81 @@
       return n % VARIANTS.length;
     }
 
-    // ---------- invite image ----------
-    async function pickInviteImage(file) {
-      if (!file) return;
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showToast('JPEG, PNG or WebP only', 'error'); return; }
-      show('dropBusy');
-      try {
-        const dataUrl = await new Promise((res, rej) => {
-          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
-        });
-        const shrunk = await shrink(dataUrl);
-        const out = await apiFetch('/api/invite-image', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: shrunk.split(',')[1], mimeType: 'image/jpeg', name: file.name }),
-        });
-        const url = location.origin + '/api/invite-image?id=' + out.id;
-        document.getElementById('msgLink').value = url;
-        document.getElementById('dropThumb').src = shrunk;
-        document.getElementById('dropName').textContent = file.name;
-        show('dropDone');
-        saveTemplate(); renderTargets();
-        showToast('Image uploaded', 'success');
-      } catch (err) {
-        show('dropIdle');
-        if (err.message !== 'Unauthorized') showToast(err.message || 'Upload failed', 'error');
+    // ---------- images (shared by both senders) ----------
+    // Shrink one picked file and upload it via the existing single-image
+    // endpoint, returning the public URL it is served from.
+    async function uploadInviteImage(file) {
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
+      });
+      const shrunk = await shrink(dataUrl);
+      const out = await apiFetch('/api/invite-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: shrunk.split(',')[1], mimeType: 'image/jpeg', name: file.name }),
+      });
+      return location.origin + '/api/invite-image?id=' + out.id;
+    }
+
+    // Append picked/dropped files to an ordered image list, one upload per file,
+    // honouring the per-message cap, then re-render and persist. A single bad
+    // file is reported and skipped; the good ones still go in.
+    async function addImagesTo(list, files, { busy, render, save }) {
+      const chosen = Array.from(files || []).filter(Boolean);
+      if (!chosen.length) return;
+      const room = MAX_IMAGES - list.length;
+      if (room <= 0) { showToast(`Up to ${MAX_IMAGES} images per message`, 'error'); return; }
+      if (chosen.length > room) showToast(`Only ${room} more image${room === 1 ? '' : 's'} fit (max ${MAX_IMAGES})`, 'error');
+      busy();
+      let added = 0;
+      for (const file of chosen.slice(0, room)) {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showToast(`${file.name}: JPEG, PNG or WebP only`, 'error'); continue; }
+        try {
+          list.push(await uploadInviteImage(file));
+          added++;
+        } catch (err) {
+          if (err.message !== 'Unauthorized') showToast(err.message || `Could not upload ${file.name}`, 'error');
+        }
       }
+      render(); save();
+      if (added) showToast(added === 1 ? 'Image uploaded' : `${added} images uploaded`, 'success');
+    }
+
+    // A row of thumbnails, each with its own remove button, then a count line.
+    // The thumbnail src is the public image URL itself, so it survives a reload
+    // without keeping the (large) image data in localStorage.
+    function renderImageList(containerId, list, removeFn) {
+      const wrap = document.getElementById(containerId);
+      if (!wrap) return;
+      if (!list.length) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = list.map((url, i) => `
+        <div class="relative">
+          <img src="${escapeHtml(url)}" alt="" class="w-16 h-16 rounded-lg object-cover bg-white/5" />
+          <button type="button" title="Remove" onclick="event.stopPropagation(); ${removeFn}(${i})"
+            class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/70 text-white text-xs leading-none flex items-center justify-center hover:bg-red-500">&times;</button>
+        </div>`).join('')
+        + `<div class="w-16 h-16 rounded-lg border-2 border-dashed border-white/15 flex items-center justify-center text-white/40 text-2xl leading-none">+</div>`
+        + `<p class="basis-full w-full text-[11px] text-white/40 mt-1">${list.length} image${list.length === 1 ? '' : 's'} &middot; click &times; to remove, or the box to add more</p>`;
+    }
+
+    // ---------- invite images ----------
+    async function pickInviteImages(files) {
+      await addImagesTo(inviteImages, files, {
+        busy: () => show('dropBusy'),
+        render: () => { renderInviteImages(); renderTargets(); },
+        save: saveTemplate,
+      });
+      document.getElementById('imgInput').value = '';
+    }
+
+    function renderInviteImages() {
+      renderImageList('dropThumbs', inviteImages, 'removeInviteImage');
+      show(inviteImages.length ? 'dropThumbs' : 'dropIdle');
+    }
+
+    function removeInviteImage(i) {
+      inviteImages.splice(i, 1);
+      renderInviteImages();
+      saveTemplate(); renderTargets();
     }
 
     // A phone photo is several megabytes; a preview card needs nothing like it.
@@ -794,15 +830,9 @@
     }
 
     function show(which) {
-      ['dropIdle', 'dropBusy', 'dropDone'].forEach(id => {
+      ['dropIdle', 'dropBusy', 'dropThumbs'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== which);
       });
-    }
-
-    function clearInviteImage() {
-      document.getElementById('msgLink').value = '';
-      show('dropIdle');
-      saveTemplate(); renderTargets();
     }
 
     (function wireDropZone() {
@@ -814,8 +844,8 @@
         ev.preventDefault(); zone.classList.remove('border-rotary-gold');
       }));
       zone.addEventListener('drop', (ev) => {
-        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
-        if (f) pickInviteImage(f);
+        const files = ev.dataTransfer && ev.dataTransfer.files;
+        if (files && files.length) pickInviteImages(files);
       });
     })();
 
