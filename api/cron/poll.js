@@ -1,3 +1,4 @@
+const { kv } = require('@vercel/kv');
 const apps = require('../../lib/applications');
 const { getSettings, activeRecipients, recipientName } = require('../../lib/settings');
 const mailer = require('../../lib/mailer');
@@ -34,6 +35,15 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('Poll cron could not read state:', err);
     return res.status(500).json({ ok: false, error: err.message });
+  }
+
+  // Upstash drops a database that sees no traffic for 14 days. This runs daily
+  // and already reads KV; one write makes that explicit, which is all the
+  // separate keepalive cron did - weekly, and at the cost of a function slot.
+  try {
+    await kv.set('keepalive:last', Date.now());
+  } catch (err) {
+    console.error('keepalive write failed:', err);
   }
 
   const transporter = mailer.createTransporter();
