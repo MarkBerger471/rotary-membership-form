@@ -230,6 +230,9 @@
             <button id="chWhatsapp" onclick="setChannel('whatsapp')" class="px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 transition-colors">
               <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z"/></svg>
               WhatsApp</button>
+            <button id="chLinkedin" onclick="setChannel('linkedin')" class="px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 transition-colors border-l border-white/10">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM9 9h3.8v1.7h.06c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.5c0-1.31-.02-3-1.9-3-1.9 0-2.2 1.42-2.2 2.9V21H9z"/></svg>
+              LinkedIn</button>
             <button id="chLine" onclick="setChannel('line')" class="px-3 py-1.5 text-xs font-bold flex items-center gap-1.5 transition-colors border-l border-white/10">
               <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5s5.3-3.1 7.2-5.3c1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3zM8.3 13H6.6a.4.4 0 01-.4-.4V9.2c0-.2.2-.4.4-.4s.4.2.4.4v3h1.3c.2 0 .4.2.4.4s-.2.4-.4.4zm1.7-.4c0 .2-.2.4-.4.4s-.4-.2-.4-.4V9.2c0-.2.2-.4.4-.4s.4.2.4.4v3.4zm4.1 0c0 .2-.1.3-.3.4h-.1c-.1 0-.3-.1-.3-.2l-1.7-2.3v2.1c0 .2-.2.4-.4.4s-.4-.2-.4-.4V9.2c0-.2.1-.3.3-.4h.1c.1 0 .3.1.3.2l1.7 2.3V9.2c0-.2.2-.4.4-.4s.4.2.4.4v3.4zm2.8-2.1c.2 0 .4.2.4.4s-.2.4-.4.4h-1.3v.9h1.3c.2 0 .4.2.4.4s-.2.4-.4.4h-1.7a.4.4 0 01-.4-.4V9.2c0-.2.2-.4.4-.4h1.7c.2 0 .4.2.4.4s-.2.4-.4.4h-1.3v.9h1.3z"/></svg>
               LINE</button>
@@ -243,6 +246,38 @@
       <div id="targetList" class="divide-y divide-white/5 max-h-[560px] overflow-y-auto"></div>
     </div>
   </main>
+
+  <!-- LinkedIn: written here, sent by Mark. One guest at a time. -->
+  <div id="liModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70"
+       onclick="if (event.target === this) closeLinkedIn()">
+    <div class="glass-card rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="font-bold text-lg">Send on LinkedIn</h3>
+          <p id="liProgress" class="text-white/40 text-xs mt-0.5">&nbsp;</p>
+        </div>
+        <button onclick="closeLinkedIn()" class="text-white/40 hover:text-white transition-colors" title="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-3">
+        <div>
+          <div id="liName" class="font-semibold"></div>
+          <a id="liLink" href="#" target="_blank" rel="noopener" class="text-[11px] text-rotary-sky hover:text-rotary-gold break-all"></a>
+        </div>
+        <textarea id="liText" readonly rows="7"
+          class="glass-input w-full px-3 py-2 rounded-lg text-sm leading-relaxed"></textarea>
+        <p class="text-[11px] text-white/35">LinkedIn has no way to send this for you, and automating it risks the account. So: the text goes on your clipboard, their profile opens, you press Message and paste.</p>
+      </div>
+      <div class="px-6 py-4 border-t border-white/10 flex justify-between gap-2 flex-wrap">
+        <button onclick="skipLinkedIn()" class="px-4 py-2 rounded-lg text-sm font-medium text-white/40 hover:text-white transition-colors">Skip</button>
+        <div class="flex gap-2">
+          <button id="liOpenBtn" onclick="copyAndOpenLinkedIn()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-bold">Copy &amp; open profile</button>
+          <button onclick="markLinkedInSent()" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold">Sent &ndash; next</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="/admin/admin.js"></script>
   <script>
@@ -319,6 +354,18 @@
         pace: 'about one every 20-40 seconds so the account is not flagged',
         reach: (p) => !!p.waNumber,
       },
+      // LinkedIn has no sender and never will: automating it is against
+      // LinkedIn's terms, and the account it would risk is Mark's professional
+      // identity. The page prepares each message and opens the right profile;
+      // he presses send himself, which is the one version of this that cannot
+      // get him banned - because it is genuinely him.
+      linkedin: {
+        label: 'LinkedIn', on: 'on LinkedIn', sender: 'you',
+        needs: 'no LinkedIn address',
+        pace: 'one at a time - the text goes on your clipboard and their profile opens, you press send',
+        reach: (p) => !!(p.linkedinUrl || '').trim(),
+        byHand: true,
+      },
       line: {
         label: 'LINE', on: 'on LINE', sender: 'the LINE sender',
         needs: 'no LINE name',
@@ -335,9 +382,11 @@
       renderTargets();
     }
 
+    const CHANNEL_BUTTON = { whatsapp: 'chWhatsapp', line: 'chLine', linkedin: 'chLinkedin' };
+
     function paintChannel() {
       Object.keys(CHANNELS).forEach((key) => {
-        const btn = document.getElementById(key === 'whatsapp' ? 'chWhatsapp' : 'chLine');
+        const btn = document.getElementById(CHANNEL_BUTTON[key]);
         if (!btn) return;
         const on = key === channel;
         btn.classList.toggle('bg-rotary-gold', on);
@@ -390,6 +439,7 @@
                        honorific: x.honorific || '', language: x.language || '',
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
                        lineName: (x.lineName || '').trim(),
+                       linkedinUrl: (x.linkedinUrl || '').trim(),
                        note: x.notes || '', invites: (x.invites || []).length,
                        queued: x.queued ? (x.queued.channel || 'whatsapp') : '',
                        queueError: x.queueError || '' }));
@@ -536,12 +586,13 @@
               : `<div class="text-[11px] text-white/35 truncate">
                    &ldquo;${escapeHtml(buildFor(p).split('\n')[0].slice(0, 46))}...&rdquo;
                    <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span>
-                   ${channel === 'line' ? `<span class="text-white/25">&middot; ${escapeHtml(p.lineName)}</span>` : ''}</div>`}
+                   ${channel === 'line' ? `<span class="text-white/25">&middot; ${escapeHtml(p.lineName)}</span>` : ''}
+                   ${channel === 'linkedin' ? `<span class="text-white/25">&middot; ${escapeHtml((p.linkedinUrl || '').replace(/^https:\/\/www\.linkedin\.com\/in\//, ''))}</span>` : ''}</div>`}
           </div>
           ${blocked ? '' : `
           <button onclick="queueOne('${p.id}')" title="Send ${ch.label} message to ${escapeHtml(p.name || '')}"
              class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="${channel === 'line' ? LINE_GLYPH : WA_GLYPH}"/></svg>
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="${GLYPH[channel] || WA_GLYPH}"/></svg>
             ${p.queued === channel ? 'Queued' : done ? 'Sent' : 'Send'}
           </button>`}
         </div>`;
@@ -554,6 +605,8 @@
     // markup above stays readable.
     const WA_GLYPH = 'M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z';
     const LINE_GLYPH = 'M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5s5.3-3.1 7.2-5.3c1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3z';
+    const LI_GLYPH = 'M4.98 3.5a2.5 2.5 0 11-.02 5 2.5 2.5 0 01.02-5zM3 9h4v12H3zM9 9h3.8v1.7h.06c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.5c0-1.31-.02-3-1.9-3-1.9 0-2.2 1.42-2.2 2.9V21H9z';
+    const GLYPH = { whatsapp: WA_GLYPH, line: LINE_GLYPH, linkedin: LI_GLYPH };
 
     function selectAllShown(on) {
       const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
@@ -587,9 +640,84 @@
       return { ok, failed };
     }
 
+    // ---- LinkedIn, one guest at a time, sent by hand
+
+    let liQueue = [], liAt = 0;
+
+    function startLinkedIn(people) {
+      liQueue = people.slice();
+      liAt = 0;
+      const modal = document.getElementById('liModal');
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      showLinkedIn();
+    }
+
+    function showLinkedIn() {
+      const p = liQueue[liAt];
+      if (!p) { closeLinkedIn(); return; }
+      document.getElementById('liProgress').textContent = `${liAt + 1} of ${liQueue.length}`;
+      document.getElementById('liName').textContent = p.name || '(unnamed)';
+      const link = document.getElementById('liLink');
+      link.href = p.linkedinUrl;
+      link.textContent = p.linkedinUrl.replace(/^https:\/\/www\.linkedin\.com\//, '');
+      document.getElementById('liText').value = buildFor(p);
+      document.getElementById('liOpenBtn').textContent = 'Copy & open profile';
+    }
+
+    function closeLinkedIn() {
+      const modal = document.getElementById('liModal');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+      liQueue = []; liAt = 0;
+      renderTargets();
+    }
+
+    function copyAndOpenLinkedIn() {
+      const p = liQueue[liAt];
+      if (!p) return;
+      const text = document.getElementById('liText').value;
+      // Written by a button press, so the clipboard is allowed. The textarea
+      // is the fallback for a browser that refuses: it is on screen and
+      // selectable, so nothing is lost either way.
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+        else { const t = document.getElementById('liText'); t.focus(); t.select(); document.execCommand('copy'); }
+        document.getElementById('liOpenBtn').textContent = 'Copied - opening...';
+      } catch { showToast('Could not copy - select the text and copy it', 'error'); }
+      window.open(p.linkedinUrl, '_blank', 'noopener');
+    }
+
+    // Only what Mark says went out is recorded. Opening a profile is not
+    // sending, and an invite history that counts openings is worse than none.
+    async function markLinkedInSent() {
+      const p = liQueue[liAt];
+      if (!p) return;
+      try {
+        await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: p.id, invited: 'linkedin' }),
+        });
+        sentThisRound.add(personId(p));
+      } catch { showToast('Sent, but it could not be recorded', 'error'); }
+      liAt++;
+      if (liAt >= liQueue.length) {
+        showToast(`${liQueue.length} sent on LinkedIn`, 'success');
+        closeLinkedIn();
+        loadPeople();
+        return;
+      }
+      showLinkedIn();
+    }
+
+    function skipLinkedIn() {
+      liAt++;
+      if (liAt >= liQueue.length) { closeLinkedIn(); return; }
+      showLinkedIn();
+    }
+
     async function queueOne(guestId) {
       const p = guests.find(g => g.id === guestId);
       if (!p) return;
+      if (chan().byHand) { startLinkedIn([p]); return; }
       const { ok } = await queue([p]);
       showToast(ok ? `${p.name} queued` : 'Could not queue', ok ? 'success' : 'error');
       watchQueue();
@@ -603,6 +731,8 @@
         showToast('The free text box is empty', 'error'); return;
       }
       const mode = PANELS[activeMode] || PANELS.invite;
+      // Nothing is queued for LinkedIn - there is no sender to drain it.
+      if (ch.byHand) { startLinkedIn(people); return; }
       if (!confirm(`Send ${mode.verb} ${ch.on} to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
                  + `They are queued now and ${ch.sender} on your Mac delivers them, `
                  + ch.pace + '.')) return;

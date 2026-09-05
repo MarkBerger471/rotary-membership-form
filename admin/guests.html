@@ -81,6 +81,8 @@
           <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">LINE name <span class="text-white/30">(optional)</span>
           <input id="qaLine" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="as it appears in LINE" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[160px]">LinkedIn <span class="text-white/30">(optional)</span>
+          <input id="qaLinkedin" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="linkedin.com/in/..." /></label>
         <div class="text-xs text-white/50">Language<div class="flex items-center gap-2 mt-1"><span class="text-xs text-white/60">EN</span><div id="qaTrack" class="toggle-track toggle-sm" onclick="toggleLang('qa'); "><div class="toggle-thumb"></div></div><span class="text-xs text-white/60">DE</span></div></div>
         <div class="text-xs text-white/50">Thai<label class="flex items-center gap-2 mt-1 cursor-pointer"><input type="checkbox" id="qaThai" class="accent-rotary-gold w-4 h-4" onchange="" /><span class="text-xs text-white/60">Thai &ndash; address as Khun</span></label></div>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">Note (optional)
@@ -158,6 +160,9 @@
         <label class="text-xs text-white/50">LINE name
           <input id="gfLine" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="as it appears in LINE" />
           <span class="text-[11px] text-white/35">exactly as the chat is titled - the sender checks it before it types</span></label>
+        <label class="text-xs text-white/50">LinkedIn
+          <input id="gfLinkedin" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="linkedin.com/in/..." />
+          <span class="text-[11px] text-white/35">their profile - paste the link, the tracking part is dropped</span></label>
         <label class="text-xs text-white/50">Company
           <input id="gfCompany" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <div class="text-xs text-white/50">Language<div class="flex items-center gap-2 mt-1"><span class="text-xs text-white/60">EN</span><div id="gfTrack" class="toggle-track toggle-sm" onclick="toggleLang('gf'); updateGreetingPreview()"><div class="toggle-thumb"></div></div><span class="text-xs text-white/60">DE</span></div></div>
@@ -204,7 +209,7 @@
     function renderGuests() {
       const q = (document.getElementById('guestSearch').value || '').trim().toLowerCase();
       const scope = guests.filter(g => showArchivedGuests ? g.status === 'archived' : g.status !== 'archived');
-      const list = q ? scope.filter(g => [g.name, g.phone, g.lineName, g.notes, g.company].some(v => (v || '').toLowerCase().includes(q))) : scope;
+      const list = q ? scope.filter(g => [g.name, g.phone, g.lineName, g.linkedinUrl, g.notes, g.company].some(v => (v || '').toLowerCase().includes(q))) : scope;
       list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
 
       const archived = guests.filter(g => g.status === 'archived').length;
@@ -254,6 +259,7 @@
           <div class="text-[11px] text-white/60">
             <a href="tel:${escapeHtml((g.phone || '').replace(/\s+/g, ''))}" class="hover:text-rotary-gold transition-colors">${escapeHtml(g.phone || '')}</a>
             ${g.lineName ? `<span class="text-white/30">${g.phone ? '&middot; ' : ''}</span><span class="text-[#06C755]/80">LINE</span> <span class="text-white/45">${escapeHtml(g.lineName)}</span>` : ''}
+            ${g.linkedinUrl ? `<span class="text-white/30">${g.phone || g.lineName ? '&middot; ' : ''}</span><a href="${escapeHtml(g.linkedinUrl)}" target="_blank" rel="noopener" class="text-[#0A66C2]/90 hover:text-rotary-gold">LinkedIn</a>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -267,19 +273,23 @@
       const name = [firstName, lastName].filter(Boolean).join(' ');
       const phone = document.getElementById('qaPhone').value.trim();
       const lineName = document.getElementById('qaLine').value.trim();
+      const linkedinUrl = document.getElementById('qaLinkedin').value.trim();
       const notes = document.getElementById('qaNotes').value.trim();
       if (!firstName) { showToast('A first name is required - messages are addressed by it', 'error'); return; }
-      // Either handle is enough: some guests Mark only has on LINE.
-      if (digits(phone).length < 8 && !lineName) { showToast('Add a mobile number or a LINE name', 'error'); return; }
+      // Any one way of reaching them is enough - some are only on LINE, some
+      // only on LinkedIn.
+      if (digits(phone).length < 8 && !lineName && !linkedinUrl) {
+        showToast('Add a mobile number, a LINE name or a LinkedIn address', 'error'); return;
+      }
       try {
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone), lineName,
+          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone), lineName, linkedinUrl,
             language: langOf('qa'), honorific: thaiOf('qa'), source: 'manual' }),
         });
         if (res.added) {
           showToast(name + ' added', 'success');
-          ['qaFirst','qaLast','qaPhone','qaLine','qaNotes'].forEach(id => document.getElementById(id).value = '');
+          ['qaFirst','qaLast','qaPhone','qaLine','qaLinkedin','qaNotes'].forEach(id => document.getElementById(id).value = '');
           document.getElementById('qaFirst').focus();
           loadGuests();
         } else {
@@ -444,7 +454,7 @@
     }
 
     let editingGuestId = null;
-    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfLine:'lineName', gfCompany:'company', gfNotes:'notes' };
+    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfLine:'lineName', gfLinkedin:'linkedinUrl', gfCompany:'company', gfNotes:'notes' };
 
     // The guest list is what this page is for; the two input panels start
     // folded so it is not pushed below the fold, and the choice is remembered.
@@ -516,7 +526,10 @@
       const v = {};
       for (const [el, field] of Object.entries(GUEST_FIELDS)) v[field] = document.getElementById(el).value.trim();
       if (!v.firstName) { showToast('A first name is required', 'error'); document.getElementById('gfFirst').focus(); return; }
-      if (digits(v.phone).length < 8 && !v.lineName) { showToast('Add a mobile number or a LINE name', 'error'); document.getElementById('gfPhone').focus(); return; }
+      if (digits(v.phone).length < 8 && !v.lineName && !v.linkedinUrl) {
+        showToast('Add a mobile number, a LINE name or a LinkedIn address', 'error');
+        document.getElementById('gfPhone').focus(); return;
+      }
       const btn = document.getElementById('gfSave');
       btn.disabled = true;
       try {

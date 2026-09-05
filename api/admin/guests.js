@@ -16,7 +16,22 @@ async function getGuests() {
 }
 
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
-const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'lineName', 'notes', 'company'];
+const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'lineName', 'linkedinUrl', 'notes', 'company'];
+
+// A LinkedIn address is stored as the profile it points at, whether it was
+// pasted as a full URL, a bare slug, or with the tracking rubbish LinkedIn
+// hangs off the end of a shared link. Anything that is not a LinkedIn profile
+// is dropped rather than kept as a link nobody can use - and a "javascript:"
+// or "data:" URL typed in here would otherwise end up as an href on the page.
+function toLinkedIn(input) {
+  const raw = String(input == null ? '' : input).trim();
+  if (!raw) return '';
+  const slug = (s) => String(s).split(/[?#]/)[0].replace(/\/+$/, '').trim();
+  const m = raw.match(/^(?:https?:\/\/)?(?:[a-z0-9-]+\.)?linkedin\.com\/in\/([^/?#]+)/i);
+  if (m) return 'https://www.linkedin.com/in/' + slug(m[1]);
+  if (/^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$/i.test(raw)) return 'https://www.linkedin.com/in/' + slug(raw);
+  return '';
+}
 
 // A guest can be reachable on WhatsApp, on LINE, or on both. The LINE name
 // is the display name exactly as it appears in Mark's chat list - the LINE
@@ -95,6 +110,7 @@ function normalise(input, source) {
     phone: String(input.phone || (wa ? '+' + wa : '')).trim(),
     waNumber: wa,
     lineName: String(input.lineName || '').trim(),
+    linkedinUrl: toLinkedIn(input.linkedinUrl),
     notes: String(input.notes || '').trim(),
     company: String(input.company || '').trim(),
     language: asLanguage(input.language, 'en'),
@@ -139,7 +155,7 @@ module.exports = async (req, res) => {
       const added = [], skipped = [];
       for (const raw of incoming) {
         const g = normalise(raw, b.source || raw.source);
-        if (!g.name || (!g.waNumber && !g.lineName)) { skipped.push({ name: g.name || '(no name)', reason: 'needs a name and either a number or a LINE name' }); continue; }
+        if (!g.name || (!g.waNumber && !g.lineName && !g.linkedinUrl)) { skipped.push({ name: g.name || '(no name)', reason: 'needs a name and a way to reach them - a number, a LINE name or a LinkedIn address' }); continue; }
         if (g.waNumber && seen.has(g.waNumber)) { skipped.push({ name: g.name, reason: 'already on the list' }); continue; }
         if (!g.waNumber && seenLine.has(g.lineName.toLowerCase())) { skipped.push({ name: g.name, reason: 'already on the list' }); continue; }
         if (g.waNumber) seen.add(g.waNumber);
@@ -161,6 +177,7 @@ module.exports = async (req, res) => {
       for (const f of EDITABLE) {
         if (Object.prototype.hasOwnProperty.call(b, f)) g[f] = String(b[f] || '').trim();
       }
+      if (b.linkedinUrl !== undefined) g.linkedinUrl = toLinkedIn(b.linkedinUrl);
       // Keep the parts and the display name in step whichever was edited.
       if (b.firstName !== undefined || b.lastName !== undefined) {
         g.firstName = looksLikeNumber(g.firstName) ? '' : g.firstName;
@@ -181,6 +198,12 @@ module.exports = async (req, res) => {
           // Queueing on a channel this guest cannot be reached on is a dead
           // letter: that channel's sender would skip them for ever and the page
           // would show "waiting for the sender" until someone noticed. Refuse.
+          // LinkedIn has no sender to drain a queue: those invitations are sent
+          // from the page, by hand, because automating LinkedIn is against its
+          // terms and risks the account. Queueing one would wait for ever.
+          if (String(b.queued.channel || '').toLowerCase() === 'linkedin') {
+            return res.status(400).json({ error: 'LinkedIn invites are sent from the page, not queued' });
+          }
           if (channel === 'line' && !g.lineName) return res.status(400).json({ error: 'No LINE name for this guest' });
           if (channel === 'whatsapp' && !g.waNumber) return res.status(400).json({ error: 'No WhatsApp number for this guest' });
           g.queued = { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), channel, queuedAt: new Date().toISOString() };
