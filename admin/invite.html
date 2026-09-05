@@ -110,10 +110,13 @@
             <select id="meetingSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyMeeting()"></select></label>
           <input type="hidden" id="msgLink" />
 
+          <label class="text-xs text-white/50 flex-1 min-w-[200px]">Website link <span class="text-white/30">(optional)</span>
+            <input type="url" id="webLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
+              placeholder="https://rotary-bkkdach.vercel.app/quiz"
+              oninput="saveTemplate(); renderTargets()" /></label>
+
           <input type="search" id="targetSearch" class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[150px]" placeholder="Search..." oninput="renderTargets()" />
         </div>
-
-        <div id="msgPreview" class="rounded-lg bg-[#0a1628]/60 border border-white/10 p-3 text-[13px] text-white/80 whitespace-pre-wrap"></div>
       </div>
     </div>
 
@@ -241,7 +244,12 @@
       // the case whenever the message was written by hand.
       const tpl = (de ? document.getElementById('msgDe').value : '')
         || document.getElementById('msgEn').value || DEFAULT_EN;
-      return tpl.replace(/\{name\}/g, greetingName(person));
+      const body = tpl.replace(/\{name\}/g, greetingName(person));
+      // A website link is something the guest is meant to open, so it belongs
+      // in the text. The invite image is NOT a link - the sender attaches it as
+      // a real photo, and its URL must never leak into the message.
+      const web = (document.getElementById('webLink').value || '').trim();
+      return web ? body + '\n\n' + web : body;
     }
 
     function waLink(person) {
@@ -260,9 +268,6 @@
         `Send to selected${selected.size ? ' (' + selected.size + ')' : ''}`;
       document.getElementById('targetMeta').textContent =
         `${selected.size} selected · ${queuedCount} waiting to be sent · ${ready.length} of ${list.length} ready`;
-
-      document.getElementById('msgPreview').textContent =
-        buildMessage(ready[0] || { firstName: 'Anna', language: 'en' });
 
       document.getElementById('targetList').innerHTML = list.map(p => {
         const id = personId(p);
@@ -354,6 +359,7 @@
           en: document.getElementById('msgEn').value,
           de: document.getElementById('msgDe').value,
           link: document.getElementById('msgLink').value,
+          web: document.getElementById('webLink').value,
           variant: document.getElementById('variantSelect').value,
           rolling: document.getElementById('rollingToggle').checked,
         }));
@@ -367,6 +373,7 @@
       const rolling = !saved || saved.rolling !== false;
       document.getElementById('rollingToggle').checked = rolling;
       document.getElementById('msgLink').value = (saved && saved.link) || '';
+      document.getElementById('webLink').value = (saved && saved.web) || '';
       if (rolling) {
         const i = rollingIndex();
         document.getElementById('variantSelect').value = String(i);
