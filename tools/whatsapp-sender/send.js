@@ -43,6 +43,17 @@ const IMAGE_GAP_MS = 1500;
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
+// A running sender keeps using the code it loaded at startup. On 5 Sep a batch
+// went out with the pictures silently dropped because this file had gained
+// multi-image support 44 minutes after the process was started, and the old
+// code was still looking for a field the page no longer sends. Never send with
+// code that is known to be out of date.
+const SELF = path.join(__dirname, 'send.js');
+const LOADED_MTIME = (() => { try { return fs.statSync(SELF).mtimeMs; } catch { return 0; } })();
+const selfChanged = () => {
+  try { return fs.statSync(SELF).mtimeMs !== LOADED_MTIME; } catch { return false; }
+};
+
 if (!PW) {
   console.error('Set ADMIN_PASSWORD first:\n  ADMIN_PASSWORD=... npm run dry');
   process.exit(1);
@@ -98,6 +109,8 @@ function imageUrlsOf(queued) {
   return [];
 }
 
+// Returns what actually went out, so the caller can say so out loud instead of
+// letting a message that lost its pictures look like a clean send.
 async function sendOne(client, guest) {
   const chatId = chatIdFor(guest);
   if (!chatId) throw new Error('no usable number');
@@ -112,14 +125,14 @@ async function sendOne(client, guest) {
 
   if (!urls.length) {
     await client.sendMessage(chatId, text);
-    return;
+    return { wanted: 0, attached: 0 };
   }
 
   // whatsapp-web.js has no single album call, so the images go one at a time
   // with a short gap so WhatsApp groups them. The message text rides as the
   // caption on the FIRST image only; the rest go without a caption. A single
   // image that fails to fetch is skipped rather than sinking the whole message.
-  let captioned = false;
+  let captioned = false, attached = 0;
   for (const url of urls) {
     const media = await fetchMedia(url);
     if (!media) continue;
@@ -130,12 +143,21 @@ async function sendOne(client, guest) {
       await sleep(IMAGE_GAP_MS);
       await client.sendMessage(chatId, media);
     }
+    attached++;
   }
   // If every image failed to fetch, the guest still gets the message text.
   if (!captioned) await client.sendMessage(chatId, text);
+  return { wanted: urls.length, attached };
 }
 
 async function drain(client) {
+  if (selfChanged()) {
+    log('send.js has changed on disk since this sender started.');
+    log('Stopping rather than sending with the old code - start it again to pick up the change:');
+    log('  ADMIN_PASSWORD=... npm start');
+    if (client) await client.destroy().catch(() => {});
+    process.exit(0);
+  }
   const queue = await queuedGuests();
   if (!queue.length) return 0;
 
@@ -150,10 +172,18 @@ async function drain(client) {
       continue;
     }
     try {
-      await sendOne(client, guest);
-      await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, invited: 'whatsapp' });
+      const { wanted, attached } = await sendOne(client, guest);
+      // A message that lost its pictures is not a clean send. Say so here and
+      // record it on the guest, so the Invite page shows it too.
+      const lost = wanted - attached;
+      const note = lost > 0 ? `sent without ${lost} of ${wanted} image${wanted === 1 ? '' : 's'} - could not be fetched` : '';
+      await api('/api/admin/guests', 'PATCH', {
+        id: guest.id, queued: null, invited: 'whatsapp', ...(note ? { queueError: note } : {}),
+      });
       sent++;
-      log(`sent to ${who}  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
+      const how = attached ? `with ${attached} image${attached === 1 ? '' : 's'}` : 'text only';
+      log(`sent to ${who} (${how})  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
+      if (note) log('   WARNING: ' + note);
     } catch (err) {
       // Clear the queue entry so one bad number cannot jam the run forever.
       await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, queueError: err.message })
