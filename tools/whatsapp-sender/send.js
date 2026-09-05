@@ -266,7 +266,17 @@ async function drain(client) {
       process.exit(0);
     }
     log('watching for newly queued invites - Ctrl+C to stop');
-    setInterval(() => drain(client).catch(e => log('poll error:', e.message)), POLL_MS);
+    // One drain at a time. The timer fires every fifteen seconds; a drain
+    // takes far longer, because it waits 18-42s between guests. On 5 Sep a
+    // second drain started while the first was in one of those pauses, both
+    // holding the same list of queued guests, and one guest was sent to
+    // twice. A tick that lands while a drain is running is dropped.
+    let draining = false;
+    setInterval(() => {
+      if (draining) return;
+      draining = true;
+      drain(client).catch(e => log('poll error:', e.message)).finally(() => { draining = false; });
+    }, POLL_MS);
   });
 
   await client.initialize();

@@ -481,15 +481,34 @@ const MAX_PASSES = 20;
 function titleReadings(words) {
   const tokens = words.map(w => String(w.text || '').trim()).filter(Boolean);
   while (tokens.length && !/[a-z0-9]/i.test(tokens[0])) tokens.shift();
-  if (!tokens.length) return [];
-  return [tokens.join(' '), tokens.slice(0, -1).join(' ')].filter(Boolean);
+  return tokens;
 }
 
-function titleConfirms(name, readings) {
+// A chat's own name can be followed by more than one icon - a muted chat reads
+// as "Panjapat +, E", where "+," is the bell and "E" the open-in-a-new-window
+// arrow. Reading the title as "the name, then icons" is what tolerates those
+// without letting a second real word through: a mark is a token with at most
+// two letters or digits in it, and a name word has more. "Andy" therefore
+// still cannot match "Andy Schillinger", and "Lek" cannot match "Lek BKK".
+//
+// The one thing this cannot tell apart is an icon and a one-letter word, so a
+// chat called "Andy S" would pass as "Andy". Opening it at all takes a
+// mis-click: the row is matched on the exact name, and only one row may match.
+// A mark carries no digits: "(41)" after a name is a group's member count, not
+// an icon, and a group must never pass as the person it is named after.
+const MAX_MARKS = 3;
+const isMark = (t) => !/[0-9]/.test(t) && t.replace(/[^a-z0-9]/gi, '').length <= 2;
+
+function titleConfirms(name, words) {
   const n = norm(name);
   if (!n) return false;
-  const list = Array.isArray(readings) ? readings : [readings];
-  return list.some(r => norm(r) === n);
+  const tokens = Array.isArray(words) ? words.slice() : String(words || '').trim().split(/\s+/);
+  while (tokens.length && !/[a-z0-9]/i.test(tokens[0])) tokens.shift();
+  const wanted = n.split(' ').length;
+  if (tokens.length < wanted) return false;
+  if (norm(tokens.slice(0, wanted).join(' ')) !== n) return false;
+  const rest = tokens.slice(wanted);
+  return rest.length <= MAX_MARKS && rest.every(isMark);
 }
 
 function setSearch(text) {
@@ -636,7 +655,7 @@ function headerTitle(f) {
     .filter(w => w.x < f.pane.x + f.pane.w * 0.6);
   if (!words.length) return { readings: [], shown: '' };
   const line = words.filter(w => w.line === words[0].line).sort((a, b) => a.x - b.x);
-  return { readings: titleReadings(line), shown: line.map(w => w.text).join(' ') };
+  return { tokens: titleReadings(line), shown: line.map(w => w.text).join(' ') };
 }
 
 const composerLines = (f) => read(composerRect(f), 'composer');
@@ -659,8 +678,8 @@ async function openChat(guest, f) {
   // guessed at a moment ago. Read the window again and check the title against
   // the real thing.
   const open = frames();
-  const { readings, shown } = headerTitle(open);
-  if (!titleConfirms(name, readings)) {
+  const { tokens, shown } = headerTitle(open);
+  if (!titleConfirms(name, tokens)) {
     throw new Error(`the chat that opened is titled "${shown || '(unreadable)'}", not "${name}" - nothing sent`);
   }
   return { title: shown, frames: open };
@@ -717,12 +736,25 @@ async function sendOne(guest) {
   const f = frames();
   const { title, frames: open } = await openChat(guest, f);
   const images = imageUrlsOf(guest.queued);
-  const attached = await sendIntoChat(open, { text: guest.queued.text, images });
+  const attached = await sendIntoChat(open, { name: (guest.lineName || '').trim(), text: guest.queued.text, images });
   setSearch('');
   return { title, wanted: images.length, attached };
 }
 
 // ------------------------------------------------------------------- the run
+
+// Wraps work so that only one run of it can be in flight. A call that arrives
+// while the previous one is still going is dropped, not queued behind it -
+// there is nothing to catch up on, because whatever is still queued is on the
+// server and the next tick will find it.
+function oneAtATime(body) {
+  let busy = false;
+  return () => {
+    if (busy) return Promise.resolve('skipped');
+    busy = true;
+    return Promise.resolve().then(body).finally(() => { busy = false; });
+  };
+}
 
 async function drain() {
   if (selfChanged()) {
@@ -852,8 +884,15 @@ async function main() {
     process.exit(0);
   }
   log('watching for newly queued LINE invites - Ctrl+C to stop');
+  // One drain at a time. The timer fires every fifteen seconds; a drain takes
+  // as long as its pauses and its guests take, which is longer. On 5 Sep two
+  // ran together and one typed into the chat the other had just opened - a
+  // message written for one guest went to another, with every check passed,
+  // because confirming the chat and typing into it are separate moments and
+  // something moved LINE in between. A tick that lands while a drain is
+  // running is dropped; the next one picks up whatever is still queued.
   let waiting = '';
-  setInterval(() => drain().then(() => { waiting = ''; }).catch(e => {
+  const tick = oneAtATime(() => drain().then(() => { waiting = ''; }).catch(e => {
     if (failureAction(e).standDown) {
       // Mark is using his Mac, or LINE is not up. Nothing has been lost and
       // nothing is wrong with the queue; it will go out when the machine is
@@ -868,7 +907,8 @@ async function main() {
     }
     log('stopping:', e.message);
     process.exit(1);
-  }), POLL_MS);
+  }));
+  setInterval(tick, POLL_MS);
 }
 
 if (require.main === module) {
@@ -877,5 +917,5 @@ if (require.main === module) {
 
 // The parts that decide who gets a message are pure, so they can be tested
 // without a Mac, a screen or anybody's LINE account.
-module.exports = { titleConfirms, titleReadings, pickChatRow, chatSection, matchesIn, isQueuedForLine,
+module.exports = { titleConfirms, titleReadings, isMark, oneAtATime, pickChatRow, chatSection, matchesIn, isQueuedForLine,
                    imageUrlsOf, norm, EnvironmentError, failureAction };
