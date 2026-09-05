@@ -11,6 +11,17 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
+      // ?votes=1 returns the board's votes instead of the applications. Merged
+      // in from its own endpoint because the Hobby plan allows 12 functions and
+      // this reads the same records anyway.
+      if (req.query && (req.query.votes === '1' || req.query.votes === 'true')) {
+        const id = req.query.id;
+        if (id) return res.json({ votes: await apps.getVotes(id) });
+        const all = {};
+        for (const a of await apps.getApplications()) all[a.id] = await apps.getVotes(a.id);
+        return res.json({ votes: all });
+      }
+
       const applications = await apps.getApplications();
       return res.json({ applications: applications.map(a => ({ ...a, archived: !!a.archived })) });
     }

@@ -71,6 +71,16 @@
       </div>
 
       <div class="p-6 space-y-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="text-xs text-white/50 flex-1 min-w-[240px]">Wording
+            <select id="variantSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyVariant(true)"></select></label>
+          <button onclick="nextVariant()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap">Try another</button>
+          <label class="flex items-center gap-2 text-xs text-white/50 pb-2">
+            <input type="checkbox" id="rollingToggle" class="accent-rotary-gold w-4 h-4" onchange="saveTemplate()" checked />
+            rotate automatically
+          </label>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <label class="text-xs text-white/50">English message <span class="text-white/30">- {name} becomes their name</span>
             <textarea id="msgEn" rows="4" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
@@ -81,10 +91,30 @@
         </div>
         <p class="text-[11px] text-white/35 -mt-2">Each person gets the version matching their language, set on the Guests page. {name} includes their title, so a Thai guest reads &ldquo;Khun Somchai&rdquo;.</p>
 
+        <div id="dropZone" class="rounded-xl border-2 border-dashed border-white/15 hover:border-rotary-gold/50 transition-colors p-4 text-center cursor-pointer"
+             onclick="document.getElementById('imgInput').click()">
+          <div id="dropIdle">
+            <svg class="w-8 h-8 mx-auto mb-2 text-white/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <p class="text-sm text-white/60">Drop an invite image here, or click to choose one</p>
+            <p class="text-[11px] text-white/30 mt-0.5">JPEG, PNG or WebP. WhatsApp shows it as a preview under your message.</p>
+          </div>
+          <div id="dropBusy" class="hidden text-sm text-white/60">Uploading...</div>
+          <div id="dropDone" class="hidden flex items-center gap-3 justify-center">
+            <img id="dropThumb" alt="" class="w-16 h-16 rounded-lg object-cover" />
+            <div class="text-left">
+              <p id="dropName" class="text-sm text-white/80"></p>
+              <button onclick="event.stopPropagation(); clearInviteImage()" class="text-[11px] text-white/40 hover:text-red-300">remove</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="imgInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="pickInviteImage(this.files && this.files[0])" />
+
         <div class="flex flex-wrap gap-3 items-end">
-          <label class="text-xs text-white/50 flex-1 min-w-[220px]">Invite image or page link <span class="text-white/30">- optional</span>
+          <label class="text-xs text-white/50 flex-1 min-w-[200px]">Or use a meeting from the planner
+            <select id="meetingSelect" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyMeeting()"></select></label>
+          <label class="text-xs text-white/50 flex-1 min-w-[200px]">Link sent with the message
             <input id="msgLink" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1"
-              placeholder="https://rotary-bkkdach.vercel.app/..." oninput="saveTemplate(); renderTargets()" /></label>
+              placeholder="uploaded image or any URL" oninput="saveTemplate(); renderTargets()" /></label>
           <label class="text-xs text-white/50">Show
             <select id="poolSelect" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block" onchange="renderTargets()">
               <option value="guests">Guests</option>
@@ -124,10 +154,44 @@
     requireAuthOrRedirect();
 
     const TEMPLATE_KEY = 'rcbd:invite:template:v1';
-    const DEFAULT_EN =
-      'Hello {name}, I would like to invite you for the next Rotary meeting. I hope you can make it. Mark.';
-    const DEFAULT_DE =
-      'Hallo {name}, ich moechte Dich gerne zum naechsten Rotary-Meeting einladen. Ich hoffe, Du kannst es einrichten. Mark.';
+    const ROLL_KEY = 'rcbd:invite:rolling:v1';
+    // Ten wordings so repeat invitations do not read like a mail merge. The
+    // default rotates on every visit; pick one explicitly to override.
+    const VARIANTS = [
+      { label: 'Warm and short',
+        en: 'Hello {name}, I would like to invite you for the next Rotary meeting. I hope you can make it. Mark.',
+        de: 'Hallo {name}, ich moechte Dich gerne zum naechsten Rotary-Meeting einladen. Ich hoffe, Du kannst es einrichten. Mark.' },
+      { label: 'Would be good to see you',
+        en: 'Hi {name}, we have our next Rotary meeting coming up and it would be good to see you there. Mark.',
+        de: 'Hallo {name}, unser naechstes Rotary-Meeting steht an und es waere schoen, Dich dort zu sehen. Mark.' },
+      { label: 'Come as my guest',
+        en: 'Hello {name}, I would be glad to have you as my guest at the next Rotary meeting. Let me know if it suits. Mark.',
+        de: 'Hallo {name}, ich wuerde mich freuen, Dich als meinen Gast beim naechsten Rotary-Meeting zu begruessen. Sag mir kurz Bescheid. Mark.' },
+      { label: 'Thought of you',
+        en: 'Hi {name}, I thought of you for our next Rotary meeting - good people and a good speaker. Would you like to come along? Mark.',
+        de: 'Hallo {name}, ich habe bei unserem naechsten Rotary-Meeting an Dich gedacht - nette Leute und ein guter Vortrag. Magst Du mitkommen? Mark.' },
+      { label: 'Direct invitation',
+        en: 'Hello {name}, you are invited to our next Rotary meeting. I would be happy if you joined us. Mark.',
+        de: 'Hallo {name}, Du bist herzlich zu unserem naechsten Rotary-Meeting eingeladen. Ich wuerde mich freuen, wenn Du dabei bist. Mark.' },
+      { label: 'Casual',
+        en: 'Hi {name}, any chance you are free for the next Rotary meeting? Would be nice to have you there. Mark.',
+        de: 'Hallo {name}, hast Du beim naechsten Rotary-Meeting Zeit? Waere schoen, Dich dabei zu haben. Mark.' },
+      { label: 'Evening out',
+        en: 'Hello {name}, our next Rotary meeting is coming up - a good evening and worth the time. You would be very welcome. Mark.',
+        de: 'Hallo {name}, unser naechstes Rotary-Meeting steht an - ein schoener Abend und die Zeit wert. Du bist herzlich willkommen. Mark.' },
+      { label: 'No obligation',
+        en: 'Hi {name}, we meet again soon at Rotary. Come along and see what it is like, no obligation at all. Mark.',
+        de: 'Hallo {name}, wir treffen uns bald wieder bei Rotary. Komm gerne vorbei und schau es Dir an, voellig unverbindlich. Mark.' },
+      { label: 'Been a while',
+        en: 'Hello {name}, it has been a while. Our next Rotary meeting would be a good excuse to catch up - would you like to join? Mark.',
+        de: 'Hallo {name}, es ist eine Weile her. Unser naechstes Rotary-Meeting waere ein guter Anlass, sich wiederzusehen - magst Du dazukommen? Mark.' },
+      { label: 'Formal',
+        en: 'Dear {name}, I would like to invite you to attend our next Rotary Club Bangkok DACH meeting. It would be a pleasure to welcome you. Mark.',
+        de: 'Liebe(r) {name}, ich moechte Dich herzlich zu unserem naechsten Treffen des Rotary Club Bangkok DACH einladen. Es waere mir eine Freude, Dich begruessen zu duerfen. Mark.' },
+    ];
+    const DEFAULT_EN = VARIANTS[0].en;
+    const DEFAULT_DE = VARIANTS[0].de;
+    let meetings = {};
 
     let guests = [], members = [], selected = new Set(), sentThisRound = new Set();
 
@@ -275,6 +339,8 @@
           de: document.getElementById('msgDe').value,
           link: document.getElementById('msgLink').value,
           defaultLang: document.getElementById('defaultLang').value,
+          variant: document.getElementById('variantSelect').value,
+          rolling: document.getElementById('rollingToggle').checked,
         }));
       } catch {}
     }
@@ -282,12 +348,167 @@
     (function restoreTemplate() {
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem(TEMPLATE_KEY) || 'null'); } catch {}
-      document.getElementById('msgEn').value = (saved && saved.en) || DEFAULT_EN;
-      document.getElementById('msgDe').value = (saved && saved.de) || DEFAULT_DE;
-      document.getElementById('msgLink').value = (saved && saved.link) || '';
+      buildVariantList();
+      const rolling = !saved || saved.rolling !== false;
+      document.getElementById('rollingToggle').checked = rolling;
       document.getElementById('defaultLang').value = (saved && saved.defaultLang) || 'en';
+      document.getElementById('msgLink').value = (saved && saved.link) || '';
+      if (rolling) {
+        const i = rollingIndex();
+        document.getElementById('variantSelect').value = String(i);
+        document.getElementById('msgEn').value = VARIANTS[i].en;
+        document.getElementById('msgDe').value = VARIANTS[i].de;
+      } else {
+        document.getElementById('variantSelect').value = (saved && saved.variant) || '0';
+        document.getElementById('msgEn').value = (saved && saved.en) || DEFAULT_EN;
+        document.getElementById('msgDe').value = (saved && saved.de) || DEFAULT_DE;
+      }
+      if (saved && saved.link) show('dropDone');
     })();
 
+    // ---------- wording variants ----------
+    function buildVariantList() {
+      document.getElementById('variantSelect').innerHTML =
+        VARIANTS.map((v, i) => `<option value="${i}">${i + 1}. ${escapeHtml(v.label)}</option>`).join('')
+        + '<option value="custom">Custom (edited below)</option>';
+    }
+
+    function applyVariant(fromUser) {
+      const sel = document.getElementById('variantSelect').value;
+      if (sel === 'custom') { saveTemplate(); renderTargets(); return; }
+      const v = VARIANTS[Number(sel)] || VARIANTS[0];
+      document.getElementById('msgEn').value = v.en;
+      document.getElementById('msgDe').value = v.de;
+      if (fromUser) document.getElementById('rollingToggle').checked = false;
+      saveTemplate(); renderTargets();
+    }
+
+    function nextVariant() {
+      const cur = Number(document.getElementById('variantSelect').value);
+      const next = (Number.isFinite(cur) ? cur + 1 : 0) % VARIANTS.length;
+      document.getElementById('variantSelect').value = String(next);
+      applyVariant(true);
+    }
+
+    // Rotate one place each time the page is opened, so successive rounds of
+    // invitations are not word-for-word identical.
+    function rollingIndex() {
+      let n = 0;
+      try { n = Number(localStorage.getItem(ROLL_KEY) || '0') || 0; } catch {}
+      const next = (n + 1) % VARIANTS.length;
+      try { localStorage.setItem(ROLL_KEY, String(next)); } catch {}
+      return n % VARIANTS.length;
+    }
+
+    // ---------- invite image ----------
+    async function pickInviteImage(file) {
+      if (!file) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { showToast('JPEG, PNG or WebP only', 'error'); return; }
+      show('dropBusy');
+      try {
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file);
+        });
+        const shrunk = await shrink(dataUrl);
+        const out = await apiFetch('/api/invite-image', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: shrunk.split(',')[1], mimeType: 'image/jpeg', name: file.name }),
+        });
+        const url = location.origin + '/api/invite-image?id=' + out.id;
+        document.getElementById('msgLink').value = url;
+        document.getElementById('dropThumb').src = shrunk;
+        document.getElementById('dropName').textContent = file.name;
+        show('dropDone');
+        saveTemplate(); renderTargets();
+        showToast('Image uploaded', 'success');
+      } catch (err) {
+        show('dropIdle');
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Upload failed', 'error');
+      }
+    }
+
+    // A phone photo is several megabytes; a preview card needs nothing like it.
+    function shrink(dataUrl, max = 1200) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    function show(which) {
+      ['dropIdle', 'dropBusy', 'dropDone'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== which);
+      });
+    }
+
+    function clearInviteImage() {
+      document.getElementById('msgLink').value = '';
+      show('dropIdle');
+      saveTemplate(); renderTargets();
+    }
+
+    (function wireDropZone() {
+      const zone = document.getElementById('dropZone');
+      ['dragenter', 'dragover'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.add('border-rotary-gold');
+      }));
+      ['dragleave', 'drop'].forEach(e => zone.addEventListener(e, (ev) => {
+        ev.preventDefault(); zone.classList.remove('border-rotary-gold');
+      }));
+      zone.addEventListener('drop', (ev) => {
+        const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (f) pickInviteImage(f);
+      });
+    })();
+
+    // ---------- meeting from the planner ----------
+    async function loadMeetings() {
+      try {
+        meetings = (await apiFetch('/api/admin/meetings')).meetings || {};
+      } catch { meetings = {}; }
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = Object.entries(meetings)
+        .filter(([d, m]) => d >= today && m.active)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, 12);
+      document.getElementById('meetingSelect').innerHTML =
+        '<option value="">- none -</option>' + upcoming.map(([d, m]) => {
+          const when = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          const what = m.topic || m.presenter || 'Club meeting';
+          return `<option value="${d}">${when} - ${escapeHtml(what).slice(0, 40)}</option>`;
+        }).join('');
+    }
+
+    // Puts the meeting's own details into the message rather than hiding them
+    // behind a link - the flyer page needs an admin password, so a guest could
+    // not open it anyway.
+    function applyMeeting() {
+      const d = document.getElementById('meetingSelect').value;
+      if (!d || !meetings[d]) { renderTargets(); return; }
+      const m = meetings[d];
+      const en = new Date(d).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
+      const de = new Date(d).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' });
+      const venue = m.venue || 'Grand Hyatt Erawan';
+      const what = m.topic || m.presenter || '';
+      const tailEn = `\n\n${en}, 18:30 - ${venue}` + (what ? `\n${what}` : '');
+      const tailDe = `\n\n${de}, 18:30 Uhr - ${venue}` + (what ? `\n${what}` : '');
+      const strip = (t) => t.split('\n\n')[0];
+      document.getElementById('msgEn').value = strip(document.getElementById('msgEn').value) + tailEn;
+      document.getElementById('msgDe').value = strip(document.getElementById('msgDe').value) + tailDe;
+      saveTemplate(); renderTargets();
+      showToast('Meeting details added to the message', 'success');
+    }
+
+    buildVariantList();
+    loadMeetings();
     if (adminPassword) loadPeople();
   </script>
 </body>

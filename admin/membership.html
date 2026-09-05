@@ -245,7 +245,7 @@
       try {
         const [appData, voteData] = await Promise.all([
           apiFetch('/api/admin/applications'),
-          apiFetch('/api/admin/votes'),
+          apiFetch('/api/admin/applications?votes=1'),
         ]);
         applications = appData.applications || [];
         allVotes = voteData.votes || {};

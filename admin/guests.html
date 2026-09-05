@@ -76,10 +76,8 @@
           <input id="qaLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Meier" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[180px]">Mobile (with country code)
           <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
-        <label class="text-xs text-white/50">Language
-          <select id="qaLang" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block"><option value="en">English</option><option value="de">German</option></select></label>
-        <label class="text-xs text-white/50">Title
-          <select id="qaHon" class="glass-input px-3 py-2 rounded-lg text-sm mt-1 block"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select></label>
+        <div class="text-xs text-white/50">Language<div class="flex items-center gap-2 mt-1"><span class="text-xs text-white/60">EN</span><div id="qaTrack" class="toggle-track toggle-sm" onclick="toggleLang('qa'); "><div class="toggle-thumb"></div></div><span class="text-xs text-white/60">DE</span></div></div>
+        <div class="text-xs text-white/50">Thai<label class="flex items-center gap-2 mt-1 cursor-pointer"><input type="checkbox" id="qaThai" class="accent-rotary-gold w-4 h-4" onchange="" /><span class="text-xs text-white/60">Thai &ndash; address as Khun</span></label></div>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">Note (optional)
           <input id="qaNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
         <button onclick="quickAdd()" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold">Add</button>
@@ -102,8 +100,8 @@
           <span id="importCount" class="text-xs text-white/40"></span>
           <button onclick="toggleAllImport(true)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Select all shown</button>
           <button onclick="toggleAllImport(false)" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white">Clear</button>
-          <select id="importLang" class="glass-input px-2 py-1.5 rounded-lg text-xs" title="Language for everyone in this batch"><option value="en">English</option><option value="de">German</option></select>
-          <select id="importHon" class="glass-input px-2 py-1.5 rounded-lg text-xs" title="Title for everyone in this batch"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select>
+          <div class="flex items-center gap-2" title="Language for everyone in this batch"><div class="flex items-center gap-2 mt-1"><span class="text-xs text-white/60">EN</span><div id="importTrack" class="toggle-track toggle-sm" onclick="toggleLang('import'); "><div class="toggle-thumb"></div></div><span class="text-xs text-white/60">DE</span></div></div>
+          <div title="Address everyone in this batch as Khun"><label class="flex items-center gap-2 mt-1 cursor-pointer"><input type="checkbox" id="importThai" class="accent-rotary-gold w-4 h-4" onchange="" /><span class="text-xs text-white/60">Thai &ndash; address as Khun</span></label></div>
           <button onclick="saveSelected()" id="importSaveBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Add selected</button>
           <button onclick="closeImport()" class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white">Close</button>
         </div>
@@ -151,11 +149,8 @@
           <input id="gfPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <label class="text-xs text-white/50">Company
           <input id="gfCompany" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
-        <label class="text-xs text-white/50">Language
-          <select id="gfLang" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateGreetingPreview()"><option value="en">English</option><option value="de">German</option></select></label>
-        <label class="text-xs text-white/50">Title
-          <select id="gfHon" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="updateGreetingPreview()"><option value="">no title</option><option value="Khun">Khun</option><option value="Mr.">Mr.</option><option value="Ms.">Ms.</option><option value="Dr.">Dr.</option></select>
-          <span class="text-[11px] text-white/35">Khun for Thai guests</span></label>
+        <div class="text-xs text-white/50">Language<div class="flex items-center gap-2 mt-1"><span class="text-xs text-white/60">EN</span><div id="gfTrack" class="toggle-track toggle-sm" onclick="toggleLang('gf'); updateGreetingPreview()"><div class="toggle-thumb"></div></div><span class="text-xs text-white/60">DE</span></div></div>
+        <div class="text-xs text-white/50">Thai<label class="flex items-center gap-2 mt-1 cursor-pointer"><input type="checkbox" id="gfThai" class="accent-rotary-gold w-4 h-4" onchange="updateGreetingPreview()" /><span class="text-xs text-white/60">Thai &ndash; address as Khun</span></label></div>
         <label class="text-xs text-white/50 sm:col-span-2">Note
           <input id="gfNotes" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="met at the gala" /></label>
         <p id="gfPreview" class="sm:col-span-2 text-xs text-rotary-gold/80"></p>
@@ -170,6 +165,11 @@
     </div>
   </div>
 
+  <style>
+    .toggle-track.toggle-sm { width: 34px; height: 19px; }
+    .toggle-track.toggle-sm .toggle-thumb { width: 15px; height: 15px; }
+    .toggle-track.toggle-sm.on .toggle-thumb { transform: translateX(15px); }
+  </style>
   <script src="/admin/admin.js"></script>
   <script>
     requireAuthOrRedirect();
@@ -261,8 +261,7 @@
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone),
-            language: document.getElementById('qaLang').value,
-            honorific: document.getElementById('qaHon').value, source: 'manual' }),
+            language: langOf('qa'), honorific: thaiOf('qa'), source: 'manual' }),
         });
         if (res.added) {
           showToast(name + ' added', 'success');
@@ -377,8 +376,7 @@
           body: JSON.stringify({ guests: chosen.map(c => ({
             name: c.name, firstName: c.firstName, lastName: c.lastName,
             phone: c.phone, waNumber: c.waNumber, notes: c.notes,
-            language: document.getElementById('importLang').value,
-            honorific: document.getElementById('importHon').value,
+            language: langOf('import'), honorific: thaiOf('import'),
           })), source: 'whatsapp' }),
         });
         showToast(`${res.added} guest${res.added === 1 ? '' : 's'} added`, 'success');
@@ -431,8 +429,18 @@
     }
 
     let editingGuestId = null;
-    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company',
-                           gfNotes:'notes', gfLang:'language', gfHon:'honorific' };
+    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfCompany:'company', gfNotes:'notes' };
+
+    // Two controls instead of two dropdowns: a slider that is English on the
+    // left and German on the right, and a tick that means "address as Khun".
+    function toggleLang(base) {
+      document.getElementById(base + 'Track').classList.toggle('on');
+    }
+    const langOf = (base) => document.getElementById(base + 'Track').classList.contains('on') ? 'de' : 'en';
+    const thaiOf = (base) => document.getElementById(base + 'Thai').checked ? 'Khun' : '';
+    function setLang(base, lang) {
+      document.getElementById(base + 'Track').classList.toggle('on', lang === 'de');
+    }
 
     function editGuest(id) {
       const g = guests.find(x => x.id === id);
@@ -441,6 +449,8 @@
       for (const [el, field] of Object.entries(GUEST_FIELDS)) {
         document.getElementById(el).value = g[field] || '';
       }
+      setLang('gf', g.language || 'en');
+      document.getElementById('gfThai').checked = (g.honorific || '') === 'Khun';
       updateGreetingPreview();
       const modal = document.getElementById('guestModal');
       modal.classList.remove('hidden'); modal.classList.add('flex');
@@ -457,8 +467,8 @@
     // before it is sent rather than after.
     function updateGreetingPreview() {
       const first = document.getElementById('gfFirst').value.trim();
-      const hon = document.getElementById('gfHon').value;
-      const de = document.getElementById('gfLang').value === 'de';
+      const hon = thaiOf('gf');
+      const de = langOf('gf') === 'de';
       const who = [hon, first].filter(Boolean).join(' ');
       document.getElementById('gfPreview').textContent = first
         ? `Message will start: \u201c${de ? 'Hallo' : 'Hello'} ${who}, ...\u201d  (${de ? 'German' : 'English'})`
@@ -476,7 +486,8 @@
       try {
         await apiFetch('/api/admin/guests', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: editingGuestId, ...v, waNumber: digits(v.phone) }),
+          body: JSON.stringify({ id: editingGuestId, ...v, waNumber: digits(v.phone),
+                                 language: langOf('gf'), honorific: thaiOf('gf') }),
         });
         showToast('Saved', 'success');
         closeGuestForm();
