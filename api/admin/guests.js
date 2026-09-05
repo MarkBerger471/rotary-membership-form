@@ -32,15 +32,33 @@ function toE164(input) {
   return n;
 }
 
+// Messages are addressed by first name, so the split has to be right. An
+// explicit first/last from the import wins; only a hand-typed single string is
+// split, and then as "First Last", which is how people type a name. Never
+// guess the other way round - greeting Antonio Bissoni as "Hello Bissoni" is
+// worse than having no surname at all.
+function splitName(input) {
+  const first = String(input.firstName || '').trim();
+  const last = String(input.lastName || '').trim();
+  if (first || last) return { first, last };
+  const parts = String(input.name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { first: '', last: '' };
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+// A "name" that is only digits came from a contact saved without one.
+const looksLikeNumber = (s) => /^[\d\s+()\-]+$/.test(String(s || '').trim());
+
 function normalise(input, source) {
-  const name = String(input.name || '').trim()
-    || [input.firstName, input.lastName].filter(Boolean).join(' ').trim();
+  const { first, last } = splitName(input);
+  const name = [first, last].filter(Boolean).join(' ').trim()
+    || String(input.name || '').trim();
   const wa = toE164(input.phone || input.waNumber);
   return {
     id: 'g_' + wa + '_' + Math.random().toString(36).slice(2, 7),
     name,
-    firstName: String(input.firstName || name.split(' ')[0] || '').trim(),
-    lastName: String(input.lastName || '').trim(),
+    firstName: looksLikeNumber(first) ? '' : first,
+    lastName: last,
     phone: String(input.phone || (wa ? '+' + wa : '')).trim(),
     waNumber: wa,
     notes: String(input.notes || '').trim(),
@@ -95,6 +113,15 @@ module.exports = async (req, res) => {
 
       for (const f of EDITABLE) {
         if (Object.prototype.hasOwnProperty.call(b, f)) g[f] = String(b[f] || '').trim();
+      }
+      // Keep the parts and the display name in step whichever was edited.
+      if (b.firstName !== undefined || b.lastName !== undefined) {
+        g.firstName = looksLikeNumber(g.firstName) ? '' : g.firstName;
+        g.name = [g.firstName, g.lastName].filter(Boolean).join(' ').trim() || g.name;
+      } else if (b.name !== undefined) {
+        const { first, last } = splitName({ name: g.name });
+        g.firstName = looksLikeNumber(first) ? '' : first;
+        g.lastName = last;
       }
       if (b.status === 'active' || b.status === 'archived') g.status = b.status;
       if (b.phone !== undefined || b.waNumber !== undefined) g.waNumber = toE164(b.phone || b.waNumber);

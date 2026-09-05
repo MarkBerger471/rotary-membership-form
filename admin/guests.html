@@ -56,8 +56,10 @@
         <p class="text-white/40 text-xs mt-0.5">Met someone worth inviting? Add them here - takes seconds on a phone.</p>
       </div>
       <div class="p-6 flex flex-wrap gap-3 items-end">
-        <label class="text-xs text-white/50 flex-1 min-w-[160px]">Name
-          <input id="qaName" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Anna Meier" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[130px]">First name
+          <input id="qaFirst" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Anna" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[130px]">Last name
+          <input id="qaLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Meier" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[180px]">Mobile (with country code)
           <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">Note (optional)
@@ -155,6 +157,9 @@
             <div class="w-9 h-9 rounded-full bg-rotary-sky/20 text-rotary-sky flex items-center justify-center text-xs font-bold flex-shrink-0">${escapeHtml(initials)}</div>
             <div class="min-w-0 flex-1">
               <div class="font-semibold text-[13px] leading-tight break-words">${escapeHtml(g.name)}</div>
+              ${g.firstName
+                ? `<div class="text-[11px] text-white/35">greeted as &ldquo;${escapeHtml(g.firstName)}&rdquo;</div>`
+                : `<div class="text-[11px] text-red-300/80">no first name - add one before inviting</div>`}
               ${g.notes ? `<div class="text-[11px] text-white/45">${escapeHtml(g.notes)}</div>` : ''}
               ${invites ? `<div class="text-[10px] text-rotary-gold/70 mt-0.5">invited ${invites}x</div>` : ''}
             </div>
@@ -177,20 +182,22 @@
     function toggleArchivedGuests() { showArchivedGuests = !showArchivedGuests; renderGuests(); }
 
     async function quickAdd() {
-      const name = document.getElementById('qaName').value.trim();
+      const firstName = document.getElementById('qaFirst').value.trim();
+      const lastName = document.getElementById('qaLast').value.trim();
+      const name = [firstName, lastName].filter(Boolean).join(' ');
       const phone = document.getElementById('qaPhone').value.trim();
       const notes = document.getElementById('qaNotes').value.trim();
-      if (!name) { showToast('Enter a name', 'error'); return; }
+      if (!firstName) { showToast('A first name is required - messages are addressed by it', 'error'); return; }
       if (digits(phone).length < 8) { showToast('Enter a mobile number with country code', 'error'); return; }
       try {
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, notes, waNumber: digits(phone), source: 'manual' }),
+          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone), source: 'manual' }),
         });
         if (res.added) {
           showToast(name + ' added', 'success');
-          ['qaName','qaPhone','qaNotes'].forEach(id => document.getElementById(id).value = '');
-          document.getElementById('qaName').focus();
+          ['qaFirst','qaLast','qaPhone','qaNotes'].forEach(id => document.getElementById(id).value = '');
+          document.getElementById('qaFirst').focus();
           loadGuests();
         } else {
           showToast((res.skipped && res.skipped[0] && res.skipped[0].reason) || 'Not added', 'error');
@@ -225,7 +232,8 @@
       const name = (filename || '').toLowerCase();
       if (name.endsWith('.json') || text.trim().startsWith('[')) {
         return JSON.parse(text).map(c => ({
-          name: c.name || [c.firstName, c.lastName].filter(Boolean).join(' '),
+          name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '',
+          firstName: c.firstName || '', lastName: c.lastName || '',
           phone: c.phone || c.waNumber, waNumber: digits(c.waNumber || c.phone), notes: c.notes || '',
         })).filter(c => c.name && c.waNumber);
       }
@@ -233,7 +241,14 @@
         return text.split(/END:VCARD/i).map(card => {
           const fn = (card.match(/\nFN[^:]*:(.+)/i) || [])[1];
           const tel = (card.match(/\nTEL[^:]*:(.+)/i) || [])[1];
-          return fn && tel ? { name: fn.trim(), phone: tel.trim(), waNumber: digits(tel), notes: '' } : null;
+          if (!fn || !tel) return null;
+          // vCard N is "Last;First;..." - the structured field beats guessing
+          const n = (card.match(/\nN[^:]*:(.+)/i) || [])[1];
+          let first = '', last = '';
+          if (n) { const p = n.split(';'); last = (p[0] || '').trim(); first = (p[1] || '').trim(); }
+          if (!first) { const p = fn.trim().split(/\s+/); first = p[0] || ''; last = p.slice(1).join(' '); }
+          return { name: [first, last].filter(Boolean).join(' ') || fn.trim(),
+                   firstName: first, lastName: last, phone: tel.trim(), waNumber: digits(tel), notes: '' };
         }).filter(c => c && c.waNumber);
       }
       // loose paste: "Name +66 81 234 5678" or "Name, 0812345678" per line
@@ -241,7 +256,10 @@
         const m = line.match(/^(.*?)[,;\t]?\s*(\+?[\d][\d\s\-()]{6,})\s*$/);
         if (!m) return null;
         const nm = m[1].replace(/[,;]$/, '').trim();
-        return nm ? { name: nm, phone: m[2].trim(), waNumber: digits(m[2]), notes: '' } : null;
+        if (!nm) return null;
+        const p = nm.split(/\s+/);
+        return { name: nm, firstName: p[0] || '', lastName: p.slice(1).join(' '),
+                 phone: m[2].trim(), waNumber: digits(m[2]), notes: '' };
       }).filter(c => c && c.waNumber);
     }
 
@@ -280,7 +298,10 @@
       try {
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guests: chosen, source: 'whatsapp' }),
+          body: JSON.stringify({ guests: chosen.map(c => ({
+            name: c.name, firstName: c.firstName, lastName: c.lastName,
+            phone: c.phone, waNumber: c.waNumber, notes: c.notes,
+          })), source: 'whatsapp' }),
         });
         showToast(`${res.added} guest${res.added === 1 ? '' : 's'} added`, 'success');
         importSelected = new Set();
@@ -307,13 +328,15 @@
     async function editGuest(id) {
       const g = guests.find(x => x.id === id);
       if (!g) return;
-      const name = prompt('Name', g.name); if (name === null) return;
+      const firstName = prompt('First name (used to address messages)', g.firstName || ''); if (firstName === null) return;
+      const lastName = prompt('Last name', g.lastName || ''); if (lastName === null) return;
       const phone = prompt('Mobile (with country code)', g.phone); if (phone === null) return;
       const notes = prompt('Note', g.notes || ''); if (notes === null) return;
       try {
         await apiFetch('/api/admin/guests', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name: name.trim(), phone: phone.trim(), waNumber: digits(phone), notes: notes.trim() }),
+          body: JSON.stringify({ id, firstName: firstName.trim(), lastName: lastName.trim(),
+                                 phone: phone.trim(), waNumber: digits(phone), notes: notes.trim() }),
         });
         showToast('Saved', 'success');
         loadGuests();
@@ -323,7 +346,8 @@
     }
 
     document.getElementById('qaPhone').addEventListener('keydown', e => { if (e.key === 'Enter') quickAdd(); });
-    document.getElementById('qaName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaPhone').focus(); });
+    document.getElementById('qaFirst').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaLast').focus(); });
+    document.getElementById('qaLast').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('qaPhone').focus(); });
 
     if (adminPassword) loadGuests();
   </script>
