@@ -9,7 +9,14 @@ cd tools/line-sender
 ADMIN_PASSWORD=... npm run dry     # print what would go out, send nothing
 ADMIN_PASSWORD=... npm run once    # send what is queued, then stop
 ADMIN_PASSWORD=... npm start       # stay open and send as things are queued
+
+npm run find -- "Andy"             # would this LINE name find one chat, and only one?
 ```
+
+`npm run find` does everything a send does up to the moment before it opens the
+chat, and sends nothing. Worth running on a name you have just typed in: a name
+that matches nothing, or matches two chats, is the one thing that stops a guest
+being reachable.
 
 ## Before the first run
 
@@ -36,7 +43,8 @@ So it reads the app off the screen, and refuses to type until it is sure:
 | Check | If it fails |
 | --- | --- |
 | LINE is the front application | the run stops - a click would land in another window |
-| exactly one chat under "Chats" is named exactly the guest's LINE name | that guest is skipped |
+| the whole "Chats" section can be read - expanding "See more" and scrolling as needed | that guest is skipped |
+| exactly one chat in it is named exactly the guest's LINE name | that guest is skipped |
 | the chat that opened is titled with that name | that guest is skipped, nothing typed |
 | the message box is empty | that guest is skipped - a draft of Mark's is left alone |
 | the message box is empty again after Enter | reported as not sent |
@@ -47,7 +55,24 @@ closed: no message is better than a personal invitation to a stranger.
 
 **The LINE name on the guest record must match the chat title exactly** - it is
 what the sender searches for and what it checks against. Set it on
-`/admin/guests`.
+`/admin/guests`, and check it with `npm run find`.
+
+## The chat list is longer than the window
+
+LINE answers a search with the first five chats and hides the rest behind
+"See more", and even expanded the list scrolls. So one screen is never the
+answer: the sender reads a screen, expands or scrolls, and reads again, until
+it reaches the "Messages" section or the list stops moving. Only then does it
+decide, because a second chat with the same name three screens further down is
+exactly the thing that must not be missed.
+
+Two rows are told apart by the line or two underneath them - the last message
+and when it was sent - so reading the same row twice while scrolling is not
+mistaken for two chats with one name.
+
+Expanding "See more" can incidentally open whichever chat re-draws under the
+pointer. That marks it read, and nothing else: no chat is ever typed into until
+its title has been checked.
 
 ## What it is not
 

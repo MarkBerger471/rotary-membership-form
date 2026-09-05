@@ -25,6 +25,9 @@
  *     sent while another window is in front lands in that window.
  *   - The chat is chosen by matching the guest's LINE name against the "Chats"
  *     section of the search results, and only when exactly one row matches.
+ *     That section is longer than the window - LINE hides all but the first
+ *     five behind "See more" - so it is expanded and scrolled and read to the
+ *     end before anything is decided.
  *   - After the chat opens, its title is read back and must match again. Only
  *     then is anything typed. If it cannot be confirmed, the guest is skipped.
  *   - The message box must be empty. A half-written draft of Mark's is left
@@ -56,6 +59,15 @@ const BASE = process.env.BASE_URL || 'https://rotary-bkkdach.vercel.app';
 const PW = process.env.ADMIN_PASSWORD;
 const DRY = process.argv.includes('--dry-run');
 const WATCH = process.argv.includes('--watch');
+// --find "Andy" answers "would this name find one chat, and only one?" without
+// opening anything or sending anything. Worth running before a batch: a LINE
+// name that matches nothing, or matches twice, is the one thing that stops a
+// guest being reachable.
+const FIND = (() => {
+  const i = process.argv.indexOf('--find');
+  // Everything after --find is the name, so it works with or without quotes.
+  return i === -1 ? null : process.argv.slice(i + 1).join(' ').trim();
+})();
 
 // Pacing. There is no ban risk here - this is Mark's own app, typing at human
 // speed - but a burst of identical messages still reads as a mail merge to the
@@ -166,14 +178,19 @@ tell application "LINE" to activate`);
   } catch {
     throw new Error('LINE is not running - open it, log in, and start this again');
   }
-  // Activating is not instant. Asking which app is in front too early gets the
-  // answer from before the switch, and a screenshot taken then still has the
-  // old window on top of LINE.
-  await sleep(700);
-  const front = osa('tell application "System Events" to return name of first process whose frontmost is true');
-  if (front !== 'LINE') {
-    throw new Error(`LINE is not the front window (${front} is) - stopping rather than typing into something else`);
+  // Activating is not instant, and sometimes it does not take on the first
+  // ask - the window comes forward a moment later, or another app is still
+  // settling. Asking too early gets the answer from before the switch, and a
+  // screenshot taken then still has the old window on top of LINE. So it is
+  // asked again, a few times, before giving up.
+  let front = '';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await sleep(700);
+    front = osa('tell application "System Events" to return name of first process whose frontmost is true');
+    if (front === 'LINE') return;
+    osa('tell application "LINE" to activate');
   }
+  throw new Error(`LINE is not the front window (${front} is) - stopping rather than typing into something else`);
 }
 
 // LINE tells accessibility almost nothing, but it does give the frames of the
@@ -270,6 +287,13 @@ async function copyImage(url) {
 
 const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const SECTION = /^(chats|messages|friends|groups|official accounts)\b/i;
+const SEE_MORE = /^see more/i;
+
+// How far the list is moved between reads, and how many reads one search is
+// allowed. Three wheel clicks move about half a screen, so consecutive reads
+// overlap and no row can slip through between them.
+const SCROLL_STEPS = 3;
+const MAX_PASSES = 20;
 
 // LINE draws the chat title between the contact's picture and a small "open in
 // a new window" icon, and OCR reads both as marks around the name: a bullet in
@@ -298,26 +322,130 @@ function setSearch(text) {
 end tell`);
 }
 
-// Find the one row in the "Chats" part of the search results whose name is
-// exactly the guest's LINE name. Search results are in sections: only the ones
-// under "Chats" are chats. A group reads as "RCBD Members (41)" and so never
-// matches a person's name, and a name that turns up twice is refused rather
-// than guessed at - the wrong guess is a personal invitation to a stranger.
-function pickChatRow(lines, name) {
-  const chats = lines.findIndex(l => /^chats\b/i.test(l.text));
-  if (chats === -1) return { row: null, why: 'no chat by that name' };
-  const after = lines.slice(chats + 1);
+// Search results come in sections - "Chats 29", then "Messages 37" - and only
+// the rows under "Chats" are chats. Reading one screen is not the whole answer:
+// LINE shows the first five matches and hides the rest behind "See more", and
+// even expanded the list is longer than the window. So a screen is read, the
+// section is worked out from what is on it, and the list is moved on.
+//
+// The header scrolls away as the list moves, so once it has been seen the rows
+// at the top of a later screen are still chats until the next section starts.
+function chatSection(lines, headerSeen = false) {
+  const header = lines.findIndex(l => /^chats\b/i.test(l.text));
+  const count = header === -1 ? null : String(lines[header].text).match(/(\d+)/);
+  const from = header === -1 ? (headerSeen ? 0 : -1) : header + 1;
+  if (from === -1) {
+    return { rows: [], total: null, headerSeen: false, endSeen: false, seeMore: null };
+  }
+  const after = lines.slice(from);
   const end = after.findIndex(l => SECTION.test(l.text));
-  const rows = (end === -1 ? after : after.slice(0, end));
-  const hits = rows.filter(l => norm(l.text) === norm(name));
-  if (hits.length > 1) return { row: null, why: `more than one chat is called "${name}"` };
-  if (!hits.length) return { row: null, why: 'no chat by that name' };
-  return { row: hits[0], why: '' };
+  const within = end === -1 ? after : after.slice(0, end);
+  return {
+    rows: within.filter(l => !SEE_MORE.test(l.text)),
+    total: count ? Number(count[1]) : null,
+    headerSeen: headerSeen || header !== -1,
+    endSeen: end !== -1,
+    seeMore: within.find(l => SEE_MORE.test(l.text)) || null,
+  };
 }
 
-function chatRowFor(name, f) {
-  const lines = read(f.list, 'list').filter(l => l.x < f.list.x + f.list.w * 0.9);
-  return pickChatRow(lines, name);
+// Rows whose name is exactly the one we are looking for. A group reads as
+// "RCBD Members (41)" and so never matches a person's name.
+//
+// Two chats can carry the same name; what tells them apart on screen is the
+// line or two underneath - the last message and when it was sent. Using that
+// as the row's identity is what makes it possible to read the same row twice
+// while scrolling without counting it as a second chat by that name.
+function matchesIn(section, name) {
+  const out = [];
+  section.rows.forEach((line, i) => {
+    if (norm(line.text) !== norm(name)) return;
+    const identity = [line.text, section.rows[i + 1], section.rows[i + 2]]
+      .map(l => (typeof l === 'string' ? l : l && l.text)).filter(Boolean).join(' | ');
+    out.push({ line, identity });
+  });
+  return out;
+}
+
+function pickChatRow(lines, name) {
+  const section = chatSection(lines);
+  if (!section.headerSeen) return { row: null, why: 'no chat by that name' };
+  const hits = matchesIn(section, name);
+  if (hits.length > 1) return { row: null, why: `more than one chat is called "${name}"` };
+  if (!hits.length) return { row: null, why: 'no chat by that name' };
+  return { row: hits[0].line, why: '' };
+}
+
+const listLines = (f) => read(f.list, 'list').filter(l => l.x < f.list.x + f.list.w * 0.9);
+const scrollList = (f, steps) => {
+  const x = f.list.x + f.list.w / 2, y = f.list.y + f.list.h / 2;
+  for (let i = 0; i < Math.abs(steps); i++) {
+    sh(INPUT, ['scroll', String(Math.round(x)), String(Math.round(y)), steps > 0 ? '-5' : '5']);
+  }
+};
+
+// Read the whole "Chats" section, expanding and scrolling as needed, and
+// collect every row that is exactly this name. Stops at the next section, or
+// when the list stops moving, or when it has read enough screens that
+// something is clearly wrong.
+async function scanChats(name, f) {
+  const found = new Map();
+  let headerSeen = false, complete = false, total = null, expands = 0, pass = 0, previous = '';
+  for (; pass < MAX_PASSES; pass++) {
+    const lines = listLines(f);
+    const section = chatSection(lines, headerSeen);
+    headerSeen = section.headerSeen;
+    if (section.total !== null) total = section.total;
+    // Keep the freshest sighting of each row: an older one's position on the
+    // screen is stale the moment the list moves.
+    for (const hit of matchesIn(section, name)) found.set(hit.identity, { line: hit.line, pass });
+    if (section.endSeen) { complete = true; break; }
+    if (section.seeMore && expands < 2) {
+      // The rest of the matches are behind this. Clicking it can also land on
+      // a row as the list re-draws and open that chat - harmless, because
+      // nothing is ever typed into a chat whose title has not been checked.
+      expands++;
+      click(section.seeMore.cx, section.seeMore.cy);
+      await sleep(1200);
+      continue;
+    }
+    const signature = lines.map(l => l.text).join('|');
+    if (signature === previous) { complete = true; break; }
+    previous = signature;
+    scrollList(f, SCROLL_STEPS);
+    await sleep(500);
+  }
+  return { found, total, complete, lastPass: pass };
+}
+
+// The one row we want, at coordinates that are still current. If it was read
+// several screens ago the list has moved since, so it is walked back up until
+// the row is on screen again rather than clicking where it used to be.
+async function rowOnScreen(name, f) {
+  for (let i = 0; i < MAX_PASSES; i++) {
+    const hits = matchesIn(chatSection(listLines(f), true), name);
+    if (hits.length === 1) return hits[0].line;
+    if (hits.length > 1) return null;
+    scrollList(f, -SCROLL_STEPS);
+    await sleep(400);
+  }
+  return null;
+}
+
+async function chatRowFor(name, f) {
+  const { found, total, complete, lastPass } = await scanChats(name, f);
+  const many = total && total > 1 ? ` (${total} chats match "${name}")` : '';
+  if (found.size > 1) return { row: null, why: `more than one chat is called "${name}"` };
+  if (!complete) return { row: null, why: `the list of matching chats could not be read to the end${many}` };
+  if (!found.size) return { row: null, why: `no chat by that name${many}` };
+
+  if (lastPass > 0) log(`   read ${lastPass + 1} screens of the chat list to be sure of "${name}"`);
+  const only = [...found.values()][0];
+  if (only.pass === lastPass) return { row: only.line, why: '' };
+  log('   scrolling back to the row');
+  const row = await rowOnScreen(name, f);
+  if (!row) return { row: null, why: `the chat called "${name}" could not be brought back on screen` };
+  return { row, why: '' };
 }
 
 // The strip above the chat, where LINE writes whose chat it is.
@@ -340,7 +468,7 @@ async function openChat(guest, f) {
   setSearch(name);
   await sleep(1400);
 
-  const { row, why } = chatRowFor(name, f);
+  const { row, why } = await chatRowFor(name, f);
   if (!row) throw new Error(why);
 
   click(f.list.x + f.list.w * 0.3, row.cy);
@@ -460,7 +588,26 @@ async function drain() {
   return sent;
 }
 
+async function lookUp(name) {
+  ensureTools();
+  await focusLine();
+  const f = frames();
+  checkScreenReadable(f);
+  setSearch(name);
+  await sleep(1400);
+  // Exactly what the sender does before it opens a chat, stopping short of
+  // the click - so what this says is what a real run would find.
+  const { row, why } = await chatRowFor(name, f);
+  setSearch('');
+  console.log(`\n"${name}"`);
+  console.log(row
+    ? `  found, on screen at ${Math.round(row.cx)},${Math.round(row.cy)}\n  -> this name can be sent to\n`
+    : `  ${why}\n  -> this name cannot be sent to as it stands\n`);
+  process.exit(row ? 0 : 1);
+}
+
 async function main() {
+  if (FIND) return lookUp(FIND);
   if (!PW) {
     console.error('Set ADMIN_PASSWORD first:\n  ADMIN_PASSWORD=... npm run dry');
     process.exit(1);
@@ -500,4 +647,4 @@ if (require.main === module) {
 
 // The parts that decide who gets a message are pure, so they can be tested
 // without a Mac, a screen or anybody's LINE account.
-module.exports = { titleConfirms, pickChatRow, isQueuedForLine, imageUrlsOf, norm };
+module.exports = { titleConfirms, pickChatRow, chatSection, matchesIn, isQueuedForLine, imageUrlsOf, norm };

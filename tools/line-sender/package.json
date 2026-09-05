@@ -6,6 +6,7 @@
   "scripts": {
     "dry": "node send.js --dry-run",
     "once": "node send.js",
+    "find": "node send.js --find",
     "start": "node send.js --watch"
   }
 }

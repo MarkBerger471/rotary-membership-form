@@ -14,7 +14,10 @@ func click(_ x: Double, _ y: Double) {
   CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
   usleep(120_000)
   CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
-  usleep(60_000)
+  // Held only briefly on purpose. LINE expands its "See more" on the press,
+  // and with a long hold the release lands on whatever row has just been drawn
+  // under the pointer - which opens that chat.
+  usleep(20_000)
   CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
 }
 
@@ -29,6 +32,17 @@ func typeText(_ s: String) {
     up?.post(tap: .cghidEventTap)
     usleep(12_000)
   }
+}
+
+// Wheel events go to whatever is under the pointer, so the pointer is moved
+// onto the list first. Negative counts scroll the list downwards.
+func scroll(_ x: Double, _ y: Double, _ clicks: Int32) {
+  let p = CGPoint(x: x, y: y)
+  CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+  usleep(120_000)
+  let e = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: clicks, wheel2: 0, wheel3: 0)
+  e?.post(tap: .cghidEventTap)
+  usleep(120_000)
 }
 
 func key(_ code: CGKeyCode, _ flags: CGEventFlags = []) {
@@ -53,6 +67,9 @@ case "key":
   if a.count > 3 && a[3].contains("cmd")   { f.insert(.maskCommand) }
   if a.count > 3 && a[3].contains("shift") { f.insert(.maskShift) }
   key(CGKeyCode(raw), f)
+case "scroll":
+  guard a.count > 4, let x = Double(a[2]), let y = Double(a[3]), let n = Int32(a[4]) else { exit(2) }
+  scroll(x, y, n)
 case "where":
   let p = NSEvent.mouseLocation
   // NSEvent is bottom-left based; everything else here is top-left.
@@ -61,5 +78,5 @@ case "where":
 case "trusted":
   print(AXIsProcessTrusted() ? "trusted" : "NOT trusted")
 default:
-  print("usage: lineinput click x y | type TEXT | key CODE [cmd,shift] | where | trusted")
+  print("usage: lineinput click x y | type TEXT | key CODE [cmd,shift] | scroll x y CLICKS | where | trusted")
 }
