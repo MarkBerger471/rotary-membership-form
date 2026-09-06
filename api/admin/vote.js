@@ -2,15 +2,61 @@ const { kv } = require('@vercel/kv');
 const apps = require('../../lib/applications');
 const settingsLib = require('../../lib/settings');
 const mailer = require('../../lib/mailer');
+const outbox = require('../../lib/outbox');
 const notify = require('../../lib/notify');
+
+// Which channel a vote arrived on, for the log. Anything else is nobody.
+const VIA = ['email', 'whatsapp', 'line'];
+const asVia = (v) => (VIA.includes(String(v || '').toLowerCase()) ? String(v).toLowerCase() : null);
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   const { id, email, action, name: voterNameParam } = req.query;
+  const via = asVia(req.query.via);
 
   if (!id || !email) {
-    return res.status(400).send(renderPage('Missing Parameters', 'Invalid vote link. Please use the link from your email.', 'error'));
+    return res.status(400).send(renderPage('Missing Parameters', 'That vote link is incomplete. Please use the link you were sent.', 'error'));
+  }
+
+  // The application itself, for a board member who was asked on WhatsApp or
+  // LINE and so has no attachment to open. It is the same capability as the
+  // vote link beside it - whoever holds that link can cast this person's vote,
+  // so letting them read what they are voting on gives away nothing new.
+  if (req.method === 'GET' && req.query.file) {
+    const type = req.query.file === 'cv' ? 'cv' : 'pdf';
+    const list = await apps.getApplications();
+    const app = list.find(a => a.id === id);
+    if (!app) {
+      return res.status(404).send(renderPage('Not Found', 'That application is not on the log.', 'error'));
+    }
+
+    const norm = (e) => (e || '').trim().toLowerCase();
+    const settings = await settingsLib.getSettings();
+    const allowed =
+      apps.askedList(app).some(e => norm(e) === norm(email)) ||
+      !!settingsLib.recipientByEmail(settings, email);
+    if (!allowed) {
+      return res.status(403).send(renderPage(
+        'Not Yours to Open',
+        '<p>This application was not sent to that address.</p>',
+        'error'
+      ));
+    }
+
+    const file = await apps.getFile(id, type);
+    if (!file || !file.content) {
+      return res.status(404).send(renderPage(
+        'Nothing Attached',
+        `<p>No ${type === 'cv' ? 'CV' : 'application PDF'} was stored with this application.</p>`,
+        'error'
+      ));
+    }
+    const filename = String(file.filename || (type === 'cv' ? 'cv' : 'application.pdf'))
+      .replace(/[^\w. \-()]/g, '_');
+    res.setHeader('Content-Type', file.mimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.end(Buffer.from(file.content, 'base64'));
   }
 
   // GET: Show vote page
@@ -47,13 +93,12 @@ module.exports = async (req, res) => {
       ));
     }
 
-    if (action === 'approve') {
-      return res.send(renderVotePage(id, email, applicantName, 'approve', voterNameParam));
-    } else if (action === 'reject') {
-      return res.send(renderVotePage(id, email, applicantName, 'reject', voterNameParam));
-    } else {
-      return res.send(renderVotePage(id, email, applicantName, 'choose', voterNameParam));
-    }
+    const mode = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : 'choose';
+    return res.send(renderVotePage(id, email, applicantName, mode, voterNameParam, {
+      via,
+      hasPdf: !!(app && app.hasPdf),
+      hasCv: !!(app && app.hasCv),
+    }));
   }
 
   // POST: Record vote
@@ -84,6 +129,9 @@ module.exports = async (req, res) => {
         comment: comment.trim(),
         voterName,
         date: new Date().toISOString(),
+        // How they answered - which is now worth recording, because the same
+        // question goes out by email, on WhatsApp and on LINE.
+        ...(via ? { via } : {}),
       };
       await kv.set(`votes:${id}`, votes);
 
@@ -129,7 +177,7 @@ async function reactToVote(application, votes, cast) {
   }
 
   // Approval: has everyone who was asked now approved?
-  const asked = Array.isArray(application.emailedTo) ? application.emailedTo : [];
+  const asked = apps.askedList(application);
   if (!asked.length) return false;
   const allApproved = asked.every(e => votes[e] && votes[e].vote === 'approved');
   if (!allApproved) {
@@ -173,9 +221,14 @@ async function reactToVote(application, votes, cast) {
     }
   });
 
+  // The board members who are on WhatsApp or LINE were asked there, so that is
+  // where they hear how it ended.
+  const told = await outbox.askBoard(settings, application, { kind: 'result', result, tally });
+
   await notify.push({
     title: `${name} approved unanimously`,
-    message: `All ${asked.length} board members approved. The poll is closed and the result has been emailed.`,
+    message: `All ${asked.length} board members approved. The poll is closed and the result has gone out`
+      + (told.entries.length ? ` by email, and is queued for ${told.entries.length} on WhatsApp or LINE.` : ' by email.'),
     url: adminUrl,
     priority: 'high',
     tags: ['tada'],
@@ -183,9 +236,26 @@ async function reactToVote(application, votes, cast) {
   return true;
 }
 
-function renderVotePage(id, email, applicantName, mode, voterName) {
+function renderVotePage(id, email, applicantName, mode, voterName, opts = {}) {
   const approveActive = mode === 'approve' ? 'true' : 'false';
   const rejectActive = mode === 'reject' ? 'true' : 'false';
+
+  // Whoever arrived here from WhatsApp or LINE has no attachment to open, so
+  // the application is offered on the page itself. It is shown to everyone:
+  // reading it again before voting is never the wrong thing to do.
+  const fileLink = (type, label) =>
+    `<a href="?id=${encodeURIComponent(id)}&email=${encodeURIComponent(email)}&file=${type}"
+        target="_blank" rel="noopener"
+        style="display:inline-flex;align-items:center;gap:6px;color:#f7a81b;text-decoration:none;font-size:13px;font-weight:600;">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      ${label}</a>`;
+  const files = [
+    opts.hasPdf ? fileLink('pdf', 'Read the application') : '',
+    opts.hasCv ? fileLink('cv', 'CV') : '',
+  ].filter(Boolean);
+  const filesHtml = files.length
+    ? `<div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:-14px 0 24px;">${files.join('')}</div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -368,6 +438,8 @@ function renderVotePage(id, email, applicantName, mode, voterName) {
       <div class="name">${escapeHtml(applicantName)}</div>
     </div>
 
+    ${filesHtml}
+
     <div id="voteSection">
       <div class="voter-name">
         <label>Your Name</label>
@@ -410,6 +482,9 @@ function renderVotePage(id, email, applicantName, mode, voterName) {
     let selectedVote = null;
     const appId = ${JSON.stringify(id)};
     const voterEmail = ${JSON.stringify(email)};
+    // Carried through the POST so the log can say a vote came in from WhatsApp
+    // or LINE rather than from the email.
+    const via = ${JSON.stringify(opts.via || '')};
 
     // Auto-select if action was specified
     const initApprove = ${approveActive};
@@ -442,7 +517,10 @@ function renderVotePage(id, email, applicantName, mode, voterName) {
       submitBtn.textContent = 'Submitting...';
 
       try {
-        const res = await fetch(window.location.pathname + '?id=' + encodeURIComponent(appId) + '&email=' + encodeURIComponent(voterEmail), {
+        const url = window.location.pathname + '?id=' + encodeURIComponent(appId)
+          + '&email=' + encodeURIComponent(voterEmail)
+          + (via ? '&via=' + encodeURIComponent(via) : '');
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vote, comment, voterName: voterName || voterEmail }),

@@ -1,8 +1,12 @@
 # Rotary Senders.app
 
-Keeps both invite senders running in the background, so `/admin/invite` is the
-only thing that has to be touched: pick WhatsApp or LINE, press send, and the
-message goes out. Nothing to start in a terminal.
+Keeps both senders running in the background, so the admin pages are the only
+thing that has to be touched. Nothing to start in a terminal.
+
+They deliver two queues: the meeting invitations picked on `/admin/invite`, and
+the board's membership votes, which are queued on their own whenever an
+application arrives and a board member has WhatsApp or LINE ticked on the
+Recipients tab of `/admin/membership`.
 
 ```
 ./install.sh          # build into ~/Applications, start at login, and start now

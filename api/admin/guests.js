@@ -1,4 +1,6 @@
 const { kv } = require('@vercel/kv');
+const { toE164 } = require('../../lib/phone');
+const outbox = require('../../lib/outbox');
 
 const KEY = 'admin:guests';
 
@@ -15,7 +17,6 @@ async function getGuests() {
   return [];
 }
 
-const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
 const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'lineName', 'linkedinUrl', 'notes', 'company'];
 
 // A LinkedIn address is stored as the profile it points at, whether it was
@@ -65,20 +66,6 @@ const asHonorific = (v, fallback) => {
   const hit = HONORIFICS.find(h => h.toLowerCase() === t.toLowerCase());
   return hit !== undefined ? hit : fallback;
 };
-
-// WhatsApp hands us full international numbers, but a number typed by hand is
-// usually local ("081 234 5678"). Both must resolve to the same key or the same
-// person gets added twice. DEFAULT_COUNTRY_CODE overrides the Thailand default.
-function toE164(input) {
-  const raw = String(input || '').trim();
-  const cc = (process.env.DEFAULT_COUNTRY_CODE || '66').replace(/[^0-9]/g, '');
-  let n = digits(raw);
-  if (!n) return '';
-  if (raw.startsWith('+')) return n;      // already international
-  if (n.startsWith('00')) return n.slice(2);
-  if (n.startsWith('0')) return cc + n.slice(1);
-  return n;
-}
 
 // Messages are addressed by first name, so the split has to be right. An
 // explicit first/last from the import wins; only a hand-typed single string is
@@ -131,6 +118,20 @@ module.exports = async (req, res) => {
   const body = () => (typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}));
 
   try {
+    // The senders on Mark's Mac drain two queues, and this is the endpoint they
+    // already hold a password for: guests waiting for an invitation, and board
+    // members waiting to be asked about an application. The second one lives
+    // here rather than under its own route because the Hobby plan allows
+    // twelve functions and all twelve are spoken for.
+    if (req.method === 'GET' && req.query && req.query.outbox) {
+      const channel = String(req.query.outbox);
+      if (channel === 'all') return res.json({ items: outbox.prune(await outbox.getOutbox()) });
+      if (!outbox.CHANNELS.includes(channel)) {
+        return res.status(400).json({ error: `Unknown channel "${channel}"` });
+      }
+      return res.json({ items: await outbox.pendingFor(channel) });
+    }
+
     if (req.method === 'GET') {
       const list = await getGuests();
       return res.json({ guests: list.map(g => ({
@@ -165,6 +166,17 @@ module.exports = async (req, res) => {
       }
       await kv.set(KEY, list);
       return res.json({ success: true, added: added.length, skipped, guests: added });
+    }
+
+    // A sender reporting back on a board message: sent, or given up on with a
+    // reason. Kept apart from the guest patch below so a report can never be
+    // read as an edit to somebody's record.
+    if (req.method === 'PATCH' && body().outbox) {
+      const o = body().outbox || {};
+      if (!o.id) return res.status(400).json({ error: 'Missing outbox id' });
+      const entry = await outbox.complete(o.id, { error: o.error });
+      if (!entry) return res.status(404).json({ error: 'No such queued message' });
+      return res.json({ success: true, entry });
     }
 
     if (req.method === 'PATCH') {

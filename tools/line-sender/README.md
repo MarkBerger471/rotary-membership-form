@@ -1,8 +1,19 @@
 # LINE sender
 
-Delivers the invites queued on `/admin/invite` with **LINE** chosen as the
-channel, through the LINE app on Mark's Mac. The WhatsApp half of the queue is
-delivered by `../whatsapp-sender`; neither one touches the other's messages.
+Delivers what is queued for **LINE** through the LINE app on Mark's Mac. The
+WhatsApp half is delivered by `../whatsapp-sender`; neither one touches the
+other's messages.
+
+Two things are queued for it:
+
+- **Meeting invitations**, from `/admin/invite` with LINE chosen as the channel.
+- **Board votes**, from `/admin/membership` - whenever an application arrives
+  and a board member has LINE ticked on the Recipients tab. The message carries
+  the same Approve and Reject links as the email, so a vote cast from LINE lands
+  in the application log exactly as one cast from the email does.
+
+Board votes go out first: an application has a fourteen-day clock on it, an
+invitation does not.
 
 ```
 cd tools/line-sender

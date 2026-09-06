@@ -1,11 +1,13 @@
 const apps = require('../../lib/applications');
 const settingsLib = require('../../lib/settings');
+const outbox = require('../../lib/outbox');
 const mailer = require('../../lib/mailer');
 
-// Sends the board-vote email for an application that was not delivered to
-// everyone - a partial send, a bounce, or a recipient added after the fact.
-// Recipients already recorded in emailedTo are skipped, so it never
-// double-mails anyone.
+// Asks the board about an application that did not reach everyone - a partial
+// send, a bounce, or a recipient added after the fact. Anyone already recorded
+// as asked is skipped, so nobody is asked twice, and each person is asked on
+// the channels they have ticked: email from here, WhatsApp and LINE queued for
+// the senders on Mark's Mac.
 module.exports = async (req, res) => {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected || req.headers['x-admin-password'] !== expected) {
@@ -25,22 +27,31 @@ module.exports = async (req, res) => {
     const settings = await settingsLib.getSettings();
     const norm = (e) => (e || '').trim().toLowerCase();
 
-    // markDelivered records addresses that were already mailed but never made
-    // it into emailedTo - e.g. a run that was cut short after some sends. They
-    // are recorded, never re-sent, so reminders still reach them.
+    // markDelivered records addresses that were already asked but never made
+    // it onto the record - e.g. a run that was cut short after some sends.
+    // They are recorded, never asked again, so reminders still reach them.
     const marked = Array.isArray(body.markDelivered) ? body.markDelivered : [];
-    const already = (Array.isArray(app.emailedTo) ? app.emailedTo : [])
-      .concat(marked.filter(e => !(app.emailedTo || []).some(a => norm(a) === norm(e))));
+    const asked = apps.askedList(app);
+    const already = asked.concat(marked.filter(e => !asked.some(a => norm(a) === norm(e))));
 
-    // An explicit list wins; otherwise everyone active who has not had it yet.
+    // An explicit list wins; otherwise everyone who would be asked on any
+    // channel and has not had it yet.
     const requested = Array.isArray(body.emails) && body.emails.length
       ? body.emails
-      : settingsLib.activeRecipients(settings).filter(e => !already.some(a => norm(a) === norm(e)));
+      : settingsLib.askedAddresses(settings).filter(e => !already.some(a => norm(a) === norm(e)));
 
     const targets = requested.filter(e => !already.some(a => norm(a) === norm(e)));
     if (!targets.length) {
       return res.json({ success: true, sent: [], skipped: requested, note: 'Everyone requested already had it' });
     }
+
+    // Someone not on the recipients list at all is still emailed - that is the
+    // "added after the fact" case this endpoint exists for. The only person
+    // skipped is one who is on the list with email deliberately unticked.
+    const emailTargets = targets.filter(e => {
+      const r = settingsLib.recipientByEmail(settings, e);
+      return !r || settingsLib.channelsOf(r).includes('email');
+    });
 
     const attachments = await apps.getAttachments(app);
     const cvNote = app.hasCv ? ", along with the applicant's CV" : '';
@@ -54,7 +65,7 @@ module.exports = async (req, res) => {
     const sent = [];
     const failures = [];
 
-    await mailer.mapLimit(targets, 4, async (email) => {
+    await mailer.mapLimit(emailTargets, 4, async (email) => {
       try {
         await transporter.sendMail(mailer.message({
           to: email,
@@ -69,8 +80,35 @@ module.exports = async (req, res) => {
       }
     });
 
-    await apps.updateApplication(appId, { emailedTo: already.concat(sent) });
-    return res.json({ success: true, sent, failures, emailedTo: already.concat(sent) });
+    // WhatsApp and LINE for the same people, queued for the senders.
+    const queued = await outbox.askBoard(settings, app, {
+      kind: 'ask',
+      only: targets,
+      closeDays: apps.CLOSE_DAYS,
+    });
+
+    const emailedTo = (Array.isArray(app.emailedTo) ? app.emailedTo : [])
+      .concat(sent.filter(e => !(app.emailedTo || []).some(a => norm(a) === norm(e))));
+
+    // Who has now been asked, and on what. Queued counts as asked: the asking
+    // has been decided, only the delivery is waiting on the Mac.
+    const askedVia = { ...(app.askedVia && typeof app.askedVia === 'object' ? app.askedVia : {}) };
+    const add = (email, channel) => {
+      const hit = Object.keys(askedVia).find(k => norm(k) === norm(email)) || email;
+      askedVia[hit] = (askedVia[hit] || []).concat(channel).filter((c, i, a) => a.indexOf(c) === i);
+    };
+    sent.forEach(e => add(e, 'email'));
+    Object.keys(queued.via).forEach(e => queued.via[e].forEach(c => add(e, c)));
+
+    const askedTo = already.concat(
+      Object.keys(askedVia).filter(e => !already.some(a => norm(a) === norm(e)))
+    );
+
+    await apps.updateApplication(appId, { emailedTo, askedTo, askedVia });
+    return res.json({
+      success: true, sent, failures, emailedTo, askedTo,
+      queued: queued.entries.map(e => `${e.name} (${e.channel})`),
+    });
   } catch (err) {
     console.error('Resend error:', err);
     return res.status(500).json({ error: err.message });

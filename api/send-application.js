@@ -1,6 +1,8 @@
 const busboy = require('busboy');
 const { kv } = require('@vercel/kv');
 const settingsLib = require('../lib/settings');
+const apps = require('../lib/applications');
+const outbox = require('../lib/outbox');
 const { LOG_KEY } = require('../lib/applications');
 const membersLib = require('../lib/members');
 const photosLib = require('../lib/photos');
@@ -67,9 +69,10 @@ module.exports = async (req, res) => {
   // larger and are the ones at risk of exceeding the KV request size limit; if
   // one of them fails, the application must still show up in the admin list.
   let stored = false;
+  const openedAt = new Date().toISOString();
   try {
-    const apps = (await kv.get(LOG_KEY)) || [];
-    apps.unshift({
+    const log = (await kv.get(LOG_KEY)) || [];
+    log.unshift({
       id: appId,
       name: fields.applicantName || 'Unknown',
       date: new Date().toISOString(),
@@ -78,12 +81,17 @@ module.exports = async (req, res) => {
       pdfFilename: files.pdf.filename,
       cvFilename: files.cv ? files.cv.filename : null,
       emailedTo: [],
+      // Who was asked, on any channel, and how. emailedTo is still written
+      // beside them and still means what it always did - the addresses this
+      // server mailed - so an older reader of the log is never misled.
+      askedTo: [],
+      askedVia: {},
       // Opens the 5/12/14-day board poll that api/cron/poll.js drives.
-      pollOpenedAt: new Date().toISOString(),
+      pollOpenedAt: openedAt,
       pollStatus: 'open',
       remindersSent: [],
     });
-    await kv.set(LOG_KEY, apps);
+    await kv.set(LOG_KEY, log);
     stored = true;
   } catch (kvErr) {
     console.error(`KV storage error (non-fatal): could not log application ${appId}:`, kvErr);
@@ -95,18 +103,29 @@ module.exports = async (req, res) => {
   async function updateLogEntry(patch) {
     if (!stored) return;
     try {
-      const apps = (await kv.get(LOG_KEY)) || [];
-      const entry = apps.find(a => a.id === appId);
+      const log = (await kv.get(LOG_KEY)) || [];
+      const entry = log.find(a => a.id === appId);
       if (!entry) return;
       Object.assign(entry, patch);
-      await kv.set(LOG_KEY, apps);
+      await kv.set(LOG_KEY, log);
     } catch (err) {
       console.error(`Could not update log entry for ${appId}:`, err);
     }
   }
 
-  function recordDelivery(emailedTo, emailError) {
-    return updateLogEntry(emailError ? { emailedTo, emailError } : { emailedTo });
+  // emailedTo is what this server actually put in the post. askedTo is
+  // everyone the board poll is counted against, which now includes anyone
+  // whose message is queued for WhatsApp or LINE - queued is asked, because
+  // the asking has been decided and only the delivery is waiting on the Mac.
+  function recordDelivery(emailedTo, emailError, askedVia) {
+    const via = askedVia || {};
+    const askedTo = Object.keys(via);
+    return updateLogEntry({
+      emailedTo,
+      askedTo,
+      askedVia: via,
+      ...(emailError ? { emailError } : {}),
+    });
   }
 
   // Store each file under its own guard: an oversized CV must not cost us the
@@ -184,11 +203,20 @@ module.exports = async (req, res) => {
   const settings = await settingsLib.getSettings();
   const recipientList = settingsLib.recipientList(settings);
   const activeRecipients = settingsLib.activeRecipients(settings);
+  const application = {
+    id: appId,
+    name: fields.applicantName || 'Unknown',
+    hasPdf,
+    hasCv,
+    pollOpenedAt: openedAt,
+  };
 
-  if (activeRecipients.length === 0) {
-    const error = 'No active email recipients configured';
-    console.error(`${error} - application ${appId} stored but not emailed`);
-    await recordDelivery([], error);
+  // The board can be asked on three channels now, so having nobody to email is
+  // only a problem if there is nobody on the other two either.
+  if (!settingsLib.askedAddresses(settings).length) {
+    const error = 'No active recipients configured';
+    console.error(`${error} - application ${appId} stored but nobody was asked`);
+    await recordDelivery([], error, {});
     return res.json({ success: true, stored, emailSent: false, appId, error });
   }
 
@@ -229,29 +257,50 @@ module.exports = async (req, res) => {
       }
     });
 
+    // WhatsApp and LINE leave from Mark's own accounts on his own Mac, so they
+    // cannot be sent from here. They are written to the queue the senders
+    // drain, which is why the board members on those channels count as asked
+    // from this moment even though nothing has left yet.
+    const queued = await outbox.askBoard(settings, application, {
+      kind: 'ask',
+      closeDays: apps.CLOSE_DAYS,
+    });
+
+    const delivered = results.map(r => r.email);
+    const askedVia = {};
+    delivered.forEach(email => { askedVia[email] = ['email']; });
+    Object.keys(queued.via).forEach(email => {
+      const hit = Object.keys(askedVia).find(e => e.toLowerCase() === email.toLowerCase()) || email;
+      askedVia[hit] = (askedVia[hit] || []).concat(queued.via[email]);
+    });
+
     // Tell the membership chair straight away, before anyone opens their email.
+    const waiting = queued.entries.length;
     await notify.push({
       title: 'New membership application',
       message: `${fields.applicantName || 'Someone'} has applied to join.`
-        + (results.length ? ` The board (${results.length}) has been emailed.` : ''),
+        + (results.length ? ` The board (${results.length}) has been emailed.` : '')
+        + (waiting ? ` ${waiting} message${waiting === 1 ? '' : 's'} queued for the WhatsApp and LINE senders.` : ''),
       url: `${mailer.siteUrl()}/admin/membership`,
       tags: ['inbox_tray'],
     });
 
-    const delivered = results.map(r => r.email);
     const emailError = failures.length
       ? failures.map(f => `${f.email}: ${f.error}`).join('; ')
       : null;
-    await recordDelivery(delivered, emailError);
+    await recordDelivery(delivered, emailError, askedVia);
 
-    if (!delivered.length) {
+    if (!delivered.length && !waiting) {
       return res.json({ success: true, stored, emailSent: false, appId, error: emailError });
     }
 
-    res.json({ success: true, mode: 'gmail', stored, emailSent: true, appId, results, failures });
+    res.json({
+      success: true, mode: 'gmail', stored, emailSent: delivered.length > 0,
+      appId, results, failures, queued: waiting,
+    });
   } catch (err) {
     console.error('Email error:', err);
-    await recordDelivery([], err.message);
+    await recordDelivery([], err.message, {});
     res.json({ success: true, stored, emailSent: false, appId, error: err.message });
   }
 };

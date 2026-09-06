@@ -1,39 +1,41 @@
 const { kv } = require('@vercel/kv');
+const settingsLib = require('../../lib/settings');
+const { toE164 } = require('../../lib/phone');
 
-const SETTINGS_KEY = 'admin:settings';
+const { SETTINGS_KEY, DEFAULT_SETTINGS, CHANNELS, getSettings } = settingsLib;
 
-const DEFAULT_SETTINGS = {
-  recipients: [
-    { email: 'markberger471@gmail.com', name: 'Mark Berger', active: true }
-  ],
-  emailSubject: 'New Membership Application: {{name}}',
-  emailBody: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: #17458f; padding: 20px; border-radius: 8px 8px 0 0;">
-    <h1 style="color: #fff; margin: 0; font-size: 20px;">New Membership Application</h1>
-    <p style="color: #f7a81b; margin: 5px 0 0;">Rotary Club Bangkok DACH</p>
-  </div>
-  <div style="background: #f8f9fa; padding: 20px; border: 1px solid #e9ecef;">
-    <p>Dear Membership Committee,</p>
-    <p>A new membership application has been submitted by <strong>{{name}}</strong>.</p>
-    <p>Please find the application summary PDF attached{{cv_note}}.</p>
-    <p style="margin-top: 20px; color: #666; font-size: 12px;">
-      This email was sent automatically from the online membership application form.
-    </p>
-  </div>
-  <div style="background: #f7a81b; padding: 8px; text-align: center; border-radius: 0 0 8px 8px;">
-    <span style="color: #17458f; font-size: 11px; font-weight: bold;">Rotary Club Bangkok DACH</span>
-  </div>
-</div>`
-};
-
-async function getSettings() {
-  try {
-    const settings = await kv.get(SETTINGS_KEY);
-    if (settings) return settings;
-  } catch (err) {
-    console.error('Error reading settings:', err);
+// Everything written here is read by code that decides who gets messaged, so
+// it is cleaned on the way in rather than trusted on the way out. A number is
+// stored the one way WhatsApp can use it, and a channel nobody has heard of
+// is dropped instead of sitting in the list doing nothing.
+function cleanRecipient(r) {
+  const raw = r && typeof r === 'object' ? r : {};
+  const email = String(raw.email || '').trim();
+  const cleaned = {
+    ...raw,
+    email,
+    name: String(raw.name || '').trim() || email,
+    active: raw.active !== false,
+    waNumber: toE164(raw.waNumber || raw.phone || ''),
+    lineName: String(raw.lineName || '').trim(),
+  };
+  // An absent channels field still means "email", which is what it has always
+  // meant; only an array that is really there is taken at its word.
+  if (Array.isArray(raw.channels)) {
+    cleaned.channels = raw.channels
+      .map(c => String(c || '').toLowerCase())
+      .filter((c, i, a) => CHANNELS.includes(c) && a.indexOf(c) === i);
   }
-  return DEFAULT_SETTINGS;
+  delete cleaned.phone;
+  return cleaned;
+}
+
+function cleanSettings(body) {
+  const settings = body && typeof body === 'object' ? { ...body } : {};
+  settings.recipients = Array.isArray(settings.recipients)
+    ? settings.recipients.filter(r => r && String(r.email || '').trim()).map(cleanRecipient)
+    : [];
+  return settings;
 }
 
 async function saveSettings(settings) {
@@ -54,8 +56,9 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      await saveSettings(body);
-      return res.json({ success: true });
+      const settings = cleanSettings(body);
+      await saveSettings(settings);
+      return res.json({ success: true, settings });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -66,3 +69,4 @@ module.exports = async (req, res) => {
 
 module.exports.getSettings = getSettings;
 module.exports.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
+module.exports.cleanSettings = cleanSettings;

@@ -83,8 +83,8 @@
         Applications
       </button>
       <button class="tab-btn px-5 py-3 text-sm font-semibold text-white/70 hover:text-white" onclick="switchTab(event, 'recipients')">
-        <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        Email Recipients
+        <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Recipients
       </button>
       <button class="tab-btn px-5 py-3 text-sm font-semibold text-white/70 hover:text-white" onclick="switchTab(event, 'template')">
         <svg class="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -139,8 +139,13 @@
   <div id="tab-recipients" class="tab-panel max-w-6xl mx-auto px-4 pb-12">
     <div class="glass-card rounded-2xl overflow-hidden">
       <div class="px-6 py-4 border-b border-white/10">
-        <h2 class="font-bold text-lg">Email Recipients</h2>
-        <p class="text-white/50 text-sm mt-1">Manage who receives application emails. Click a recipient to edit their name and email, or toggle them on/off without removing them.</p>
+        <h2 class="font-bold text-lg">Recipients</h2>
+        <p class="text-white/50 text-sm mt-1">Who the board asks about an application, and where. Tick <strong class="text-white/70">Email</strong>, <strong class="text-white/70">WhatsApp</strong> or <strong class="text-white/70">LINE</strong> per person - they get the same two links whichever way it arrives, and a vote lands in the application log the same way. Click a recipient to edit their name, address, number and LINE name; the switch on the left takes them out without removing them.</p>
+        <p class="text-white/35 text-xs mt-2">Email leaves the moment an application arrives. WhatsApp and LINE go out from your own accounts, so they wait for the senders running on your Mac.</p>
+        <button onclick="fillNumbersFromDirectory()" class="btn-secondary mt-3 px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+          Fill in numbers from Member Contacts
+        </button>
       </div>
       <div class="p-6 space-y-4">
         <div id="recipientsList" class="space-y-3">
@@ -210,6 +215,7 @@
     let editingRecipient = null;
     let applications = [];
     let allVotes = {};
+    let outboxItems = [];
 
     const DEFAULT_EMAIL_BODY = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <div style="background: #17458f; padding: 20px; border-radius: 8px 8px 0 0;">
@@ -243,12 +249,17 @@
       document.getElementById('applicationsTable').classList.add('hidden');
       document.getElementById('applicationsEmpty').classList.add('hidden');
       try {
-        const [appData, voteData] = await Promise.all([
+        const [appData, voteData, queueData] = await Promise.all([
           apiFetch('/api/admin/applications'),
           apiFetch('/api/admin/applications?votes=1'),
+          // What is still waiting for the WhatsApp and LINE senders. A message
+          // that has not gone out yet is the one thing this page cannot work
+          // out from the application itself.
+          apiFetch('/api/admin/guests?outbox=all').catch(() => ({ items: [] })),
         ]);
         applications = appData.applications || [];
         allVotes = voteData.votes || {};
+        outboxItems = (queueData && queueData.items) || [];
         renderApplications();
       } catch (err) {
         if (err.message !== 'Unauthorized') {
@@ -305,7 +316,7 @@
         if (!filesHtml) filesHtml = '<span class="text-white/30">N/A</span>';
 
         const votes = allVotes[app.id] || {};
-        const recipients = app.emailedTo || [];
+        const recipients = askedListOf(app);
         const approved = [];
         const rejected = [];
         const pending = [];
@@ -326,7 +337,7 @@
         const total = approved.length + rejected.length + pending.length;
         let voteSummaryHtml = '';
         if (total === 0) {
-          voteSummaryHtml = '<span class="text-white/30 text-xs">No recipients</span>';
+          voteSummaryHtml = '<span class="text-white/30 text-xs">Nobody asked</span>';
         } else {
           const pills = [];
           if (approved.length) pills.push(`<span class="inline-flex items-center gap-1 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">${approved.length} approved</span>`);
@@ -355,11 +366,20 @@
           }
           const dateInfo = v.date ? ' &middot; ' + new Date(v.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
           const commentHtml = v.comment ? `<div class="text-xs text-red-300/70 mt-1 ml-5 italic">"${escapeHtml(v.comment)}"</div>` : '';
+          // A vote says where it came in from; someone who has not voted yet
+          // says where they were asked, which is the thing worth knowing when
+          // chasing them.
+          const asked = askedViaFor(app, v.email);
+          const channelNote = v.via
+            ? ' &middot; from ' + escapeHtml(CHANNEL_LABEL[v.via] || v.via)
+            : v.status === 'pending' && asked.length
+              ? ' &middot; asked by ' + asked.map(c => escapeHtml(CHANNEL_LABEL[c] || c)).join(', ')
+              : '';
           voteDetailHtml += `<div class="py-1.5">
             <div class="flex items-center gap-1.5 text-xs" title="${escapeHtml(v.email)}">
               ${icon}
               <span class="${color} font-medium">${escapeHtml(name)}</span>
-              <span class="text-white/30">${label}${dateInfo}</span>
+              <span class="text-white/30">${label}${dateInfo}${channelNote}</span>
             </div>
             ${commentHtml}
           </div>`;
@@ -378,6 +398,7 @@
           <td class="px-6 py-4">
             ${voteSummaryHtml}
             ${pollStatusHtml(app)}
+            ${queueHtml(app)}
             ${voteDetailHtml}
           </td>
           <td class="px-6 py-4">${filesHtml}</td>
@@ -392,6 +413,52 @@
           </td>
         </tr>`;
       }).join('');
+    }
+
+    // Who was asked. The board used to be asked only by email, so that is what
+    // the list was called; an application from before it could be asked on
+    // WhatsApp or LINE has only emailedTo, and is still counted against
+    // exactly the people it was sent to.
+    function askedListOf(app) {
+      if (Array.isArray(app.askedTo)) return app.askedTo;
+      return Array.isArray(app.emailedTo) ? app.emailedTo : [];
+    }
+
+    const CHANNEL_LABEL = { email: 'email', whatsapp: 'WhatsApp', line: 'LINE' };
+    const sameAddress = (a, b) => (a || '').toLowerCase() === (b || '').toLowerCase();
+
+    // How one person was asked. Absent on older applications, where the answer
+    // is email, and only email.
+    function askedViaFor(app, email) {
+      const map = app.askedVia && typeof app.askedVia === 'object' ? app.askedVia : null;
+      if (map) {
+        const hit = Object.keys(map).find(k => sameAddress(k, email));
+        if (hit && Array.isArray(map[hit])) return map[hit];
+      }
+      return askedListOf(app).some(e => sameAddress(e, email)) ? ['email'] : [];
+    }
+
+    // What is still sitting in the queue for this application - which is the
+    // difference between "nobody has answered" and "nobody has been asked yet
+    // because the sender is not running".
+    function queueHtml(app) {
+      const mine = outboxItems.filter(e => e && e.appId === app.id);
+      if (!mine.length) return '';
+      const waiting = mine.filter(e => !e.sentAt && !e.failedAt);
+      const failed = mine.filter(e => e.failedAt);
+      const pills = [];
+      if (waiting.length) {
+        const where = [...new Set(waiting.map(e => CHANNEL_LABEL[e.channel] || e.channel))].join(' and ');
+        pills.push(`<span class="inline-flex items-center gap-1 text-[11px] bg-rotary-sky/15 text-rotary-sky px-2 py-0.5 rounded-full font-medium"
+          title="${escapeAttr(waiting.map(e => e.name).join(', '))}">
+          ${waiting.length} waiting for the ${escapeHtml(where)} sender</span>`);
+      }
+      if (failed.length) {
+        pills.push(`<span class="inline-flex items-center gap-1 text-[11px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-medium"
+          title="${escapeAttr(failed.map(e => `${e.name}: ${e.error || 'not sent'}`).join('\n'))}">
+          ${failed.length} could not be sent</span>`);
+      }
+      return pills.length ? `<div class="mt-1.5 flex flex-wrap gap-1.5">${pills.join('')}</div>` : '';
     }
 
     // Board members who have not voted have no voterName of their own yet;
@@ -502,6 +569,58 @@
     }
 
     // ==================== RECIPIENTS ====================
+
+    // The three ways the board can be asked. Email is sent by the server the
+    // moment an application arrives; WhatsApp and LINE are queued for the
+    // senders on Mark's Mac, because they go out from his own accounts.
+    const CHANNEL_ORDER = ['email', 'whatsapp', 'line'];
+    const CHANNEL_META = {
+      email:    { label: 'Email',    field: 'email',    needs: 'no email address' },
+      whatsapp: { label: 'WhatsApp', field: 'waNumber', needs: 'no WhatsApp number' },
+      line:     { label: 'LINE',     field: 'lineName', needs: 'no LINE name' },
+    };
+
+    // A recipient saved before there was anything but email has no channels
+    // field, and every one of them was an email recipient - so that is what an
+    // absent field means, here exactly as on the server.
+    function channelsOf(r) {
+      return Array.isArray(r && r.channels)
+        ? r.channels.filter(c => CHANNEL_ORDER.includes(c))
+        : ['email'];
+    }
+
+    function addressOn(r, channel) {
+      return String((r || {})[CHANNEL_META[channel].field] || '').trim();
+    }
+
+    // Ticked and reachable. A channel ticked with nowhere to send it is a
+    // message that would sit in the queue for ever, so it does not count.
+    function liveChannels(r) {
+      return channelsOf(r).filter(c => addressOn(r, c));
+    }
+
+    function channelChip(r, i, channel) {
+      const on = channelsOf(r).includes(channel);
+      const has = !!addressOn(r, channel);
+      const meta = CHANNEL_META[channel];
+      const cls = on && has
+        ? 'bg-rotary-gold/20 text-rotary-gold border-rotary-gold/40'
+        : on && !has
+          ? 'bg-red-500/15 text-red-300 border-red-400/30'
+          : has
+            ? 'bg-white/5 text-white/40 border-white/10 hover:text-white/80 hover:border-white/25'
+            : 'bg-white/5 text-white/20 border-white/5';
+      const title = on && !has
+        ? `Ticked, but there is ${meta.needs} - nothing will go out. Click the row to add one.`
+        : on
+          ? `Asked on ${meta.label}. Click to stop.`
+          : has
+            ? `Also ask on ${meta.label}.`
+            : `There is ${meta.needs} for them. Click the row to add one.`;
+      return `<button type="button" onclick="toggleChannel(${i}, '${channel}')" title="${escapeAttr(title)}"
+        class="px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-colors ${cls}">${meta.label}</button>`;
+    }
+
     function renderRecipients() {
       const container = document.getElementById('recipientsList');
       if (!settings || !settings.recipients || settings.recipients.length === 0) {
@@ -517,27 +636,59 @@
         });
       container.innerHTML = sorted.map(r => { const i = r._idx;
         if (i === editingRecipient) return `
-        <div class="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-rotary-gold/40 flex-wrap">
-          <input type="text" id="editRecipientName" value="${escapeAttr(r.name || '')}" onkeydown="recipientEditKey(event, ${i})"
-            class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[140px]" placeholder="Name" />
-          <input type="email" id="editRecipientEmail" value="${escapeAttr(r.email || '')}" onkeydown="recipientEditKey(event, ${i})"
-            class="glass-input px-3 py-2 rounded-lg text-sm flex-1 min-w-[200px]" placeholder="Email address" />
-          <button onclick="saveRecipientEdit(${i})" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Save</button>
-          <button onclick="cancelEditRecipient()" class="px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white transition-colors">Cancel</button>
+        <div class="p-4 rounded-xl bg-white/5 border border-rotary-gold/40 space-y-3">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1">Name</span>
+              <input type="text" id="editRecipientName" value="${escapeAttr(r.name || '')}" onkeydown="recipientEditKey(event, ${i})"
+                class="glass-input px-3 py-2 rounded-lg text-sm w-full" placeholder="Name" />
+            </label>
+            <label class="block">
+              <span class="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1">Email</span>
+              <input type="email" id="editRecipientEmail" value="${escapeAttr(r.email || '')}" onkeydown="recipientEditKey(event, ${i})"
+                class="glass-input px-3 py-2 rounded-lg text-sm w-full" placeholder="Email address" />
+            </label>
+            <label class="block">
+              <span class="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1">WhatsApp number</span>
+              <input type="tel" id="editRecipientWa" value="${escapeAttr(r.waNumber || '')}" onkeydown="recipientEditKey(event, ${i})"
+                class="glass-input px-3 py-2 rounded-lg text-sm w-full" placeholder="e.g. 081 234 5678" />
+            </label>
+            <label class="block">
+              <span class="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1">LINE name</span>
+              <input type="text" id="editRecipientLine" value="${escapeAttr(r.lineName || '')}" onkeydown="recipientEditKey(event, ${i})"
+                class="glass-input px-3 py-2 rounded-lg text-sm w-full" placeholder="exactly as in your chat list" />
+            </label>
+          </div>
+          <div class="flex gap-2 items-center">
+            <button onclick="saveRecipientEdit(${i})" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold">Save</button>
+            <button onclick="cancelEditRecipient()" class="px-3 py-2 rounded-lg text-sm text-white/60 hover:text-white transition-colors">Cancel</button>
+            <span class="text-[11px] text-white/30 ml-1">The LINE name has to match the chat exactly, or the sender will not send.</span>
+          </div>
         </div>`;
+
+        const live = liveChannels(r);
+        const handles = [
+          escapeHtml(r.email),
+          r.waNumber ? '&middot; WA ' + escapeHtml(r.waNumber) : '',
+          r.lineName ? '&middot; LINE ' + escapeHtml(r.lineName) : '',
+        ].filter(Boolean).join(' ');
+        const warning = r.active && !live.length
+          ? `<div class="text-[11px] text-red-300/80 mt-1">Nothing ticked that can reach them - they will not be asked.</div>`
+          : '';
         return `
-        <div class="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
+        <div class="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all flex-wrap">
           <div class="toggle-track ${r.active ? 'on' : ''}" onclick="toggleRecipient(${i})">
             <div class="toggle-thumb"></div>
           </div>
-          <div class="flex-1 min-w-0 cursor-pointer" onclick="startEditRecipient(${i})" title="Click to edit">
+          <div class="flex-1 min-w-[180px] cursor-pointer" onclick="startEditRecipient(${i})" title="Click to edit">
             <div class="font-semibold text-sm ${r.active ? 'text-white' : 'text-white/40'}">${escapeHtml(r.name || 'Unnamed')}</div>
-            <div class="text-xs ${r.active ? 'text-white/60' : 'text-white/30'} truncate">${escapeHtml(r.email)}</div>
+            <div class="text-xs ${r.active ? 'text-white/60' : 'text-white/30'} truncate">${handles}</div>
+            ${warning}
           </div>
-          <span class="text-xs px-2 py-0.5 rounded-full font-medium ${r.active ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'}">
-            ${r.active ? 'Active' : 'Inactive'}
-          </span>
-          <button onclick="startEditRecipient(${i})" class="text-white/20 hover:text-rotary-gold transition-colors p-1" title="Edit name and email">
+          <div class="flex items-center gap-1.5 ${r.active ? '' : 'opacity-40'}">
+            ${CHANNEL_ORDER.map(c => channelChip(r, i, c)).join('')}
+          </div>
+          <button onclick="startEditRecipient(${i})" class="text-white/20 hover:text-rotary-gold transition-colors p-1" title="Edit name, email, number and LINE name">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
           <button onclick="removeRecipient(${i})" class="text-white/20 hover:text-red-400 transition-colors p-1" title="Remove">
@@ -550,6 +701,51 @@
         const el = document.getElementById('editRecipientName');
         if (el) { el.focus(); el.select(); }
       }
+    }
+
+    // The member directory already holds everybody's number, so it is not worth
+    // typing them in again here. This only fills a blank - a number typed on
+    // this page is never overwritten - and it does not tick anything: who gets
+    // asked on WhatsApp stays a decision, not a side effect of having a number.
+    async function fillNumbersFromDirectory() {
+      let contacts;
+      try {
+        ({ contacts } = await apiFetch('/api/admin/contacts'));
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not read the member directory', 'error');
+        return;
+      }
+      const filled = [];
+      (settings.recipients || []).forEach(r => {
+        if (String(r.waNumber || '').trim()) return;
+        const m = (contacts || []).find(c => c && sameAddress(c.email, r.email));
+        const number = toE164(m && (m.whatsapp || m.phone));
+        if (!number) return;
+        r.waNumber = number;
+        filled.push(r.name || r.email);
+      });
+      if (!filled.length) {
+        showToast('No numbers to add - everyone who has one in the directory already has it here', 'success');
+        return;
+      }
+      renderRecipients();
+      await saveSettings();
+      showToast(`Number added for ${filled.join(', ')}. Tick WhatsApp to start asking them there.`, 'success');
+    }
+
+    // Ticking a channel writes the list out in full, which also turns an older
+    // recipient's implicit "email" into a real one - so what is stored from
+    // then on is exactly what the page shows.
+    function toggleChannel(index, channel) {
+      const r = settings.recipients[index];
+      const on = channelsOf(r);
+      if (!on.includes(channel) && !addressOn(r, channel)) {
+        showToast(`${CHANNEL_META[channel].label}: ${CHANNEL_META[channel].needs} for ${r.name || r.email}. Click the row to add one.`, 'error');
+        return;
+      }
+      r.channels = on.includes(channel) ? on.filter(c => c !== channel) : on.concat(channel);
+      renderRecipients();
+      saveSettings();
     }
 
     // escapeHtml() escapes &, < and > but not quotes, which is not enough for
@@ -573,10 +769,25 @@
       else if (event.key === 'Escape') { event.preventDefault(); cancelEditRecipient(); }
     }
 
+    // The same rule the server uses: a number typed the way people type it
+    // ("081 234 5678") and one that came off a phone (+66 81 234 5678) have to
+    // end up as the same string, because that string is the WhatsApp chat.
+    function toE164(input) {
+      const raw = String(input || '').trim();
+      const n = raw.replace(/[^0-9]/g, '');
+      if (!n) return '';
+      if (raw.startsWith('+')) return n;
+      if (n.startsWith('00')) return n.slice(2);
+      if (n.startsWith('0')) return '66' + n.slice(1);
+      return n;
+    }
+
     function saveRecipientEdit(index) {
       const name = document.getElementById('editRecipientName').value.trim();
       const emailInput = document.getElementById('editRecipientEmail');
       const email = emailInput.value.trim();
+      const waNumber = toE164(document.getElementById('editRecipientWa').value);
+      const lineName = document.getElementById('editRecipientLine').value.trim();
       if (!email) {
         showToast('Please enter an email address', 'error');
         emailInput.focus();
@@ -592,9 +803,19 @@
         emailInput.focus();
         return;
       }
-      const prevEmail = settings.recipients[index].email || '';
-      settings.recipients[index].name = name || email.split('@')[0];
-      settings.recipients[index].email = email;
+      const r = settings.recipients[index];
+      const prevEmail = r.email || '';
+      r.name = name || email.split('@')[0];
+      r.email = email;
+      r.waNumber = waNumber;
+      r.lineName = lineName;
+
+      // A channel that has just lost its address is unticked rather than left
+      // ticked over nothing - otherwise the row shows a warning nobody asked
+      // for and a message would be queued for an address that is gone.
+      const kept = channelsOf(r).filter(c => addressOn(r, c));
+      if (kept.length !== channelsOf(r).length) r.channels = kept;
+
       editingRecipient = null;
       renderRecipients();
       saveSettings();
@@ -642,12 +863,15 @@
         showToast('This email is already in the list', 'error');
         return;
       }
-      settings.recipients.push({ email, name: name || email.split('@')[0], active: true });
+      // Email to begin with, which is how the board has always been asked.
+      // WhatsApp and LINE are ticked afterwards, once there is a number or a
+      // LINE name to tick them against.
+      settings.recipients.push({ email, name: name || email.split('@')[0], active: true, channels: ['email'] });
       renderRecipients();
       saveSettings();
       nameInput.value = '';
       emailInput.value = '';
-      showToast('Recipient added', 'success');
+      showToast('Recipient added - add a number or LINE name to ask them there too', 'success');
     }
 
     // ==================== EMAIL TEMPLATE ====================

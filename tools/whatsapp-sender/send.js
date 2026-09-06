@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 /*
- * Local WhatsApp sender for Rotary Club Bangkok DACH meeting invites.
+ * Local WhatsApp sender for Rotary Club Bangkok DACH.
  *
- * Runs on Mark's Mac and drives his own WhatsApp Web session, so invites go out
- * from his number and every reply lands in his normal WhatsApp. It sends the
- * image as a real attachment with the personal message as the caption - a
+ * Runs on Mark's Mac and drives his own WhatsApp Web session, so messages go
+ * out from his number and every reply lands in his normal WhatsApp. It sends
+ * the image as a real attachment with the personal message as the caption - a
  * wa.me link can do neither.
  *
- * Guests are queued from the admin Invite page; this picks them up, sends, and
- * writes the invite back onto the guest record.
+ * There are two queues, and both are drained here:
+ *
+ *   guests  - meeting invitations, queued from the admin Invite page
+ *   board   - membership applications, queued whenever the board is asked to
+ *             vote and a board member has WhatsApp ticked on the Recipients
+ *             page. The message carries the same Approve and Reject links as
+ *             the email, so a vote from WhatsApp lands in the application log
+ *             exactly as one from the email does.
+ *
+ * Board messages go first: an application has a clock on it, an invitation
+ * does not.
  *
  *   ADMIN_PASSWORD=... npm run dry      # show what would be sent, send nothing
  *   ADMIN_PASSWORD=... npm run once     # send whatever is queued, then exit
@@ -93,7 +102,49 @@ const isForWhatsApp = (q) => !q.channel || q.channel === 'whatsapp';
 
 async function queuedGuests() {
   const { guests } = await api('/api/admin/guests');
-  return guests.filter(g => g && g.queued && g.queued.text && isForWhatsApp(g.queued) && g.status !== 'archived');
+  return guests
+    .filter(g => g && g.queued && g.queued.text && isForWhatsApp(g.queued) && g.status !== 'archived')
+    .map(g => ({ ...g, board: false, about: '' }));
+}
+
+// The board members waiting to be asked about an application. They arrive in
+// the same shape as a queued guest - a name, a number and a message - so
+// everything below neither knows nor cares which queue a job came from; only
+// the line written back afterwards differs.
+async function queuedBoard() {
+  const { items } = await api('/api/admin/guests?outbox=whatsapp');
+  return (items || [])
+    .filter(e => e && e.text && String(e.waNumber || '').trim())
+    .map(e => ({
+      id: e.id,
+      board: true,
+      name: e.name || e.waNumber,
+      about: e.appName ? ` about ${e.appName}` : '',
+      waNumber: e.waNumber,
+      queued: { text: e.text, imageUrls: [] },
+    }));
+}
+
+async function queuedAll() {
+  const [board, guests] = await Promise.all([
+    queuedBoard().catch(err => { log('could not read the board queue:', err.message); return []; }),
+    queuedGuests(),
+  ]);
+  return board.concat(guests);
+}
+
+// Telling the server what happened. A guest's record carries the invite; a
+// board message is simply taken off the queue, with the reason if it failed.
+function reportSent(job, note) {
+  if (job.board) return api('/api/admin/guests', 'PATCH', { outbox: { id: job.id } });
+  return api('/api/admin/guests', 'PATCH', {
+    id: job.id, queued: null, invited: 'whatsapp', ...(note ? { queueError: note } : {}),
+  });
+}
+
+function reportFailed(job, message) {
+  if (job.board) return api('/api/admin/guests', 'PATCH', { outbox: { id: job.id, error: message } });
+  return api('/api/admin/guests', 'PATCH', { id: job.id, queued: null, queueError: message });
 }
 
 // The image is fetched from the public endpoint, the same URL a recipient would
@@ -175,13 +226,14 @@ async function drain(client) {
     if (client) await client.destroy().catch(() => {});
     process.exit(0);
   }
-  const queue = await queuedGuests();
+  const queue = await queuedAll();
   if (!queue.length) return 0;
 
-  log(`${queue.length} queued`);
+  const boardCount = queue.filter(j => j.board).length;
+  log(`${queue.length} queued${boardCount ? ` (${boardCount} board vote${boardCount === 1 ? '' : 's'})` : ''}`);
   let sent = 0;
   for (const guest of queue.slice(0, MAX_PER_RUN)) {
-    const who = guest.name || guest.waNumber;
+    const who = (guest.name || guest.waNumber) + guest.about;
     if (DRY) {
       const imgs = imageUrlsOf(guest.queued);
       log(`WOULD SEND to ${who}${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
@@ -194,17 +246,15 @@ async function drain(client) {
       // record it on the guest, so the Invite page shows it too.
       const lost = wanted - attached;
       const note = lost > 0 ? `sent without ${lost} of ${wanted} image${wanted === 1 ? '' : 's'} - could not be fetched` : '';
-      await api('/api/admin/guests', 'PATCH', {
-        id: guest.id, queued: null, invited: 'whatsapp', ...(note ? { queueError: note } : {}),
-      });
+      await reportSent(guest, note);
       sent++;
       const how = attached ? `with ${attached} image${attached === 1 ? '' : 's'}` : 'text only';
       log(`sent to ${who} (${how})  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
       if (note) log('   WARNING: ' + note);
     } catch (err) {
-      // Clear the queue entry so one bad number cannot jam the run forever.
-      await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, queueError: err.message })
-        .catch(() => {});
+      // Take it off the queue so one bad number cannot jam the run forever.
+      // The reason goes on the record and shows on the page it came from.
+      await reportFailed(guest, err.message).catch(() => {});
       log(`FAILED for ${who}: ${err.message}`);
     }
     const gap = jitter();
@@ -265,7 +315,7 @@ async function drain(client) {
       await client.destroy();
       process.exit(0);
     }
-    log('watching for newly queued invites - Ctrl+C to stop');
+    log('watching for newly queued invites and board votes - Ctrl+C to stop');
     // One drain at a time. The timer fires every fifteen seconds; a drain
     // takes far longer, because it waits 18-42s between guests. On 5 Sep a
     // second drain started while the first was in one of those pauses, both

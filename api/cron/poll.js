@@ -1,12 +1,17 @@
 const { kv } = require('@vercel/kv');
 const apps = require('../../lib/applications');
-const { getSettings, activeRecipients, recipientName } = require('../../lib/settings');
+const settingsLib = require('../../lib/settings');
+const { getSettings, activeRecipients, recipientName } = settingsLib;
+const outbox = require('../../lib/outbox');
 const mailer = require('../../lib/mailer');
 
 // Daily sweep of every open board poll:
 //   day 5  -> remind whoever has not voted
 //   day 12 -> remind them again
-//   day 14 -> close the poll and mail the result to the ticked recipients
+//   day 14 -> close the poll and send the result to the ticked recipients
+//
+// Every stage goes out on whichever channels each recipient has ticked: email
+// leaves from here, WhatsApp and LINE are queued for the senders on Mark's Mac.
 //
 // Every send is recorded on the application before the next run, so a stage
 // never fires twice, and a run that is missed entirely is picked up by the
@@ -60,6 +65,14 @@ module.exports = async (req, res) => {
       const votes = await apps.getVotes(app.id);
       const t = apps.tally(app, votes);
 
+      // Somebody who was asked but is no longer on the recipients list still
+      // gets their email, exactly as before. The only person skipped is one
+      // who is on the list with email deliberately unticked.
+      const emailOff = (email) => {
+        const r = settingsLib.recipientByEmail(settings, email);
+        return !!r && !settingsLib.channelsOf(r).includes('email');
+      };
+
       if (age >= apps.CLOSE_DAYS) {
         const result = apps.outcome(t);
         const html = mailer.wrap(
@@ -91,6 +104,13 @@ module.exports = async (req, res) => {
             resultSentTo: sent,
           });
         }
+
+        // The board members on WhatsApp or LINE hear the result where they
+        // were asked. Queued, not sent - the senders on the Mac deliver it.
+        const told = dryRun
+          ? { entries: [] }
+          : await outbox.askBoard(settings, app, { kind: 'result', result, tally: t });
+
         actions.push({
           app: app.id,
           name: app.name,
@@ -98,6 +118,7 @@ module.exports = async (req, res) => {
           stage: 'closed',
           result: result.label,
           notified: dryRun ? ticked : sent,
+          queued: told.entries.map(e => `${e.name} (${e.channel})`),
         });
         continue;
       }
@@ -123,8 +144,10 @@ module.exports = async (req, res) => {
       const subject = `Reminder: Membership Application - ${app.name}`;
 
       const sent = [];
+      let queued = [];
       if (!dryRun) {
         for (const { email } of t.pending) {
+          if (emailOff(email)) continue;
           try {
             const html =
               mailer.wrap(
@@ -144,6 +167,17 @@ module.exports = async (req, res) => {
             errors.push({ app: app.id, stage: `day-${stage}`, email, error: err.message });
           }
         }
+
+        // The same nudge on WhatsApp and LINE, to the same people - whoever
+        // has not voted and has one of those ticked.
+        const nudged = await outbox.askBoard(settings, app, {
+          kind: `reminder-${stage}`,
+          only: t.pending.map(pv => pv.email),
+          closeDays: apps.CLOSE_DAYS,
+          daysLeft,
+        });
+        queued = nudged.entries.map(e => `${e.name} (${e.channel})`);
+
         await apps.updateApplication(app.id, {
           remindersSent: already.concat(due),
           lastReminderAt: new Date().toISOString(),
@@ -155,7 +189,8 @@ module.exports = async (req, res) => {
         name: app.name,
         ageDays: Math.floor(age),
         stage: `reminder-day-${stage}`,
-        notified: dryRun ? t.pending.map(p => p.email) : sent,
+        notified: dryRun ? t.pending.map(pv => pv.email) : sent,
+        queued,
       });
     } catch (err) {
       console.error(`Poll cron failed for ${app.id}:`, err);

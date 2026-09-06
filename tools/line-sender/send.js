@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 /*
- * Local LINE sender for Rotary Club Bangkok DACH meeting invites.
+ * Local LINE sender for Rotary Club Bangkok DACH.
  *
- * The twin of tools/whatsapp-sender, for the guests Mark only has on LINE.
- * Same queue, same wordings, same pictures - a different way of delivering.
+ * The twin of tools/whatsapp-sender, for the people Mark only has on LINE.
+ * Same queues, same wordings, same pictures - a different way of delivering.
+ *
+ * Two things are queued for it: meeting invitations for guests, and the board's
+ * membership votes for anyone with LINE ticked on the Recipients page. A board
+ * message carries the same Approve and Reject links as the email, so a vote
+ * cast from LINE lands in the application log exactly as one from the email
+ * does. Board messages go first - an application has a clock on it.
  *
  *   ADMIN_PASSWORD=... npm run dry      # show what would be sent, send nothing
  *   ADMIN_PASSWORD=... npm run once     # send whatever is queued, then exit
@@ -158,7 +164,47 @@ const isQueuedForLine = (g) => !!(g && g.queued && g.queued.text
 
 async function queuedGuests() {
   const { guests } = await api('/api/admin/guests');
-  return guests.filter(isQueuedForLine);
+  return guests.filter(isQueuedForLine).map(g => ({ ...g, board: false, about: '' }));
+}
+
+// The board members waiting to be asked about an application. They arrive in
+// the same shape as a queued guest - a name, a LINE name and a message - so
+// everything below neither knows nor cares which queue a job came from; only
+// the line written back afterwards differs.
+async function queuedBoard() {
+  const { items } = await api('/api/admin/guests?outbox=line');
+  return (items || [])
+    .filter(e => e && e.text && String(e.lineName || '').trim())
+    .map(e => ({
+      id: e.id,
+      board: true,
+      name: e.name || e.lineName,
+      about: e.appName ? ` about ${e.appName}` : '',
+      lineName: e.lineName,
+      queued: { text: e.text, imageUrls: [] },
+    }));
+}
+
+async function queuedAll() {
+  const [board, guests] = await Promise.all([
+    queuedBoard().catch(err => { log('could not read the board queue:', err.message); return []; }),
+    queuedGuests(),
+  ]);
+  return board.concat(guests);
+}
+
+// Telling the server what happened. A guest's record carries the invite; a
+// board message is simply taken off the queue, with the reason if it failed.
+function reportSent(job, note) {
+  if (job.board) return api('/api/admin/guests', 'PATCH', { outbox: { id: job.id } });
+  return api('/api/admin/guests', 'PATCH', {
+    id: job.id, queued: null, invited: 'line', ...(note ? { queueError: note } : {}),
+  });
+}
+
+function reportFailed(job, message) {
+  if (job.board) return api('/api/admin/guests', 'PATCH', { outbox: { id: job.id, error: message } });
+  return api('/api/admin/guests', 'PATCH', { id: job.id, queued: null, queueError: message });
 }
 
 function imageUrlsOf(queued) {
@@ -763,15 +809,16 @@ async function drain() {
     log('  ADMIN_PASSWORD=... npm start');
     process.exit(0);
   }
-  const queue = await queuedGuests();
+  const queue = await queuedAll();
   if (!queue.length) return 0;
 
-  log(`${queue.length} queued for LINE`);
+  const boardCount = queue.filter(j => j.board).length;
+  log(`${queue.length} queued for LINE${boardCount ? ` (${boardCount} board vote${boardCount === 1 ? '' : 's'})` : ''}`);
 
   // Watching in the background: wait until the keyboard is free before taking
   // it. Nothing is lost by waiting - the queue is on the server.
   if (WATCH && !DRY && idleSeconds() < IDLE_BEFORE_SEND_S) {
-    notify(`${queue.length} LINE message${queue.length === 1 ? '' : 's'} to send - it will go when you leave the keyboard for a moment.`);
+    notify(`${queue.length} LINE message${queue.length === 1 ? '' : 's'} to send${boardCount ? ` (${boardCount} board vote${boardCount === 1 ? '' : 's'})` : ''} - it will go when you leave the keyboard for a moment.`);
     log(`   waiting for the keyboard to be free (${queue.length} to send)`);
     const until = Date.now() + IDLE_WAIT_LIMIT_MS;
     while (Date.now() < until && idleSeconds() < IDLE_BEFORE_SEND_S) await sleep(3000);
@@ -785,7 +832,7 @@ async function drain() {
   const cameFrom = DRY ? '' : frontApp();
   let sent = 0;
   for (const guest of queue.slice(0, MAX_PER_RUN)) {
-    const who = guest.name || guest.lineName;
+    const who = (guest.name || guest.lineName) + guest.about;
     if (DRY) {
       const imgs = imageUrlsOf(guest.queued);
       log(`WOULD SEND to ${who} as "${guest.lineName}"${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
@@ -796,9 +843,7 @@ async function drain() {
       const { wanted, attached } = await sendOne(guest);
       const lost = wanted - attached;
       const note = lost > 0 ? `sent without ${lost} of ${wanted} picture${wanted === 1 ? '' : 's'}` : '';
-      await api('/api/admin/guests', 'PATCH', {
-        id: guest.id, queued: null, invited: 'line', ...(note ? { queueError: note } : {}),
-      });
+      await reportSent(guest, note);
       sent++;
       const how = attached ? `with ${attached} picture${attached === 1 ? '' : 's'}` : 'text only';
       log(`sent to ${who} (${how})  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
@@ -807,13 +852,13 @@ async function drain() {
       const { clearQueue, standDown } = failureAction(err);
       log(`NOT SENT to ${who}: ${err.message}`);
       if (clearQueue) {
-        // Something about this guest is wrong and will be wrong again, so it
+        // Something about this name is wrong and will be wrong again, so it
         // comes off the queue with the reason on the record - otherwise one
-        // unmatchable name jams every run after it. The Invite page shows it.
-        await api('/api/admin/guests', 'PATCH', { id: guest.id, queued: null, queueError: err.message })
-          .catch(() => {});
+        // unmatchable name jams every run after it. The page it came from
+        // shows the reason: the Invite page, or the application log.
+        await reportFailed(guest, err.message).catch(() => {});
       } else {
-        log('   still queued - this is the Mac, not the guest');
+        log('   still queued - this is the Mac, not the recipient');
       }
       // No point working through the rest of the queue while the machine is
       // not in a state to send: every one of them would fail the same way.
@@ -824,7 +869,8 @@ async function drain() {
     await sleep(gap);
   }
   if (sent) {
-    notify(`${sent} invitation${sent === 1 ? '' : 's'} sent on LINE.`);
+    const votes = queue.slice(0, MAX_PER_RUN).filter(j => j.board).length;
+    notify(`${sent} message${sent === 1 ? '' : 's'} sent on LINE${votes ? `, including ${votes} board vote${votes === 1 ? '' : 's'}` : ''}.`);
     if (cameFrom && cameFrom !== 'LINE') {
       try { osa(`tell application "${cameFrom}" to activate`); } catch {}
     }
@@ -883,7 +929,7 @@ async function main() {
     log(`done, ${total} sent`);
     process.exit(0);
   }
-  log('watching for newly queued LINE invites - Ctrl+C to stop');
+  log('watching for newly queued LINE invites and board votes - Ctrl+C to stop');
   // One drain at a time. The timer fires every fifteen seconds; a drain takes
   // as long as its pauses and its guests take, which is longer. On 5 Sep two
   // ran together and one typed into the chat the other had just opened - a
