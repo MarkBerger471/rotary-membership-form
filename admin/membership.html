@@ -133,6 +133,23 @@
         </div>
       </div>
     </div>
+
+    <!-- People the club might approach, written down before anybody applies.
+         Nothing here sends anything: it is a list and a comment each. -->
+    <div class="glass-card rounded-2xl overflow-hidden mt-6">
+      <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap">
+        <div class="min-w-0">
+          <h2 class="font-bold text-lg">Possible candidates</h2>
+          <p id="candidatesMeta" class="text-white/40 text-xs mt-0.5">People to approach about joining.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="candidateName" placeholder="Name" maxlength="120" autocomplete="off"
+            class="glass-input px-3 py-1.5 rounded-lg text-sm w-56" onkeydown="if (event.key === 'Enter') addCandidate()" />
+          <button onclick="addCandidate()" class="btn-primary px-4 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap">Add</button>
+        </div>
+      </div>
+      <div id="candidatesList" class="divide-y divide-white/5"></div>
+    </div>
   </div>
 
   <!-- ==================== RECIPIENTS TAB ==================== -->
@@ -990,10 +1007,181 @@ One objection blocks the application. {{closes}}`;
       }
     }
 
+    // ==================== POSSIBLE CANDIDATES ====================
+    // A private list of people worth approaching. It is deliberately thin -
+    // a name and a comment - because anything more would be a second member
+    // record competing with the real one on the Members page.
+    let candidates = [];
+
+    async function loadCandidates() {
+      try {
+        const data = await apiFetch('/api/admin/applications?candidates=1');
+        candidates = data.candidates || [];
+        renderCandidates();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast('Could not load the candidate list', 'error');
+      }
+    }
+
+    function renderCandidates() {
+      const list = candidates.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      document.getElementById('candidatesMeta').textContent = list.length
+        ? `${list.length} ${list.length === 1 ? 'person' : 'people'} to approach about joining`
+        : 'People to approach about joining.';
+
+      document.getElementById('candidatesList').innerHTML = list.length ? list.map(c => `
+        <div class="px-6 py-4">
+          <div class="flex items-start gap-3">
+            <input type="text" value="${escapeAttr(c.name || '')}" maxlength="120" aria-label="Name"
+              onchange="renameCandidate('${c.id}', this)"
+              class="flex-1 min-w-0 bg-transparent border border-transparent hover:border-white/10 focus:border-white/20 focus:bg-white/5 rounded-lg px-2 py-1 -ml-2 font-semibold text-sm outline-none transition-colors" />
+            <span class="text-[11px] text-white/25 whitespace-nowrap pt-1.5">${escapeHtml(addedOn(c))}</span>
+            <button onclick="removeCandidate('${c.id}')" title="Remove from the list" aria-label="Remove"
+              class="w-7 h-7 rounded-md flex items-center justify-center text-white/25 hover:text-red-400 hover:bg-white/10 transition-colors flex-shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+          <textarea id="cmt-${c.id}" rows="2" maxlength="4000"
+            placeholder="Who knows them, who should approach them, what came of it..."
+            oninput="commentTyped('${c.id}')" onblur="saveComment('${c.id}')"
+            class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-2 resize-y">${escapeHtml(c.comment || '')}</textarea>
+          <div id="cmtState-${c.id}" class="text-[11px] text-white/30 h-4 mt-0.5"></div>
+        </div>`).join('')
+        : `<div class="px-6 py-10 text-center text-white/40">
+             <p class="font-medium">Nobody on the list yet</p>
+             <p class="text-sm mt-1">Add a name above - anyone the club could approach about joining.</p>
+           </div>`;
+    }
+
+    function addedOn(c) {
+      const at = new Date(c.createdAt || 0);
+      if (isNaN(at)) return '';
+      return 'added ' + at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    // Anything typed and not yet written down, saved now. Adding or removing
+    // somebody redraws the whole list, and a comment half-typed in another
+    // row would go with it.
+    async function flushComments() {
+      await Promise.all(candidates.map((c) => {
+        const box = document.getElementById('cmt-' + c.id);
+        if (!box || box.value.trim() === (c.comment || '').trim()) return null;
+        return saveComment(c.id);
+      }).filter(Boolean));
+    }
+
+    async function addCandidate() {
+      const input = document.getElementById('candidateName');
+      const name = (input.value || '').trim();
+      if (!name) { input.focus(); return; }
+      await flushComments();
+      try {
+        const data = await apiFetch('/api/admin/applications?candidates=1', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        candidates.push(data.candidate);
+        input.value = '';
+        renderCandidates();
+        // Straight into the comment box: the name on its own is rarely the
+        // point, and this saves a click every single time.
+        const box = document.getElementById('cmt-' + data.candidate.id);
+        if (box) box.focus();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not add them', 'error');
+      }
+    }
+
+    async function renameCandidate(id, input) {
+      const entry = candidates.find(c => c.id === id);
+      const name = (input.value || '').trim();
+      if (!entry || name === entry.name) return;
+      if (!name) { input.value = entry.name; return; }
+      try {
+        const data = await apiFetch('/api/admin/applications?candidates=1', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name }),
+        });
+        Object.assign(entry, data.candidate);
+      } catch (err) {
+        input.value = entry.name;
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not rename them', 'error');
+      }
+    }
+
+    // Comments save themselves. Typing pauses for a moment, or the box loses
+    // focus, and it is written - because a note you have to remember to save
+    // is a note that gets lost when the tab is closed.
+    const commentTimers = {};
+    function commentTyped(id) {
+      setCommentState(id, 'unsaved');
+      clearTimeout(commentTimers[id]);
+      commentTimers[id] = setTimeout(() => saveComment(id), 1200);
+    }
+
+    function setCommentState(id, state) {
+      const el = document.getElementById('cmtState-' + id);
+      if (!el) return;
+      el.textContent = state === 'unsaved' ? 'not saved yet' : state === 'saving' ? 'saving...' : state === 'saved' ? 'saved' : '';
+      el.className = 'text-[11px] h-4 mt-0.5 ' + (state === 'saved' ? 'text-white/25' : state === 'unsaved' ? 'text-amber-300/70' : 'text-white/30');
+    }
+
+    async function saveComment(id) {
+      clearTimeout(commentTimers[id]);
+      const box = document.getElementById('cmt-' + id);
+      const entry = candidates.find(c => c.id === id);
+      if (!box || !entry) return;
+      const comment = box.value;
+      if (comment.trim() === (entry.comment || '').trim()) { setCommentState(id, ''); return; }
+      setCommentState(id, 'saving');
+      try {
+        const data = await apiFetch('/api/admin/applications?candidates=1', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, comment }),
+        });
+        Object.assign(entry, data.candidate);
+        setCommentState(id, 'saved');
+        setTimeout(() => setCommentState(id, ''), 2000);
+      } catch (err) {
+        setCommentState(id, 'unsaved');
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not save the comment', 'error');
+      }
+    }
+
+    async function removeCandidate(id) {
+      const entry = candidates.find(c => c.id === id);
+      if (!entry) return;
+      if (!confirm(`Remove ${entry.name} from the list?\n\nThe comment goes with them.`)) return;
+      await flushComments();
+      try {
+        await apiFetch(`/api/admin/applications?candidates=1&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        candidates = candidates.filter(c => c.id !== id);
+        renderCandidates();
+        showToast(`${entry.name} removed`, 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not remove them', 'error');
+      }
+    }
+
+    // Closing the tab mid-sentence is the one case the timer cannot cover, so
+    // the browser is asked to warn instead. Sending it without the password
+    // header would mean a second way in to this endpoint, which is not worth
+    // a second of typing.
+    const unsavedComments = () => candidates.some((c) => {
+      const box = document.getElementById('cmt-' + c.id);
+      return box && box.value.trim() !== (c.comment || '').trim();
+    });
+    window.addEventListener('beforeunload', (e) => {
+      if (!unsavedComments()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
     // ==================== INIT ====================
     if (adminPassword) {
       loadSettings();
       loadApplications();
+      loadCandidates();
       loadMigration();
     }
   </script>
