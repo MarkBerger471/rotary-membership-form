@@ -241,7 +241,12 @@
             </button>
           </div>
           <div class="p-5" style="background:#0b141a;">
-            <div id="messagePreviewBubble" style="background:#005c4b;color:#e9edef;border-radius:12px 12px 12px 4px;padding:10px 12px;max-width:420px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;box-shadow:0 1px 1px rgba(0,0,0,0.3);"></div>
+            <div style="background:#005c4b;color:#e9edef;border-radius:12px 12px 12px 4px;padding:8px 10px 6px;max-width:430px;box-shadow:0 1px 1px rgba(0,0,0,0.3);">
+              <div id="messagePreviewBubble" style="font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word;"></div>
+              <div style="text-align:right;font-size:11px;color:rgba(233,237,239,0.6);margin-top:2px;">
+                <span id="messagePreviewTime"></span> &#10003;&#10003;
+              </div>
+            </div>
             <div id="messagePreviewCount" class="text-[11px] text-white/25 mt-2"></div>
           </div>
         </div>
@@ -262,6 +267,7 @@
 
     // Kept in step with lib/settings.js DEFAULT_MESSAGE_TEMPLATE.
     const DEFAULT_MESSAGE_TEMPLATE = `Rotary Club Bangkok DACH
+Membership application
 
 {{greeting}}{{name}} has applied to join. Please have a look and vote.
 
@@ -969,7 +975,12 @@ One objection blocks the application. {{closes}}`;
           messageTemplate: document.getElementById('messageTemplate').value,
         });
         document.getElementById('messagePreviewTo').textContent = p.to || 'the board';
-        document.getElementById('messagePreviewBubble').textContent = p.text || '';
+        // WhatsApp and LINE both turn a bare URL into a tappable link, so the
+        // preview shows them the way they will actually appear.
+        document.getElementById('messagePreviewBubble').innerHTML = escapeHtml(p.text || '')
+          .replace(/https?:\/\/[^\s<]+/g, m => `<span style="color:#53bdeb;text-decoration:underline;">${m}</span>`);
+        document.getElementById('messagePreviewTime').textContent =
+          new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
         const chars = (p.text || '').length;
         document.getElementById('messagePreviewCount').textContent =
           `${chars} characters. The links are unique to each board member, so they differ per person.`;

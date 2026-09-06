@@ -47,5 +47,15 @@
       "path": "/api/cron/poll",
       "schedule": "0 3 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/v/:token",
+      "destination": "/api/admin/vote?t=:token"
+    },
+    {
+      "source": "/v/:token/:do",
+      "destination": "/api/admin/vote?t=:token&do=:do"
+    }
   ]
 }

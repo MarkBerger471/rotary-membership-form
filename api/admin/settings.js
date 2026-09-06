@@ -126,6 +126,9 @@ module.exports = async (req, res) => {
           text: outbox.textFor({
             kind: 'ask', app: sample, recipient: who, channel: 'whatsapp',
             closeDays: apps.CLOSE_DAYS, template: settings.messageTemplate,
+            // The real thing writes this token down so the link works. A
+            // preview only has to look like one, so it is derived and not saved.
+            token: outbox.tokenFor(sample.id, who.email, 'whatsapp'),
           }),
         });
       }

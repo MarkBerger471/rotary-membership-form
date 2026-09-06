@@ -13,8 +13,40 @@ const asVia = (v) => (VIA.includes(String(v || '').toLowerCase()) ? String(v).to
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const { id, email, action, name: voterNameParam } = req.query;
-  const via = asVia(req.query.via);
+  let { id, email, action, name: voterNameParam } = req.query;
+  let via = asVia(req.query.via);
+  let file = req.query.file;
+
+  // A short link - /v/<token>, /v/<token>/a - stands for the whole of the long
+  // one. vercel.json rewrites it here; the token says which application, whose
+  // vote it is, and which channel carried it.
+  if (req.query.t) {
+    const found = await outbox.resolveToken(req.query.t);
+    if (!found) {
+      return res.status(404).send(renderPage(
+        'Link Not Recognised',
+        '<p>That link has expired or was mistyped. Please use the one you were sent, or ask the admin for a new one.</p>',
+        'error'
+      ));
+    }
+    id = found.appId;
+    email = found.email;
+    via = asVia(found.via) || via;
+    // The long link carried their name in the URL so the page could fill it in
+    // for them. A short one cannot, so it is looked up instead - nobody should
+    // have to type their own name to answer a question they were sent.
+    if (!voterNameParam) {
+      try {
+        voterNameParam = board.nameFor(await board.recipients(), email);
+      } catch (err) {
+        console.error('Could not look up the voter name:', err);
+      }
+    }
+    const what = String(req.query.do || '').toLowerCase();
+    if (what === 'a') action = 'approve';
+    else if (what === 'r') action = 'reject';
+    else if (what === 'pdf' || what === 'cv') file = what;
+  }
 
   if (!id || !email) {
     return res.status(400).send(renderPage('Missing Parameters', 'That vote link is incomplete. Please use the link you were sent.', 'error'));
@@ -24,8 +56,8 @@ module.exports = async (req, res) => {
   // LINE and so has no attachment to open. It is the same capability as the
   // vote link beside it - whoever holds that link can cast this person's vote,
   // so letting them read what they are voting on gives away nothing new.
-  if (req.method === 'GET' && req.query.file) {
-    const type = req.query.file === 'cv' ? 'cv' : 'pdf';
+  if (req.method === 'GET' && file) {
+    const type = file === 'cv' ? 'cv' : 'pdf';
     const list = await apps.getApplications();
     const app = list.find(a => a.id === id);
     if (!app) {
@@ -44,19 +76,19 @@ module.exports = async (req, res) => {
       ));
     }
 
-    const file = await apps.getFile(id, type);
-    if (!file || !file.content) {
+    const stored = await apps.getFile(id, type);
+    if (!stored || !stored.content) {
       return res.status(404).send(renderPage(
         'Nothing Attached',
         `<p>No ${type === 'cv' ? 'CV' : 'application PDF'} was stored with this application.</p>`,
         'error'
       ));
     }
-    const filename = String(file.filename || (type === 'cv' ? 'cv' : 'application.pdf'))
+    const filename = String(stored.filename || (type === 'cv' ? 'cv' : 'application.pdf'))
       .replace(/[^\w. \-()]/g, '_');
-    res.setHeader('Content-Type', file.mimeType || 'application/pdf');
+    res.setHeader('Content-Type', stored.mimeType || 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    return res.end(Buffer.from(file.content, 'base64'));
+    return res.end(Buffer.from(stored.content, 'base64'));
   }
 
   // GET: Show vote page
@@ -245,7 +277,7 @@ function renderVotePage(id, email, applicantName, mode, voterName, opts = {}) {
   // the application is offered on the page itself. It is shown to everyone:
   // reading it again before voting is never the wrong thing to do.
   const fileLink = (type, label) =>
-    `<a href="?id=${encodeURIComponent(id)}&email=${encodeURIComponent(email)}&file=${type}"
+    `<a href="/api/admin/vote?id=${encodeURIComponent(id)}&email=${encodeURIComponent(email)}&file=${type}"
         target="_blank" rel="noopener"
         style="display:inline-flex;align-items:center;gap:6px;color:#f7a81b;text-decoration:none;font-size:13px;font-weight:600;">
       <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -518,7 +550,7 @@ function renderVotePage(id, email, applicantName, mode, voterName, opts = {}) {
       submitBtn.textContent = 'Submitting...';
 
       try {
-        const url = window.location.pathname + '?id=' + encodeURIComponent(appId)
+        const url = '/api/admin/vote?id=' + encodeURIComponent(appId)
           + '&email=' + encodeURIComponent(voterEmail)
           + (via ? '&via=' + encodeURIComponent(via) : '');
         const res = await fetch(url, {
