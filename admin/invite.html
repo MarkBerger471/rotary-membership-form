@@ -243,6 +243,10 @@
           <button onclick="sendToSelected()" id="sendAllBtn" class="btn-primary px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send to selected</button>
         </div>
       </div>
+      <div class="px-6 py-2.5 border-b border-white/10 flex items-center gap-2 flex-wrap">
+        <span class="text-[11px] uppercase tracking-wide text-white/30 font-bold">Show</span>
+        <div id="targetFilters" class="flex rounded-lg overflow-hidden border border-white/10" role="group" aria-label="Which guests to show"></div>
+      </div>
       <div id="targetList" class="divide-y divide-white/5 max-h-[560px] overflow-y-auto"></div>
     </div>
   </main>
@@ -433,21 +437,25 @@
           apiFetch('/api/admin/guests'),
           apiFetch('/api/admin/contacts'),
         ]);
+        // Archived guests are kept in the list rather than dropped, so the
+        // Archived filter can show them and put one back. Everything that
+        // sends goes through pool(), which never sees them.
         guests = (g.guests || [])
-          .filter(x => x.status !== 'archived')
           .map(x => ({ kind: 'guest', id: x.id, name: x.name, firstName: x.firstName,
                        honorific: x.honorific || '', language: x.language || '',
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
                        lineName: (x.lineName || '').trim(),
                        linkedinUrl: (x.linkedinUrl || '').trim(),
-                       note: x.notes || '', invites: (x.invites || []).length,
+                       note: x.notes || '',
+                       archived: x.status === 'archived',
+                       invites: Array.isArray(x.invites) ? x.invites : [],
                        queued: x.queued ? (x.queued.channel || 'whatsapp') : '',
                        queueError: x.queueError || '' }));
         members = (m.contacts || [])
           .filter(x => (x.status || 'active') === 'active')
           .map(x => ({ kind: 'member', id: x.memberNo, name: [x.firstName, x.lastName].filter(Boolean).join(' '),
                        firstName: x.firstName, waNumber: digits(x.phone), phone: x.phone,
-                       note: x.company || '', invites: 0 }));
+                       note: x.company || '', invites: [] }));
         renderTargets();
       } catch (err) {
         if (err.message !== 'Unauthorized') showToast('Could not load people', 'error');
@@ -455,7 +463,9 @@
     }
 
     // Guests only - members are invited by email, not chased on WhatsApp.
-    const pool = () => guests;
+    // Archived guests are not in here at all: that is the whole promise of
+    // archiving, and it has to hold for every count and every send button.
+    const pool = () => guests.filter(g => !g.archived);
 
     // The closing line is the last line of a wording ("Best regards, Mark").
     // Anything this tool adds - the programme, a website link - belongs above
@@ -542,12 +552,60 @@
       return 'https://wa.me/' + person.waNumber + '?text=' + encodeURIComponent(buildFor(person));
     }
 
+    // Which slice of the list is on screen. Selected and unselected are about
+    // the ticks alone - not about who can be reached on the current channel -
+    // because the tick is what the send button acts on, and a filter that
+    // quietly disagreed with it would be worse than no filter.
+    const FILTERS = {
+      all:        { label: 'All',        of: (active) => active },
+      selected:   { label: 'Selected',   of: (active) => active.filter(p => selected.has(personId(p))) },
+      unselected: { label: 'Unselected', of: (active) => active.filter(p => !selected.has(personId(p))) },
+      archived:   { label: 'Archived',   of: () => guests.filter(p => p.archived) },
+    };
+    const FILTER_KEY = 'rcbd:invite:filter:v1';
+    let targetFilter = 'all';
+    try { const saved = localStorage.getItem(FILTER_KEY); if (FILTERS[saved]) targetFilter = saved; } catch {}
+
+    function setFilter(f) {
+      targetFilter = FILTERS[f] ? f : 'all';
+      try { localStorage.setItem(FILTER_KEY, targetFilter); } catch {}
+      renderTargets();
+    }
+
+    const matches = (p, q) => !q || ((p.name || '') + ' ' + (p.phone || '') + ' ' + (p.note || '')).toLowerCase().includes(q);
+
+    // The one answer to "who is on screen", shared by the list and by
+    // "Select all shown" - so the button ticks exactly the rows you can see.
+    function shownList() {
+      const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
+      return (FILTERS[targetFilter] || FILTERS.all).of(pool())
+        .filter(p => matches(p, q))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
+    }
+
+    function paintFilters() {
+      const active = pool();
+      const count = {
+        all: active.length,
+        selected: active.filter(p => selected.has(personId(p))).length,
+        unselected: active.filter(p => !selected.has(personId(p))).length,
+        archived: guests.filter(p => p.archived).length,
+      };
+      document.getElementById('targetFilters').innerHTML = Object.keys(FILTERS).map((key, i) => {
+        const on = key === targetFilter;
+        return `<button onclick="setFilter('${key}')" aria-pressed="${on}"
+          class="px-3 py-1.5 text-xs font-bold transition-colors ${i ? 'border-l border-white/10' : ''}
+                 ${on ? 'bg-rotary-gold text-[#0a1628]' : 'text-white/50 hover:text-white/80'}">
+          ${FILTERS[key].label}<span class="ml-1 ${on ? 'text-[#0a1628]/60' : 'text-white/30'}">${count[key]}</span></button>`;
+      }).join('');
+    }
+
     function renderTargets() {
+      const list = shownList();
+      paintFilters();
+
       const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
       const all = pool();
-      const list = q ? all.filter(p => (p.name + ' ' + p.phone + ' ' + p.note).toLowerCase().includes(q)) : all;
-      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' }));
-
       const ch = chan();
       paintChannel();
       const ready = list.filter(p => ch.reach(p) && firstNameOf(p));
@@ -563,40 +621,175 @@
       document.getElementById('sendWhat').textContent =
         `Sending: ${mode.what} ${ch.on}` + (imgs ? ` with ${imgs} image${imgs === 1 ? '' : 's'}` : ', no image')
         + ' - open another box above to switch';
-      document.getElementById('targetMeta').textContent =
-        `${selected.size} selected · ${ready.length} of ${list.length} ready`
-        + (queuedCount ? ` · ${queuedCount} waiting for the sender` : '');
+      document.getElementById('targetMeta').textContent = targetFilter === 'archived'
+        ? `${list.length} archived · they get nothing until you put them back`
+        : `${selected.size} selected · ${ready.length} of ${list.length} ready`
+          + (queuedCount ? ` · ${queuedCount} waiting for the sender` : '');
 
-      document.getElementById('targetList').innerHTML = list.map(p => {
-        const id = personId(p);
-        const first = firstNameOf(p);
-        const blocked = !ch.reach(p) ? ch.needs : !first ? 'no first name' : '';
-        const done = sentThisRound.has(id);
-        return `
-        <div class="flex items-center gap-3 px-5 py-2.5 ${done ? 'opacity-45' : ''} ${blocked ? 'opacity-50' : 'hover:bg-white/5'}">
-          <input type="checkbox" ${selected.has(id) ? 'checked' : ''} ${blocked ? 'disabled' : ''}
-            onchange="toggleTarget('${id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-shrink-0" />
-          <div class="min-w-0 flex-1">
-            <div class="text-sm truncate">${escapeHtml(p.name || '(unnamed)')}
-              ${p.kind === 'member' ? '<span class="text-[10px] uppercase tracking-wide text-rotary-gold/60 ml-1">member</span>' : ''}
-              ${p.invites ? `<span class="text-[10px] text-white/30 ml-1">invited ${p.invites}x</span>` : ''}</div>
-            ${p.queueError ? `<div class="text-[11px] text-amber-300/90">last try: ${escapeHtml(p.queueError)}</div>` : ''}
-            ${blocked
-              ? `<div class="text-[11px] text-red-300/80">${blocked} - add it on the Guests page</div>`
-              : `<div class="text-[11px] text-white/35 truncate">
-                   &ldquo;${escapeHtml(buildFor(p).split('\n')[0].slice(0, 46))}...&rdquo;
-                   <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span>
-                   ${channel === 'line' ? `<span class="text-white/25">&middot; ${escapeHtml(p.lineName)}</span>` : ''}
-                   ${channel === 'linkedin' ? `<span class="text-white/25">&middot; ${escapeHtml((p.linkedinUrl || '').replace(/^https:\/\/www\.linkedin\.com\/in\//, ''))}</span>` : ''}</div>`}
+      document.getElementById('targetList').innerHTML =
+        list.map(p => (p.archived ? archivedRow(p) : targetRow(p, ch))).join('')
+        || `<div class="px-5 py-6 text-center text-sm text-white/35">${EMPTY[targetFilter] || 'Nobody here.'}</div>`;
+    }
+
+    const EMPTY = {
+      all: 'No guests yet - add them on the Guests page.',
+      selected: 'Nobody is ticked yet.',
+      unselected: 'Everybody is ticked.',
+      archived: 'Nobody is archived.',
+    };
+
+    function targetRow(p, ch) {
+      const id = personId(p);
+      const first = firstNameOf(p);
+      const blocked = !ch.reach(p) ? ch.needs : !first ? 'no first name' : '';
+      const done = sentThisRound.has(id);
+      const sends = (p.invites || []).length;
+      const open = openLogs.has(p.id);
+      return `
+        <div class="${done ? 'opacity-45' : ''}">
+          <div class="flex items-center gap-3 px-5 py-2.5 ${blocked ? 'opacity-50' : 'hover:bg-white/5'}">
+            <input type="checkbox" ${selected.has(id) ? 'checked' : ''} ${blocked ? 'disabled' : ''}
+              onchange="toggleTarget('${id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-shrink-0" />
+            <div class="min-w-0 flex-1">
+              <div class="text-sm truncate">${escapeHtml(p.name || '(unnamed)')}
+                ${p.kind === 'member' ? '<span class="text-[10px] uppercase tracking-wide text-rotary-gold/60 ml-1">member</span>' : ''}
+                ${sends ? `<button onclick="toggleLog('${p.id}')" aria-expanded="${open}"
+                    title="What has been sent to them, and when"
+                    class="text-[10px] ml-1 ${open ? 'text-rotary-gold' : 'text-white/30 hover:text-rotary-gold'} underline decoration-dotted underline-offset-2">
+                    sent ${sends}x ${open ? '&#9652;' : '&#9662;'}</button>` : ''}</div>
+              ${p.queueError ? `<div class="text-[11px] text-amber-300/90">last try: ${escapeHtml(p.queueError)}</div>` : ''}
+              ${blocked
+                ? `<div class="text-[11px] text-red-300/80">${blocked} - add it on the Guests page</div>`
+                : `<div class="text-[11px] text-white/35 truncate">
+                     &ldquo;${escapeHtml(buildFor(p).split('\n')[0].slice(0, 46))}...&rdquo;
+                     <span class="text-white/25">&middot; ${langOf(p).toUpperCase()}</span>
+                     ${channel === 'line' ? `<span class="text-white/25">&middot; ${escapeHtml(p.lineName)}</span>` : ''}
+                     ${channel === 'linkedin' ? `<span class="text-white/25">&middot; ${escapeHtml((p.linkedinUrl || '').replace(/^https:\/\/www\.linkedin\.com\/in\//, ''))}</span>` : ''}</div>`}
+            </div>
+            <button onclick="setGuestArchived('${p.id}', true)" title="Archive ${escapeHtml(p.name || '')} - no more messages"
+              aria-label="Archive ${escapeHtml(p.name || '')}"
+              class="w-7 h-7 rounded-md flex items-center justify-center text-white/25 hover:text-rotary-gold hover:bg-white/10 transition-colors flex-shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            </button>
+            ${blocked ? '' : `
+            <button onclick="queueOne('${p.id}')" title="Send ${ch.label} message to ${escapeHtml(p.name || '')}"
+               class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="${GLYPH[channel] || WA_GLYPH}"/></svg>
+              ${p.queued === channel ? 'Queued' : done ? 'Sent' : 'Send'}
+            </button>`}
           </div>
-          ${blocked ? '' : `
-          <button onclick="queueOne('${p.id}')" title="Send ${ch.label} message to ${escapeHtml(p.name || '')}"
-             class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="${GLYPH[channel] || WA_GLYPH}"/></svg>
-            ${p.queued === channel ? 'Queued' : done ? 'Sent' : 'Send'}
-          </button>`}
+          ${open ? sendLog(p) : ''}
         </div>`;
-      }).join('');
+    }
+
+    // An archived guest keeps their history and their row, but nothing that
+    // could send to them - that is the whole point of the button.
+    function archivedRow(p) {
+      const sends = (p.invites || []).length;
+      const open = openLogs.has(p.id);
+      return `
+        <div>
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5">
+            <span class="w-4 flex-shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm truncate text-white/60">${escapeHtml(p.name || '(unnamed)')}
+                ${sends ? `<button onclick="toggleLog('${p.id}')" aria-expanded="${open}"
+                    class="text-[10px] ml-1 ${open ? 'text-rotary-gold' : 'text-white/30 hover:text-rotary-gold'} underline decoration-dotted underline-offset-2">
+                    sent ${sends}x ${open ? '&#9652;' : '&#9662;'}</button>` : ''}</div>
+              <div class="text-[11px] text-white/25">archived - gets nothing</div>
+            </div>
+            <button onclick="setGuestArchived('${p.id}', false)" title="Put ${escapeHtml(p.name || '')} back on the list"
+              class="text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white whitespace-nowrap">Restore</button>
+          </div>
+          ${open ? sendLog(p) : ''}
+        </div>`;
+    }
+
+    // ---- What was sent, and when
+
+    const openLogs = new Set();
+    function toggleLog(id) {
+      openLogs.has(id) ? openLogs.delete(id) : openLogs.add(id);
+      renderTargets();
+    }
+
+    const CHANNEL_NAME = { whatsapp: 'WhatsApp', linkedin: 'LinkedIn', line: 'LINE' };
+
+    // A stored image URL goes into an href and an src, so it is checked rather
+    // than trusted: this site's own image endpoint or a plain web address, and
+    // never a quote that could break out of the attribute.
+    function safeImageUrl(u) {
+      const raw = String(u == null ? '' : u).trim();
+      if (!/^(https?:\/\/|\/)/i.test(raw)) return '';
+      return encodeURI(raw).replace(/"/g, '%22');
+    }
+
+    // One block per channel, as Mark asked - WhatsApp, LinkedIn and LINE kept
+    // apart, newest first inside each. Anything recorded under some other name
+    // still gets a block rather than disappearing.
+    function sendLog(p) {
+      const log = (p.invites || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const order = ['whatsapp', 'linkedin', 'line'];
+      const names = order.concat(log.map(e => String(e.channel || '')).filter(c => c && !order.includes(c)));
+      const groups = [...new Set(names)]
+        .map(c => [c, log.filter(e => String(e.channel || '') === c)])
+        .filter(([, entries]) => entries.length);
+      return `
+        <div class="px-5 pb-4 pt-1 bg-black/20 border-t border-white/5">
+          <div class="grid gap-4 sm:grid-cols-3">
+            ${groups.map(([c, entries]) => `
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold text-white/45 mb-1.5">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="${GLYPH[c] || WA_GLYPH}"/></svg>
+                  ${escapeHtml(CHANNEL_NAME[c] || c)}<span class="text-white/25">${entries.length}</span>
+                </div>
+                ${entries.map(logEntry).join('')}
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    function logEntry(e) {
+      const at = new Date(e.date || 0);
+      const when = isNaN(at) ? '' : at.toLocaleString('en-GB',
+        { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const files = (Array.isArray(e.imageUrls) ? e.imageUrls : []).map(safeImageUrl).filter(Boolean);
+      const text = String(e.text || '').trim();
+      return `
+        <div class="mb-2.5 last:mb-0 border-l border-white/10 pl-2">
+          <div class="text-[11px] text-white/50">${escapeHtml(when)}
+            <span class="text-white/30">&middot; ${escapeHtml(e.what || 'message')}${files.length ? ` &middot; ${files.length} file${files.length === 1 ? '' : 's'}` : ''}</span></div>
+          ${text
+            ? `<div class="text-[11px] text-white/45 whitespace-pre-wrap break-words max-h-20 overflow-y-auto mt-0.5">${escapeHtml(text)}${e.clipped ? '…' : ''}</div>`
+            : '<div class="text-[11px] text-white/25 italic mt-0.5">sent before this page kept the wording</div>'}
+          ${files.length ? `<div class="flex flex-wrap gap-1 mt-1">${files.map(u => `
+            <a href="${u}" target="_blank" rel="noopener" title="Open the file that went with it">
+              <img src="${u}" alt="" loading="lazy" class="w-10 h-10 object-cover rounded border border-white/10"
+                   onerror="this.parentNode.style.display='none'" /></a>`).join('')}</div>` : ''}
+        </div>`;
+    }
+
+    // Archiving is how somebody stops hearing from the club. It also takes
+    // back anything of theirs still in the queue (the server does that), and
+    // drops their tick, so a later "send to selected" cannot resurrect them.
+    async function setGuestArchived(id, archived) {
+      const p = guests.find(g => g.id === id);
+      if (!p) return;
+      if (archived && !confirm(`Archive ${p.name || 'this guest'}?\n\n`
+        + 'They disappear from this list and get no more invitations. '
+        + 'Anything already queued for them is cancelled. '
+        + 'You can put them back from the Archived filter.')) return;
+      try {
+        await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: archived ? 'archived' : 'active' }),
+        });
+        if (archived && selected.delete(personId(p))) saveSelection();
+        await loadPeople();
+        showToast(archived ? `${p.name} archived` : `${p.name} is back on the list`, 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not archive', 'error');
+      }
     }
 
     function toggleTarget(id, on) { on ? selected.add(id) : selected.delete(id); saveSelection(); renderTargets(); }
@@ -609,11 +802,8 @@
     const GLYPH = { whatsapp: WA_GLYPH, line: LINE_GLYPH, linkedin: LI_GLYPH };
 
     function selectAllShown(on) {
-      const q = (document.getElementById('targetSearch').value || '').trim().toLowerCase();
-      const all = pool();
-      const list = q ? all.filter(p => (p.name + ' ' + p.phone + ' ' + p.note).toLowerCase().includes(q)) : all;
-      list.forEach(p => {
-        if (!chan().reach(p) || !firstNameOf(p)) return;
+      shownList().forEach(p => {
+        if (p.archived || !chan().reach(p) || !firstNameOf(p)) return;
         on ? selected.add(personId(p)) : selected.delete(personId(p));
       });
       saveSelection();
@@ -631,7 +821,7 @@
         try {
           await apiFetch('/api/admin/guests', {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: p.id, queued: { text: buildFor(p), imageUrls, channel } }),
+            body: JSON.stringify({ id: p.id, queued: { text: buildFor(p), imageUrls, channel, what: (PANELS[activeMode] || PANELS.invite).what } }),
           });
           ok++;
         } catch { failed++; }
@@ -694,7 +884,8 @@
       try {
         await apiFetch('/api/admin/guests', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: p.id, invited: 'linkedin' }),
+          body: JSON.stringify({ id: p.id, invited: 'linkedin',
+            sent: { text: document.getElementById('liText').value, what: (PANELS[activeMode] || PANELS.invite).what } }),
         });
         sentThisRound.add(personId(p));
       } catch { showToast('Sent, but it could not be recorded', 'error'); }

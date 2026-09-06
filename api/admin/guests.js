@@ -54,6 +54,35 @@ function normaliseImageUrls(q) {
   return out.slice(0, MAX_QUEUE_IMAGES);
 }
 
+// What actually went out, kept on the guest record. The bare count ("invited
+// 3x") never said whether someone got a meeting invitation, the monthly
+// overview or a personal note, nor which picture went with it - so each send
+// is written down with its channel, its wording and its images.
+//
+// Trimmed and capped on purpose: this list lives inside admin:guests, which is
+// read whole on every page load, so it must not grow without limit. Twenty
+// sends is more history than anyone reads, and the wording is kept long enough
+// to recognise, not to archive.
+const MAX_LOG = 20;
+const MAX_LOG_TEXT = 400;
+const WHAT = ['invite', 'overview', 'free text'];
+const asWhat = (v) => (WHAT.includes(String(v || '').trim().toLowerCase()) ? String(v).trim().toLowerCase() : 'message');
+// Not a whitelist: an unexpected channel is recorded as it came rather than
+// dropped, because a send nobody can see is worse than an odd label.
+const asSentChannel = (v) => String(v || '').trim().toLowerCase().slice(0, 20);
+
+function sentEntry(channel, sent) {
+  const text = String((sent && sent.text) || '').trim();
+  return {
+    date: new Date().toISOString(),
+    channel: asSentChannel(channel),
+    what: asWhat(sent && sent.what),
+    text: text.slice(0, MAX_LOG_TEXT),
+    ...(text.length > MAX_LOG_TEXT ? { clipped: true } : {}),
+    imageUrls: normaliseImageUrls(sent || {}),
+  };
+}
+
 // Which language to write to them in, and how to address them. Thai guests are
 // normally addressed as "Khun Somchai" - by the first name, with the honorific
 // in front - so this is a prefix to the greeting, not a replacement for it.
@@ -186,6 +215,11 @@ module.exports = async (req, res) => {
       const g = list.find(x => x.id === b.id);
       if (!g) return res.status(404).json({ error: 'Guest not found' });
 
+      // A sender reports "delivered" and "clear the queue" in one PATCH, and
+      // the queued message is the only record of what it actually sent - so
+      // hold on to it before the clear below wipes it.
+      const wasQueued = g.queued;
+
       for (const f of EDITABLE) {
         if (Object.prototype.hasOwnProperty.call(b, f)) g[f] = String(b[f] || '').trim();
       }
@@ -199,7 +233,13 @@ module.exports = async (req, res) => {
         g.firstName = looksLikeNumber(first) ? '' : first;
         g.lastName = last;
       }
-      if (b.status === 'active' || b.status === 'archived') g.status = b.status;
+      // Archived means "no more messages". A message already queued would
+      // still be delivered by a sender that fetched before this, so it is
+      // taken back here rather than left to go out behind Mark's back.
+      if (b.status === 'active' || b.status === 'archived') {
+        g.status = b.status;
+        if (b.status === 'archived' && g.queued) g.queued = null;
+      }
       // The invite page queues a guest by writing the exact text and image to
       // send; the local WhatsApp sender drains the queue and clears it. Kept as
       // a whole object rather than an editable string field so it is not
@@ -218,7 +258,7 @@ module.exports = async (req, res) => {
           }
           if (channel === 'line' && !g.lineName) return res.status(400).json({ error: 'No LINE name for this guest' });
           if (channel === 'whatsapp' && !g.waNumber) return res.status(400).json({ error: 'No WhatsApp number for this guest' });
-          g.queued = { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), channel, queuedAt: new Date().toISOString() };
+          g.queued = { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), channel, what: asWhat(b.queued.what), queuedAt: new Date().toISOString() };
           delete g.queueError;
         } else {
           g.queued = null;
@@ -228,10 +268,18 @@ module.exports = async (req, res) => {
       if (b.language !== undefined) g.language = asLanguage(b.language, g.language || 'en');
       if (b.honorific !== undefined) g.honorific = asHonorific(b.honorific, g.honorific || '');
       if (b.phone !== undefined || b.waNumber !== undefined) g.waNumber = toE164(b.phone || b.waNumber);
-      // Record that an invite went out, so repeat non-attenders are visible.
+      // Record that an invite went out, so repeat non-attenders are visible -
+      // and with it the wording and the pictures that went with it. A sender
+      // says only "delivered", so what it delivered is read back off the queue
+      // entry it just cleared. LinkedIn has no queue: that page sends the text
+      // along in `sent`, because it is the only place that knows it.
       if (b.invited) {
+        const channel = asSentChannel(b.invited);
+        const sent = (b.sent && typeof b.sent === 'object') ? b.sent
+          : (wasQueued && asSentChannel(wasQueued.channel) === channel ? wasQueued : null);
         g.invites = Array.isArray(g.invites) ? g.invites : [];
-        g.invites.push({ date: new Date().toISOString(), channel: b.invited });
+        g.invites.push(sentEntry(channel, sent));
+        if (g.invites.length > MAX_LOG) g.invites = g.invites.slice(-MAX_LOG);
       }
       await kv.set(KEY, list);
       return res.json({ success: true, guest: g });
