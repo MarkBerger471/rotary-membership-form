@@ -1,5 +1,6 @@
 const apps = require('../../lib/applications');
 const settingsLib = require('../../lib/settings');
+const board = require('../../lib/board');
 const outbox = require('../../lib/outbox');
 const mailer = require('../../lib/mailer');
 
@@ -25,6 +26,7 @@ module.exports = async (req, res) => {
     if (!app) return res.status(404).json({ error: 'Application not found' });
 
     const settings = await settingsLib.getSettings();
+    const boardList = await board.recipients();
     const norm = (e) => (e || '').trim().toLowerCase();
 
     // markDelivered records addresses that were already asked but never made
@@ -38,7 +40,7 @@ module.exports = async (req, res) => {
     // channel and has not had it yet.
     const requested = Array.isArray(body.emails) && body.emails.length
       ? body.emails
-      : settingsLib.askedAddresses(settings).filter(e => !already.some(a => norm(a) === norm(e)));
+      : board.askedAddresses(boardList).filter(e => !already.some(a => norm(a) === norm(e)));
 
     const targets = requested.filter(e => !already.some(a => norm(a) === norm(e)));
     if (!targets.length) {
@@ -49,8 +51,8 @@ module.exports = async (req, res) => {
     // "added after the fact" case this endpoint exists for. The only person
     // skipped is one who is on the list with email deliberately unticked.
     const emailTargets = targets.filter(e => {
-      const r = settingsLib.recipientByEmail(settings, e);
-      return !r || settingsLib.channelsOf(r).includes('email');
+      const r = board.byEmail(boardList, e);
+      return !r || r.channels.includes('email');
     });
 
     const attachments = await apps.getAttachments(app);
@@ -70,7 +72,7 @@ module.exports = async (req, res) => {
         await transporter.sendMail(mailer.message({
           to: email,
           subject,
-          html: bodyHtml + mailer.voteSection(app.id, email, settingsLib.recipientName(settings, email)),
+          html: bodyHtml + mailer.voteSection(app.id, email, board.nameFor(boardList, email)),
           attachments,
         }));
         sent.push(email);
@@ -81,10 +83,11 @@ module.exports = async (req, res) => {
     });
 
     // WhatsApp and LINE for the same people, queued for the senders.
-    const queued = await outbox.askBoard(settings, app, {
+    const queued = await outbox.askBoard(boardList, app, {
       kind: 'ask',
       only: targets,
       closeDays: apps.CLOSE_DAYS,
+      template: settings.messageTemplate,
     });
 
     const emailedTo = (Array.isArray(app.emailedTo) ? app.emailedTo : [])

@@ -1,7 +1,8 @@
 const { kv } = require('@vercel/kv');
 const apps = require('../../lib/applications');
 const settingsLib = require('../../lib/settings');
-const { getSettings, activeRecipients, recipientName } = settingsLib;
+const { getSettings } = settingsLib;
+const board = require('../../lib/board');
 const outbox = require('../../lib/outbox');
 const mailer = require('../../lib/mailer');
 
@@ -31,11 +32,13 @@ module.exports = async (req, res) => {
   const errors = [];
 
   let settings;
+  let boardList;
   let ticked;
   let list;
   try {
     settings = await getSettings();
-    ticked = activeRecipients(settings);
+    boardList = await board.recipients();
+    ticked = board.emailAddresses(boardList);
     list = await apps.getApplications();
   } catch (err) {
     console.error('Poll cron could not read state:', err);
@@ -69,8 +72,8 @@ module.exports = async (req, res) => {
       // gets their email, exactly as before. The only person skipped is one
       // who is on the list with email deliberately unticked.
       const emailOff = (email) => {
-        const r = settingsLib.recipientByEmail(settings, email);
-        return !!r && !settingsLib.channelsOf(r).includes('email');
+        const r = board.byEmail(boardList, email);
+        return !!r && !r.channels.includes('email');
       };
 
       if (age >= apps.CLOSE_DAYS) {
@@ -109,7 +112,7 @@ module.exports = async (req, res) => {
         // were asked. Queued, not sent - the senders on the Mac deliver it.
         const told = dryRun
           ? { entries: [] }
-          : await outbox.askBoard(settings, app, { kind: 'result', result, tally: t });
+          : await outbox.askBoard(boardList, app, { kind: 'result', result, tally: t });
 
         actions.push({
           app: app.id,
@@ -157,7 +160,7 @@ module.exports = async (req, res) => {
               mailer.voteSection(
                 app.id,
                 email,
-                recipientName(settings, email),
+                board.nameFor(boardList, email),
                 'Your Vote Is Still Outstanding'
               );
             await transporter.sendMail(mailer.message({ to: email, subject, html, attachments }));
@@ -170,7 +173,7 @@ module.exports = async (req, res) => {
 
         // The same nudge on WhatsApp and LINE, to the same people - whoever
         // has not voted and has one of those ticked.
-        const nudged = await outbox.askBoard(settings, app, {
+        const nudged = await outbox.askBoard(boardList, app, {
           kind: `reminder-${stage}`,
           only: t.pending.map(pv => pv.email),
           closeDays: apps.CLOSE_DAYS,

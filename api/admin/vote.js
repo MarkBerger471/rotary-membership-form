@@ -1,6 +1,7 @@
 const { kv } = require('@vercel/kv');
 const apps = require('../../lib/applications');
 const settingsLib = require('../../lib/settings');
+const board = require('../../lib/board');
 const mailer = require('../../lib/mailer');
 const outbox = require('../../lib/outbox');
 const notify = require('../../lib/notify');
@@ -32,10 +33,9 @@ module.exports = async (req, res) => {
     }
 
     const norm = (e) => (e || '').trim().toLowerCase();
-    const settings = await settingsLib.getSettings();
     const allowed =
       apps.askedList(app).some(e => norm(e) === norm(email)) ||
-      !!settingsLib.recipientByEmail(settings, email);
+      !!board.byEmail(await board.recipients(), email);
     if (!allowed) {
       return res.status(403).send(renderPage(
         'Not Yours to Open',
@@ -195,7 +195,8 @@ async function reactToVote(application, votes, cast) {
   const tally = apps.tally(application, votes);
   const result = apps.outcome(tally);
   const settings = await settingsLib.getSettings();
-  const ticked = settingsLib.activeRecipients(settings);
+  const boardList = await board.recipients();
+  const ticked = board.emailAddresses(boardList);
 
   await apps.updateApplication(application.id, {
     pollStatus: 'closed',
@@ -223,7 +224,7 @@ async function reactToVote(application, votes, cast) {
 
   // The board members who are on WhatsApp or LINE were asked there, so that is
   // where they hear how it ended.
-  const told = await outbox.askBoard(settings, application, { kind: 'result', result, tally });
+  const told = await outbox.askBoard(boardList, application, { kind: 'result', result, tally });
 
   await notify.push({
     title: `${name} approved unanimously`,

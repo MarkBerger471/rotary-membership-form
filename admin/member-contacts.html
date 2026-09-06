@@ -126,6 +126,9 @@
           <input id="mfPhone" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <label class="text-xs text-white/50">WhatsApp
           <input id="mfWhatsapp" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50 sm:col-span-2">LINE name
+          <input id="mfLineName" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="their LINE display name, exactly as it reads in your chat list" />
+          <span class="block text-[11px] text-white/30 mt-1">Used to find the chat when a board member is asked about an application on LINE. It has to match exactly, or nothing is sent.</span></label>
         <label class="text-xs text-white/50">Company
           <input id="mfCompany" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <label class="text-xs text-white/50">Job title
@@ -414,7 +417,7 @@
       const c = contacts.find(x => x.memberNo === memberNo);
       if (!c) return;
       const name = [c.firstName, c.lastName].filter(Boolean).join(' ') || c.email;
-      const extra = c.isBoardMember ? '\n\nThey will also be removed from the email recipients.' : '';
+      const extra = c.isBoardMember ? '\n\nThey will also stop being asked about applications.' : '';
       if (!confirm(`Archive ${name}? They will no longer count as a member.${extra}`)) return;
       patchMember(memberNo, { status: 'archived' }, 'Archived');
     }
@@ -488,7 +491,7 @@
 
     const FORM_FIELDS = {
       mfFirstName: 'firstName', mfLastName: 'lastName', mfEmail: 'email',
-      mfPhone: 'phone', mfWhatsapp: 'whatsapp', mfCompany: 'company',
+      mfPhone: 'phone', mfWhatsapp: 'whatsapp', mfLineName: 'lineName', mfCompany: 'company',
       mfJobTitle: 'jobTitle', mfAddress: 'address', mfCity: 'city',
       mfJoinDate: 'joinDate',
     };

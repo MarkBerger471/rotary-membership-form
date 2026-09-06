@@ -1,6 +1,7 @@
 const busboy = require('busboy');
 const { kv } = require('@vercel/kv');
 const settingsLib = require('../lib/settings');
+const board = require('../lib/board');
 const apps = require('../lib/applications');
 const outbox = require('../lib/outbox');
 const { LOG_KEY } = require('../lib/applications');
@@ -199,10 +200,11 @@ module.exports = async (req, res) => {
     console.error(`Could not create pending member for ${appId}:`, err);
   }
 
-  // Load admin settings for recipients and email template
+  // The board, with every address read from the member directory, and the
+  // wordings to send them.
   const settings = await settingsLib.getSettings();
-  const recipientList = settingsLib.recipientList(settings);
-  const activeRecipients = settingsLib.activeRecipients(settings);
+  const boardList = await board.recipients();
+  const activeRecipients = board.emailAddresses(boardList);
   const application = {
     id: appId,
     name: fields.applicantName || 'Unknown',
@@ -213,7 +215,7 @@ module.exports = async (req, res) => {
 
   // The board can be asked on three channels now, so having nobody to email is
   // only a problem if there is nobody on the other two either.
-  if (!settingsLib.askedAddresses(settings).length) {
+  if (!board.askedAddresses(boardList).length) {
     const error = 'No active recipients configured';
     console.error(`${error} - application ${appId} stored but nobody was asked`);
     await recordDelivery([], error, {});
@@ -237,8 +239,7 @@ module.exports = async (req, res) => {
     const results = [];
     const failures = [];
     await mailer.mapLimit(activeRecipients, 4, async (recipientEmail) => {
-      const recipient = recipientList.find(r => r.email === recipientEmail);
-      const recipientName = recipient ? recipient.name : '';
+      const recipientName = board.nameFor(boardList, recipientEmail);
       const fullHtml =
         bodyHtml + mailer.voteSection(appId, recipientEmail, recipientName);
 
@@ -261,9 +262,10 @@ module.exports = async (req, res) => {
     // cannot be sent from here. They are written to the queue the senders
     // drain, which is why the board members on those channels count as asked
     // from this moment even though nothing has left yet.
-    const queued = await outbox.askBoard(settings, application, {
+    const queued = await outbox.askBoard(boardList, application, {
       kind: 'ask',
       closeDays: apps.CLOSE_DAYS,
+      template: settings.messageTemplate,
     });
 
     const delivered = results.map(r => r.email);
