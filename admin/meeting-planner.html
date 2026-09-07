@@ -649,12 +649,26 @@
 
     const CHANNEL_NAME = { whatsapp: 'WhatsApp', line: 'LINE' };
 
+    // The send button wears the mark of the app it will actually use, so the
+    // row says who gets it, and on what, without being read twice.
+    const CHANNEL_GLYPH = {
+      whatsapp: 'M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1120.2 12 8.2 8.2 0 0112 20.2z',
+      line: 'M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5s5.3-3.1 7.2-5.3c1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3z',
+    };
+
     function lastSentLine(g) {
       const last = (g.invites || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
       if (!last) return 'nothing sent yet';
       const when = new Date(last.date || 0);
       const day = isNaN(when) ? '' : when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
       return `last: ${last.what || 'message'} ${day} on ${CHANNEL_NAME[last.channel] || last.channel}`;
+    }
+
+    // Which row has its "what shall I send?" list open. Only ever one.
+    let sendMenuFor = null;
+    function toggleSendMenu(id) {
+      sendMenuFor = sendMenuFor === id ? null : id;
+      renderMeetingGuests();
     }
 
     function renderMeetingGuests() {
@@ -672,18 +686,35 @@
             <div class="text-[11px] text-white/35 truncate">
               ${channel ? `<span class="text-white/50">${CHANNEL_NAME[channel]}</span> &middot; ${queued || escapeHtml(lastSentLine(g))}`
                         : '<span class="text-red-300/80">no WhatsApp number and no LINE name</span>'}</div>
+            ${channel && files.length === 1
+              ? `<div class="text-[11px] text-white/25 truncate">${files[0].kind === 'link' ? '&#128279;' : '&#128247;'} ${escapeHtml(files[0].name)} &middot; nothing written with it</div>`
+              : ''}
           </div>
-          <div class="flex flex-wrap gap-1 justify-end">
-            ${channel ? files.map(a => `<button onclick="sendAttachmentTo('${a.id}', '${g.id}')"
-                title="Send ${escapeHtml(a.name)} to ${escapeHtml(g.name || '')} on ${CHANNEL_NAME[channel]} - the ${a.kind === 'link' ? 'link' : 'picture'} only, nothing written"
-                class="text-[11px] px-2 py-1 rounded-md bg-white/5 hover:bg-rotary-gold/20 hover:text-rotary-gold transition-colors max-w-[9rem] truncate">
-                ${a.kind === 'link' ? '&#128279;' : '&#128247;'} ${escapeHtml(a.name)}</button>`).join('') : ''}
+          <div class="flex gap-1 justify-end items-center flex-none">
+            ${!channel ? '' : files.length === 1
+              ? `<button onclick="sendAttachmentTo('${files[0].id}', '${g.id}')"
+                   title="Send ${escapeHtml(files[0].name)} to ${escapeHtml(g.name || '')} on ${CHANNEL_NAME[channel]} - nothing written with it"
+                   class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+                   <svg class="w-3.5 h-3.5 flex-none" fill="currentColor" viewBox="0 0 24 24"><path d="${CHANNEL_GLYPH[channel]}"/></svg>Send</button>`
+              // More than one thing can go, so the button asks which rather
+              // than the row growing a button for each and losing the name.
+              : `<button onclick="toggleSendMenu('${g.id}')" aria-expanded="${sendMenuFor === g.id}"
+                   title="Send something to ${escapeHtml(g.name || '')} on ${CHANNEL_NAME[channel]}"
+                   class="btn-primary px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
+                   <svg class="w-3.5 h-3.5 flex-none" fill="currentColor" viewBox="0 0 24 24"><path d="${CHANNEL_GLYPH[channel]}"/></svg>Send ${sendMenuFor === g.id ? '&#9652;' : '&#9662;'}</button>`}
             <button onclick="unlinkGuest('${g.id}')" title="Take them off this meeting"
               class="w-6 h-6 rounded-md flex items-center justify-center text-white/25 hover:text-red-300 hover:bg-white/10 transition-colors flex-none">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
-        </div>`;
+        </div>
+        ${channel && files.length > 1 && sendMenuFor === g.id ? `
+          <div class="flex flex-col items-end gap-1 pr-8 -mt-0.5 mb-1">
+            ${files.map(a => `<button onclick="sendAttachmentTo('${a.id}', '${g.id}')"
+                title="Send it on ${CHANNEL_NAME[channel]}, with nothing written"
+                class="text-[11px] px-2 py-1 rounded-md bg-white/10 hover:bg-rotary-gold/25 hover:text-rotary-gold transition-colors max-w-[14rem] truncate">
+                ${a.kind === 'link' ? '&#128279;' : '&#128247;'} ${escapeHtml(a.name)}</button>`).join('')}
+          </div>` : ''}`;
       }).join('')
         : `<p class="text-xs text-white/35 py-1">Nobody linked to this evening yet - do that on the Invite page, next to the guest.</p>`;
     }
@@ -698,6 +729,7 @@
     async function sendAttachmentTo(attId, guestId) {
       const a = attachmentsOf(meetings[attachDate]).find(x => x.id === attId);
       const g = (planGuests || []).find(x => x.id === guestId);
+      sendMenuFor = null;
       if (!a || !g || !sendable(a)) return;
       const channel = channelFor(g);
       if (!channel) { showToast(`${g.name} has no WhatsApp number and no LINE name`, 'error'); return; }
@@ -939,7 +971,10 @@
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
       if (!document.getElementById('flyerModal').classList.contains('hidden')) closeFlyer();
-      else if (!document.getElementById('attachModal').classList.contains('hidden')) closeAttachments();
+      else if (!document.getElementById('attachModal').classList.contains('hidden')) {
+        if (sendMenuFor) { sendMenuFor = null; renderMeetingGuests(); }
+        else closeAttachments();
+      }
       else if (!document.getElementById('addDateModal').classList.contains('hidden')) closeAddDate();
     });
   </script>
