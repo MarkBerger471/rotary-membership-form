@@ -91,12 +91,12 @@
       </div>
     </div>
 
-    <!-- Bulk import from a contacts export -->
+    <!-- Bulk import from any contacts export the browser can read -->
     <div class="glass-card rounded-2xl overflow-hidden">
       <button type="button" onclick="togglePanel('importWrap')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
         <div class="flex-1 min-w-0">
-          <h2 class="font-bold text-lg">Import from WhatsApp</h2>
-          <p class="text-white/40 text-xs mt-0.5">Choose your exported contacts file. It is read here in your browser - only the people you tick are saved.</p>
+          <h2 class="font-bold text-lg">Import contacts</h2>
+          <p class="text-white/40 text-xs mt-0.5">A vCard (.vcf) from your phone or Google Contacts, a CSV, or a plain list of names and numbers. The file is read here in your browser - only the people you tick are saved.</p>
         </div>
         <svg class="w-4 h-4 flex-shrink-0 transition-transform" data-chev fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
@@ -129,12 +129,11 @@
         <div class="flex items-center gap-2">
           <input type="search" id="guestSearch" class="glass-input px-3 py-2 rounded-lg text-sm" placeholder="Search guests..." oninput="renderGuests()" />
           <span id="guestArchivedToggle"></span>
-          <span id="clearImportBtn"></span>
         </div>
       </div>
       <div id="guestsEmpty" class="hidden px-6 py-12 text-center text-white/40">
         <p class="font-medium">No guests yet</p>
-        <p class="text-sm mt-1">Add one above, or import your WhatsApp contacts.</p>
+        <p class="text-sm mt-1">Add one above, or import a contacts file.</p>
       </div>
       <div id="guestsGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4"></div>
     </div>
@@ -215,10 +214,6 @@
       const archived = guests.filter(g => g.status === 'archived').length;
       document.getElementById('guestArchivedToggle').innerHTML = archived
         ? `<button onclick="toggleArchivedGuests()" class="text-xs px-3 py-2 rounded-lg ${showArchivedGuests ? 'bg-rotary-gold/20 text-rotary-gold' : 'bg-white/5 text-white/50 hover:text-white/80'}">${showArchivedGuests ? 'Show active' : 'Archived (' + archived + ')'}</button>`
-        : '';
-      const fromWhatsApp = guests.filter(g => g.source === 'whatsapp').length;
-      document.getElementById('clearImportBtn').innerHTML = fromWhatsApp
-        ? `<button onclick="clearWhatsAppImport()" class="text-xs px-3 py-2 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors whitespace-nowrap">Delete WhatsApp import (${fromWhatsApp})</button>`
         : '';
       document.getElementById('guestsMeta').textContent =
         `${scope.length} ${showArchivedGuests ? 'archived' : 'guest' + (scope.length === 1 ? '' : 's')}` + (q ? ` - ${list.length} match "${q}"` : '');
@@ -402,7 +397,7 @@
             name: c.name, firstName: c.firstName, lastName: c.lastName,
             phone: c.phone, waNumber: c.waNumber, notes: c.notes,
             language: langOf('import'), honorific: thaiOf('import'),
-          })), source: 'whatsapp' }),
+          })), source: 'import' }),
         });
         showToast(`${res.added} guest${res.added === 1 ? '' : 's'} added`, 'success');
         importSelected = new Set();
@@ -435,21 +430,6 @@
         loadGuests();
       } catch (err) {
         if (err.message !== 'Unauthorized') showToast('Could not delete', 'error');
-      }
-    }
-
-    // Undo a bulk import in one go, for when the wrong people came across.
-    async function clearWhatsAppImport() {
-      const n = guests.filter(g => g.source === 'whatsapp').length;
-      if (!confirm(`Delete all ${n} guest${n === 1 ? '' : 's'} imported from WhatsApp?\n\n`
-                 + 'Guests you added by hand are kept. You can import again from the file at any time.')) return;
-      try {
-        const res = await apiFetch('/api/admin/guests?source=whatsapp', { method: 'DELETE' });
-        showToast(`${res.removed} removed`, 'success');
-        await loadGuests();
-        renderImport();
-      } catch (err) {
-        if (err.message !== 'Unauthorized') showToast('Could not clear the import', 'error');
       }
     }
 
