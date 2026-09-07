@@ -65,7 +65,7 @@ function normaliseImageUrls(q) {
 // to recognise, not to archive.
 const MAX_LOG = 20;
 const MAX_LOG_TEXT = 400;
-const WHAT = ['invite', 'overview', 'free text'];
+const WHAT = ['invite', 'overview', 'free text', 'meeting file'];
 const asWhat = (v) => (WHAT.includes(String(v || '').trim().toLowerCase()) ? String(v).trim().toLowerCase() : 'message');
 // Not a whitelist: an unexpected channel is recorded as it came rather than
 // dropped, because a send nobody can see is worse than an odd label.
@@ -248,7 +248,10 @@ module.exports = async (req, res) => {
       // a whole object rather than an editable string field so it is not
       // coerced by the loop above.
       if (b.queued !== undefined) {
-        if (b.queued && typeof b.queued === 'object' && b.queued.text) {
+        // A message is either words, or a file, or both. Sending a meeting's
+        // flyer with nothing written under it is a real thing to want, so an
+        // empty text with a picture attached is a message like any other.
+        if (b.queued && typeof b.queued === 'object' && (b.queued.text || normaliseImageUrls(b.queued).length)) {
           const channel = asChannel(b.queued.channel);
           // Queueing on a channel this guest cannot be reached on is a dead
           // letter: that channel's sender would skip them for ever and the page
@@ -261,7 +264,7 @@ module.exports = async (req, res) => {
           }
           if (channel === 'line' && !g.lineName) return res.status(400).json({ error: 'No LINE name for this guest' });
           if (channel === 'whatsapp' && !g.waNumber) return res.status(400).json({ error: 'No WhatsApp number for this guest' });
-          g.queued = { text: String(b.queued.text), imageUrls: normaliseImageUrls(b.queued), channel, what: asWhat(b.queued.what), queuedAt: new Date().toISOString() };
+          g.queued = { text: String(b.queued.text || ''), imageUrls: normaliseImageUrls(b.queued), channel, what: asWhat(b.queued.what), queuedAt: new Date().toISOString() };
           delete g.queueError;
         } else {
           g.queued = null;

@@ -34,7 +34,25 @@ function normalizeEntry(v) {
     // listed in this shape is dropped, so an attachment that was not written
     // through the attachment endpoint cannot appear on a card.
     attachments: normalizeAttachments(v.attachments),
+    // Guests who might come that evening, linked from the Invite page. Only
+    // their ids: the names, numbers and channels stay on the guest record,
+    // which is the one place they are edited.
+    guestIds: normalizeGuestIds(v.guestIds),
   };
+}
+
+// A meeting is an evening, not a mailing list - fifty is far past the room at
+// the Hyatt and keeps a stray loop from growing the meetings blob.
+const MAX_GUESTS = 50;
+function normalizeGuestIds(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const v of value) {
+    const id = str(v).trim().slice(0, 64);
+    if (id && !out.includes(id)) out.push(id);
+    if (out.length >= MAX_GUESTS) break;
+  }
+  return out;
 }
 
 function normalize(value) {
@@ -192,7 +210,7 @@ module.exports = async (req, res) => {
       const meetings = normalize(await kv.get(KEY));
       const current = meetings[date] || normalizeEntry({ active: true });
       const patch = {};
-      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments']) {
+      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments', 'guestIds']) {
         if (Object.prototype.hasOwnProperty.call(body, f)) patch[f] = body[f];
       }
       meetings[date] = normalizeEntry({ ...current, ...patch });

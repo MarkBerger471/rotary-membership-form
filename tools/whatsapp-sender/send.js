@@ -103,7 +103,7 @@ const isForWhatsApp = (q) => !q.channel || q.channel === 'whatsapp';
 async function queuedGuests() {
   const { guests } = await api('/api/admin/guests');
   return guests
-    .filter(g => g && g.queued && g.queued.text && isForWhatsApp(g.queued) && g.status !== 'archived')
+    .filter(g => g && g.queued && (g.queued.text || imageUrlsOf(g.queued).length) && isForWhatsApp(g.queued) && g.status !== 'archived')
     .map(g => ({ ...g, board: false, about: '' }));
 }
 
@@ -149,16 +149,23 @@ function reportFailed(job, message) {
 
 // The image is fetched from the public endpoint, the same URL a recipient would
 // see, so what goes out is exactly what was uploaded.
+const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
 async function fetchMedia(url) {
   if (!url) return null;
   try {
-    const res = await fetch(url.startsWith('http') ? url : BASE + url);
+    const full = url.startsWith('http') ? url : BASE + url;
+    // An invite image is public - the link preview crawler has to reach it.
+    // A meeting's picture is not: it lives behind the admin password like
+    // every other file, so this fetch carries it when the address is ours.
+    const ours = full.startsWith(BASE);
+    const res = await fetch(full, ours ? { headers: { 'X-Admin-Password': PW } } : undefined);
     if (!res.ok) throw new Error('image fetch ' + res.status);
     const buf = Buffer.from(await res.arrayBuffer());
-    const mime = res.headers.get('content-type') || 'image/jpeg';
-    return new MessageMedia(mime, buf.toString('base64'), 'invite.jpg');
+    const mime = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    return new MessageMedia(mime, buf.toString('base64'), 'invite.' + (EXT[mime] || 'jpg'));
   } catch (err) {
-    log('could not fetch the invite image:', err.message);
+    log('could not fetch the picture:', err.message);
     return null;
   }
 }
@@ -192,6 +199,7 @@ async function sendOne(client, guest) {
   const urls = imageUrlsOf(guest.queued);
 
   if (!urls.length) {
+    if (!text) throw new Error('nothing to send - no words and no picture');
     await client.sendMessage(chatId, text);
     return { wanted: 0, attached: 0 };
   }
@@ -205,7 +213,9 @@ async function sendOne(client, guest) {
     const media = await fetchMedia(url);
     if (!media) continue;
     if (!captioned) {
-      await client.sendMessage(chatId, media, { caption: text });
+      // No words means no caption at all, not an empty one: a picture sent on
+      // its own is what "just the flyer" looks like in a chat.
+      await client.sendMessage(chatId, media, text ? { caption: text } : undefined);
       captioned = true;
     } else {
       await sleep(IMAGE_GAP_MS);
@@ -213,8 +223,13 @@ async function sendOne(client, guest) {
     }
     attached++;
   }
-  // If every image failed to fetch, the guest still gets the message text.
-  if (!captioned) await client.sendMessage(chatId, text);
+  // If every image failed to fetch, the guest still gets the message text -
+  // but a message that was only ever a picture has nothing left to send, and
+  // saying "sent" for that would be a lie.
+  if (!captioned) {
+    if (!text) throw new Error(`the picture could not be fetched - nothing sent`);
+    await client.sendMessage(chatId, text);
+  }
   return { wanted: urls.length, attached };
 }
 
@@ -237,7 +252,7 @@ async function drain(client) {
     if (DRY) {
       const imgs = imageUrlsOf(guest.queued);
       log(`WOULD SEND to ${who}${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
-      log('   ' + guest.queued.text.replace(/\n/g, '\n   '));
+      log('   ' + String(guest.queued.text || '(no words - the file only)').replace(/\n/g, '\n   '));
       continue;
     }
     try {

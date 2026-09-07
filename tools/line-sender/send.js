@@ -158,7 +158,7 @@ async function api(pathname, method = 'GET', body) {
 
 // Only what was queued for LINE, and only for a guest who has a LINE name to
 // find the chat by. Anything else belongs to the WhatsApp sender.
-const isQueuedForLine = (g) => !!(g && g.queued && g.queued.text
+const isQueuedForLine = (g) => !!(g && g.queued && (g.queued.text || imageUrlsOf(g.queued).length)
   && g.queued.channel === 'line' && String(g.lineName || '').trim()
   && g.status !== 'archived');
 
@@ -490,7 +490,11 @@ const copyText = (text) => sh('/usr/bin/pbcopy', [], { input: text });
 // An image has to be on the clipboard as an image, not as a file path, or LINE
 // pastes the name of the file into the message.
 async function copyImage(url) {
-  const res = await fetch(url.startsWith('http') ? url : BASE + url);
+  const full = url.startsWith('http') ? url : BASE + url;
+  // An invite image is public; a meeting's picture sits behind the admin
+  // password like every other file here, so the password rides along when the
+  // address is ours.
+  const res = await fetch(full, full.startsWith(BASE) ? { headers: { 'X-Admin-Password': PW } } : undefined);
   if (!res.ok) throw new Error('image fetch ' + res.status);
   const raw = path.join(TMP, 'img-' + Date.now());
   fs.writeFileSync(raw, Buffer.from(await res.arrayBuffer()));
@@ -774,6 +778,7 @@ async function sendIntoChat(f, { text, images }) {
       if (!emptyComposer(f)) throw new Error('the pictures are still in the message box after Enter');
     }
   }
+  if (!text && !attached) throw new Error('nothing went into the chat - no words and no picture');
   return attached;
 }
 
@@ -782,7 +787,7 @@ async function sendOne(guest) {
   const f = frames();
   const { title, frames: open } = await openChat(guest, f);
   const images = imageUrlsOf(guest.queued);
-  const attached = await sendIntoChat(open, { name: (guest.lineName || '').trim(), text: guest.queued.text, images });
+  const attached = await sendIntoChat(open, { name: (guest.lineName || '').trim(), text: guest.queued.text || '', images });
   setSearch('');
   return { title, wanted: images.length, attached };
 }
@@ -836,7 +841,7 @@ async function drain() {
     if (DRY) {
       const imgs = imageUrlsOf(guest.queued);
       log(`WOULD SEND to ${who} as "${guest.lineName}"${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
-      log('   ' + guest.queued.text.replace(/\n/g, '\n   '));
+      log('   ' + String(guest.queued.text || '(no words - the picture only)').replace(/\n/g, '\n   '));
       continue;
     }
     try {

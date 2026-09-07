@@ -647,6 +647,8 @@
       const done = sentThisRound.has(id);
       const sends = (p.invites || []).length;
       const open = openLogs.has(p.id);
+      const linked = meetingsOf(p.id);
+      const upcoming = upcomingMeetingList();
       return `
         <div class="${done ? 'opacity-45' : ''}">
           <div class="flex items-center gap-3 px-5 py-2.5 ${blocked ? 'opacity-50' : 'hover:bg-white/5'}">
@@ -658,7 +660,11 @@
                 ${sends ? `<button onclick="toggleLog('${p.id}')" aria-expanded="${open}"
                     title="What has been sent to them, and when"
                     class="text-[10px] ml-1 ${open ? 'text-rotary-gold' : 'text-white/30 hover:text-rotary-gold'} underline decoration-dotted underline-offset-2">
-                    sent ${sends}x ${open ? '&#9652;' : '&#9662;'}</button>` : ''}</div>
+                    sent ${sends}x ${open ? '&#9652;' : '&#9662;'}</button>` : ''}
+                ${linked.map(d => `<button onclick="linkToMeeting('${p.id}', '${d}')"
+                    title="Down as a guest for this meeting - click to take them off"
+                    class="text-[10px] ml-1 px-1.5 py-0.5 rounded-full bg-rotary-gold/15 text-rotary-gold hover:bg-rotary-gold/25 whitespace-nowrap">
+                    ${escapeHtml(meetingDay(d))} &times;</button>`).join('')}</div>
               ${p.queueError ? `<div class="text-[11px] text-amber-300/90">last try: ${escapeHtml(p.queueError)}</div>` : ''}
               ${blocked
                 ? `<div class="text-[11px] text-red-300/80">${blocked} - add it on the Guests page</div>`
@@ -668,6 +674,13 @@
                      ${channel === 'line' ? `<span class="text-white/25">&middot; ${escapeHtml(p.lineName)}</span>` : ''}
                      ${channel === 'linkedin' ? `<span class="text-white/25">&middot; ${escapeHtml((p.linkedinUrl || '').replace(/^https:\/\/www\.linkedin\.com\/in\//, ''))}</span>` : ''}</div>`}
             </div>
+            ${upcoming.length ? `
+            <select aria-label="Bring them to a meeting" title="Put them down as a guest for an evening"
+              onchange="linkToMeeting('${p.id}', this.value); this.value = '';"
+              class="glass-input text-[11px] rounded-lg px-1.5 py-1 max-w-[7.5rem] flex-shrink-0">
+              <option value="">+ meeting</option>
+              ${upcoming.map(([d, m]) => `<option value="${d}">${escapeHtml(meetingDay(d))}${linked.includes(d) ? ' &check;' : ''} ${escapeHtml((m.topic || m.presenter || '').slice(0, 24))}</option>`).join('')}
+            </select>` : ''}
             <button onclick="setGuestArchived('${p.id}', true)" title="Archive ${escapeHtml(p.name || '')} - no more messages"
               aria-label="Archive ${escapeHtml(p.name || '')}"
               class="w-7 h-7 rounded-md flex items-center justify-center text-white/25 hover:text-rotary-gold hover:bg-white/10 transition-colors flex-shrink-0">
@@ -1451,6 +1464,46 @@
           return `<option value="${d}">${when} - ${escapeHtml(what).slice(0, 40)}</option>`;
         }).join('');
       renderOvPreview();
+      renderTargets();
+    }
+
+    // ---- linking a guest to an evening
+    //
+    // The link is kept on the meeting, not on the guest: "who might come on
+    // the 16th" belongs to the evening, and the planner already holds every
+    // meeting of the year. Here it is read back the other way round.
+    function upcomingMeetingList() {
+      const today = new Date().toISOString().slice(0, 10);
+      return Object.entries(meetings)
+        .filter(([d, m]) => d >= today && m && m.active)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, 8);
+    }
+
+    const meetingGuests = (d) => ((meetings[d] && meetings[d].guestIds) || []);
+    const meetingsOf = (guestId) => Object.keys(meetings)
+      .filter(d => meetingGuests(d).includes(guestId)).sort();
+
+    const meetingDay = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+    async function linkToMeeting(guestId, date) {
+      if (!date || !meetings[date]) return;
+      const ids = meetingGuests(date);
+      const next = ids.includes(guestId) ? ids.filter(x => x !== guestId) : ids.concat(guestId);
+      const guest = guests.find(g => g.id === guestId);
+      try {
+        const res = await apiFetch('/api/admin/meetings', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, guestIds: next }),
+        });
+        meetings[date] = res.meeting;
+        renderTargets();
+        showToast(next.includes(guestId)
+          ? `${guest ? guest.name : 'Guest'} is down for ${meetingDay(date)}`
+          : `${guest ? guest.name : 'Guest'} taken off ${meetingDay(date)}`, 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not link them', 'error');
+      }
     }
 
     // Puts the meeting's own details into the message rather than hiding them

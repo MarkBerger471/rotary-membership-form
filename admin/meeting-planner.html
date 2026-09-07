@@ -185,6 +185,16 @@
 
           <div id="attachList" class="space-y-1.5"></div>
           <p id="attachEmpty" class="hidden text-xs text-white/35 text-center py-2">Nothing attached to this meeting yet.</p>
+
+          <!-- Who might come that evening, and the one thing this page can send
+               them: a picture or a link, with nothing written under it. -->
+          <div class="pt-3 border-t border-white/10">
+            <div class="flex items-baseline justify-between gap-2">
+              <h4 class="font-bold text-sm">Potential guests <span id="guestCount" class="text-white/35 text-xs font-normal"></span></h4>
+              <span class="text-[11px] text-white/30">linked on the Invite page</span>
+            </div>
+            <div id="meetingGuests" class="space-y-1.5 mt-2"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -303,12 +313,14 @@
       const links = list.filter(a => a.kind === 'link');
       const thumbs = pics.slice(0, 3)
         .map(a => `<img id="thumb-${a.id}" alt="" src="${thumbCache.get(a.id) || ''}" />`).join('');
+      const guestCount = guestIdsOf(entry).length;
       const counts = [
         pics.length > 3 ? `+${pics.length - 3}` : '',
         files.length ? `${files.length} file${files.length === 1 ? '' : 's'}` : '',
         links.length ? `${links.length} link${links.length === 1 ? '' : 's'}` : '',
+        guestCount ? `${guestCount} guest${guestCount === 1 ? '' : 's'}` : '',
       ].filter(Boolean).join(' · ');
-      const label = list.length ? (counts || `${pics.length} picture${pics.length === 1 ? '' : 's'}`) : 'Files & links';
+      const label = (list.length || guestCount) ? (counts || `${pics.length} picture${pics.length === 1 ? '' : 's'}`) : 'Files & links';
       return `<button type="button" onclick="openAttachments('${ds}')" title="Files, pictures and links for this meeting"
         class="mattach w-full px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-medium transition-colors">
         ${thumbs}
@@ -537,6 +549,7 @@
       document.getElementById('attachLinkUrl').value = '';
       attachBusy(false);
       renderAttachList();
+      loadGuests().then(() => { renderAttachList(); renderMeetingGuests(); });
       document.getElementById('attachModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
     }
@@ -574,6 +587,11 @@
             <div class="text-sm truncate">${escapeHtml(a.name)}</div>
             <div class="text-[11px] text-white/35 truncate">${escapeHtml(sub)}</div>
           </div>
+          ${sendable(a) && reachableGuests().length
+            ? `<button onclick="sendAttachmentToAll('${a.id}')" title="Send this to every guest linked to this meeting, on the channel each was last written on"
+                 class="text-[11px] px-2 py-1 rounded-md bg-white/5 hover:bg-rotary-gold/20 hover:text-rotary-gold transition-colors flex-none whitespace-nowrap">
+                 Send to ${reachableGuests().length}</button>`
+            : ''}
           <button onclick="openAttachment('${a.id}')" title="Open" class="w-7 h-7 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors flex-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           </button>
@@ -583,6 +601,155 @@
         </div>`;
       }).join('');
       hydrateThumbs();
+    }
+
+    // ---- potential guests
+    //
+    // Guests are linked to an evening on the Invite page; this is the other
+    // end of that. The only thing sent from here is a picture or a link with
+    // nothing written under it - the wording of an invitation belongs on the
+    // Invite page, where it can be read before it goes.
+
+    let planGuests = null;
+
+    async function loadGuests() {
+      if (planGuests) return planGuests;
+      try {
+        planGuests = (await apiFetch('/api/admin/guests')).guests || [];
+      } catch { planGuests = []; }
+      return planGuests;
+    }
+
+    const guestIdsOf = (entry) => (entry && Array.isArray(entry.guestIds) ? entry.guestIds : []);
+
+    // The guests of the meeting whose modal is open, and of those the ones a
+    // message can actually reach - "Send to 3" when one of the three has no
+    // number and no LINE name would be a promise the button cannot keep.
+    const linkedGuests = () => guestIdsOf(meetings[attachDate])
+      .map(id => (planGuests || []).find(g => g.id === id)).filter(Boolean);
+    const reachableGuests = () => linkedGuests().filter(g => channelFor(g));
+
+    // Only a picture or a link can go: LINE is driven by pasting into the app,
+    // and a PDF cannot be pasted into a chat. A file stays a file here.
+    const sendable = (a) => a.kind === 'image' || a.kind === 'link';
+
+    // What they were last written on, which is what they get written on now.
+    // WhatsApp when nothing is known, as long as there is a number for it.
+    const CHANNELS = ['whatsapp', 'line'];
+    function channelFor(g) {
+      const last = (g.invites || [])
+        .filter(e => CHANNELS.includes(e.channel))
+        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
+      const reachable = (c) => (c === 'whatsapp' ? !!String(g.waNumber || g.phone || '').trim() : !!String(g.lineName || '').trim());
+      if (last && reachable(last.channel)) return last.channel;
+      if (reachable('whatsapp')) return 'whatsapp';
+      if (reachable('line')) return 'line';
+      return '';
+    }
+
+    const CHANNEL_NAME = { whatsapp: 'WhatsApp', line: 'LINE' };
+
+    function lastSentLine(g) {
+      const last = (g.invites || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
+      if (!last) return 'nothing sent yet';
+      const when = new Date(last.date || 0);
+      const day = isNaN(when) ? '' : when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      return `last: ${last.what || 'message'} ${day} on ${CHANNEL_NAME[last.channel] || last.channel}`;
+    }
+
+    function renderMeetingGuests() {
+      const entry = meetings[attachDate];
+      const list = linkedGuests();
+      const files = attachmentsOf(entry).filter(sendable);
+      document.getElementById('guestCount').textContent = list.length ? `· ${list.length}` : '';
+
+      document.getElementById('meetingGuests').innerHTML = list.length ? list.map(g => {
+        const channel = channelFor(g);
+        const queued = g.queued ? `<span class="text-rotary-gold/80">waiting for the ${CHANNEL_NAME[g.queued.channel] || ''} sender</span>` : '';
+        return `<div class="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm truncate">${escapeHtml(g.name || '(unnamed)')}</div>
+            <div class="text-[11px] text-white/35 truncate">
+              ${channel ? `<span class="text-white/50">${CHANNEL_NAME[channel]}</span> &middot; ${queued || escapeHtml(lastSentLine(g))}`
+                        : '<span class="text-red-300/80">no WhatsApp number and no LINE name</span>'}</div>
+          </div>
+          <div class="flex flex-wrap gap-1 justify-end">
+            ${channel ? files.map(a => `<button onclick="sendAttachmentTo('${a.id}', '${g.id}')"
+                title="Send ${escapeHtml(a.name)} to ${escapeHtml(g.name || '')} on ${CHANNEL_NAME[channel]} - the ${a.kind === 'link' ? 'link' : 'picture'} only, nothing written"
+                class="text-[11px] px-2 py-1 rounded-md bg-white/5 hover:bg-rotary-gold/20 hover:text-rotary-gold transition-colors max-w-[9rem] truncate">
+                ${a.kind === 'link' ? '&#128279;' : '&#128247;'} ${escapeHtml(a.name)}</button>`).join('') : ''}
+            <button onclick="unlinkGuest('${g.id}')" title="Take them off this meeting"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-white/25 hover:text-red-300 hover:bg-white/10 transition-colors flex-none">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('')
+        : `<p class="text-xs text-white/35 py-1">Nobody linked to this evening yet - do that on the Invite page, next to the guest.</p>`;
+    }
+
+    // One send: the picture as a picture, the link as the address on its own.
+    function queuedFor(a, channel) {
+      return a.kind === 'link'
+        ? { text: a.url, imageUrls: [], channel, what: 'meeting file' }
+        : { text: '', imageUrls: [attachUrl(a.id)], channel, what: 'meeting file' };
+    }
+
+    async function sendAttachmentTo(attId, guestId) {
+      const a = attachmentsOf(meetings[attachDate]).find(x => x.id === attId);
+      const g = (planGuests || []).find(x => x.id === guestId);
+      if (!a || !g || !sendable(a)) return;
+      const channel = channelFor(g);
+      if (!channel) { showToast(`${g.name} has no WhatsApp number and no LINE name`, 'error'); return; }
+      try {
+        const res = await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: guestId, queued: queuedFor(a, channel) }),
+        });
+        Object.assign(g, res.guest);
+        renderMeetingGuests();
+        showToast(`${a.name} queued for ${g.name} on ${CHANNEL_NAME[channel]}`, 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not queue it', 'error');
+      }
+    }
+
+    async function sendAttachmentToAll(attId) {
+      const a = attachmentsOf(meetings[attachDate]).find(x => x.id === attId);
+      const list = reachableGuests();
+      if (!a || !list.length) return;
+      if (!confirm(`Send ${a.name} to ${list.length} guest${list.length === 1 ? '' : 's'}?\n\n`
+        + list.map(g => `- ${g.name} on ${CHANNEL_NAME[channelFor(g)]}`).join('\n')
+        + '\n\nNothing is written with it, and the senders on this Mac deliver it.')) return;
+      let ok = 0;
+      for (const g of list) {
+        try {
+          const res = await apiFetch('/api/admin/guests', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: g.id, queued: queuedFor(a, channelFor(g)) }),
+          });
+          Object.assign(g, res.guest);
+          ok++;
+        } catch { /* counted below */ }
+      }
+      renderMeetingGuests();
+      showToast(`${a.name} queued for ${ok} of ${list.length}`, ok === list.length ? 'success' : 'error');
+    }
+
+    async function unlinkGuest(guestId) {
+      const ids = guestIdsOf(meetings[attachDate]).filter(id => id !== guestId);
+      try {
+        const res = await apiFetch('/api/admin/meetings', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: attachDate, guestIds: ids }),
+        });
+        meetings[attachDate] = res.meeting;
+        renderAttachList();
+        renderMeetingGuests();
+        renderMeetings();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not take them off', 'error');
+      }
     }
 
     // ---- writing
@@ -599,6 +766,7 @@
       const res = await apiFetch(`${attachUrl(att)}&date=${encodeURIComponent(attachDate)}`, init);
       meetings[attachDate] = res.meeting;
       renderAttachList();
+      renderMeetingGuests();
       renderMeetings();
       return res;
     }
