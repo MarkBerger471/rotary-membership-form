@@ -170,6 +170,48 @@ async function fetchMedia(url) {
   }
 }
 
+// Two kinds of thing go wrong here, and they need opposite treatment - the
+// same split the LINE sender has always made.
+//
+// Something wrong with the guest - a number nobody has on WhatsApp - will be
+// wrong again next time, so their message comes off the queue with the reason
+// on their record.
+//
+// Something wrong with the browser says nothing at all about the guest. A
+// whatsapp-web.js client whose page has gone answers every send with the same
+// error and never recovers on its own: on 7 September one did that for three
+// hours and marked twenty-two people as failed, none of whom were ever
+// written to. Their message must survive it, and this sender stops so the
+// launcher can start a fresh one - which is the only thing that fixes it.
+const BROWSER_GONE = /detached frame|execution context was destroyed|target closed|session closed|protocol error|browser (?:has )?disconnected|page (?:has been )?closed|websocket/i;
+
+function notify(text) {
+  try {
+    require('child_process').execFileSync('/usr/bin/osascript',
+      ['-e', `display notification ${JSON.stringify(text)} with title "Rotary WhatsApp sender"`]);
+  } catch {}
+}
+
+// Ask the browser how it is before touching the queue. A client that has lost
+// its page throws here, and finding that out now costs nobody their message.
+async function assertAlive(client) {
+  let state;
+  try {
+    state = await client.getState();
+  } catch (err) {
+    throw new Error(`the browser lost its page: ${err.message}`);
+  }
+  if (state !== 'CONNECTED') throw new Error(`WhatsApp is ${state || 'not connected'}`);
+}
+
+async function startAgain(client, why, queued) {
+  log(`   ${why}`);
+  log(`   ${queued} message${queued === 1 ? '' : 's'} left queued - starting a fresh sender`);
+  notify(`WhatsApp lost its page. ${queued} message${queued === 1 ? ' is' : 's are'} still queued; a fresh sender is starting.`);
+  if (client) await client.destroy().catch(() => {});
+  process.exit(1);          // the launcher brings a new one up in 20 seconds
+}
+
 function chatIdFor(guest) {
   const digits = String(guest.waNumber || guest.phone || '').replace(/[^0-9]/g, '');
   return digits ? `${digits}@c.us` : null;
@@ -246,7 +288,16 @@ async function drain(client) {
 
   const boardCount = queue.filter(j => j.board).length;
   log(`${queue.length} queued${boardCount ? ` (${boardCount} board vote${boardCount === 1 ? '' : 's'})` : ''}`);
-  let sent = 0;
+
+  if (!DRY) {
+    try {
+      await assertAlive(client);
+    } catch (err) {
+      await startAgain(client, err.message, queue.length);
+    }
+  }
+
+  let sent = 0, failedInARow = 0;
   for (const guest of queue.slice(0, MAX_PER_RUN)) {
     const who = (guest.name || guest.waNumber) + guest.about;
     if (DRY) {
@@ -263,14 +314,27 @@ async function drain(client) {
       const note = lost > 0 ? `sent without ${lost} of ${wanted} image${wanted === 1 ? '' : 's'} - could not be fetched` : '';
       await reportSent(guest, note);
       sent++;
+      failedInARow = 0;
       const how = attached ? `with ${attached} image${attached === 1 ? '' : 's'}` : 'text only';
       log(`sent to ${who} (${how})  (${sent}/${Math.min(queue.length, MAX_PER_RUN)})`);
       if (note) log('   WARNING: ' + note);
     } catch (err) {
+      // The browser, not the recipient: leave the message where it is.
+      if (BROWSER_GONE.test(err.message || '')) {
+        log(`NOT SENT to ${who}: ${err.message}`);
+        await startAgain(client, 'this is the browser, not the recipient', queue.length - sent);
+      }
       // Take it off the queue so one bad number cannot jam the run forever.
       // The reason goes on the record and shows on the page it came from.
       await reportFailed(guest, err.message).catch(() => {});
       log(`FAILED for ${who}: ${err.message}`);
+      // Something is wrong that this loop cannot name. Stop rather than work
+      // through the whole queue proving it, and leave the rest queued.
+      if (++failedInARow >= 5) {
+        log('   five in a row failed - standing down, the rest stay queued');
+        notify('Five WhatsApp messages in a row failed. The rest are still queued - have a look at the log.');
+        break;
+      }
     }
     const gap = jitter();
     log(`   waiting ${Math.round(gap / 1000)}s`);
@@ -278,71 +342,76 @@ async function drain(client) {
   }
   return sent;
 }
-
-(async () => {
-  if (DRY) {
-    // A dry run needs no WhatsApp session at all.
-    const n = await drain(null);
-    log('dry run complete, nothing sent');
-    process.exit(0);
-  }
-
-  const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
-    puppeteer: {
-      executablePath: fs.existsSync(CHROME) ? CHROME : undefined,
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    },
-  });
-
-  // The QR also opens as an image. Printing it to a terminal is no use when
-  // the sender is started for you, or when the terminal font mangles the
-  // blocks - a PNG in Preview always scans.
-  const QR_PNG = path.join(__dirname, 'link-whatsapp.png');
-  let qrOpened = false;
-  client.on('qr', async (qr) => {
-    console.log('\nScan this in WhatsApp > Settings > Linked devices > Link a device:\n');
-    qrcode.generate(qr, { small: true });
-    try {
-      await qrimage.toFile(QR_PNG, qr, { width: 520, margin: 2 });
-      if (!qrOpened) {
-        qrOpened = true;
-        require('child_process').spawn('open', [QR_PNG], { stdio: 'ignore', detached: true }).unref();
-        console.log(`(also opened as an image: ${QR_PNG})`);
-      }
-    } catch (err) {
-      console.log('could not write the QR image:', err.message);
-    }
-  });
-  client.on('authenticated', () => {
-    log('authenticated');
-    try { fs.unlinkSync(path.join(__dirname, 'link-whatsapp.png')); } catch {}
-  });
-  client.on('auth_failure', (m) => { log('auth failed:', m); process.exit(1); });
-  client.on('disconnected', (r) => { log('disconnected:', r); process.exit(1); });
-
-  client.on('ready', async () => {
-    log('WhatsApp ready');
-    const total = await drain(client);
-    if (!WATCH) {
-      log(`done, ${total} sent`);
-      await client.destroy();
+// Started as `node send.js`, this runs; required from a test it does not, so
+// the queue logic above can be exercised without opening a browser.
+if (require.main === module) {
+  (async () => {
+    if (DRY) {
+      // A dry run needs no WhatsApp session at all.
+      const n = await drain(null);
+      log('dry run complete, nothing sent');
       process.exit(0);
     }
-    log('watching for newly queued invites and board votes - Ctrl+C to stop');
-    // One drain at a time. The timer fires every fifteen seconds; a drain
-    // takes far longer, because it waits 18-42s between guests. On 5 Sep a
-    // second drain started while the first was in one of those pauses, both
-    // holding the same list of queued guests, and one guest was sent to
-    // twice. A tick that lands while a drain is running is dropped.
-    let draining = false;
-    setInterval(() => {
-      if (draining) return;
-      draining = true;
-      drain(client).catch(e => log('poll error:', e.message)).finally(() => { draining = false; });
-    }, POLL_MS);
-  });
 
-  await client.initialize();
-})().catch(err => { console.error('sender failed:', err.message); process.exit(1); });
+    const client = new Client({
+      authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
+      puppeteer: {
+        executablePath: fs.existsSync(CHROME) ? CHROME : undefined,
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      },
+    });
+
+    // The QR also opens as an image. Printing it to a terminal is no use when
+    // the sender is started for you, or when the terminal font mangles the
+    // blocks - a PNG in Preview always scans.
+    const QR_PNG = path.join(__dirname, 'link-whatsapp.png');
+    let qrOpened = false;
+    client.on('qr', async (qr) => {
+      console.log('\nScan this in WhatsApp > Settings > Linked devices > Link a device:\n');
+      qrcode.generate(qr, { small: true });
+      try {
+        await qrimage.toFile(QR_PNG, qr, { width: 520, margin: 2 });
+        if (!qrOpened) {
+          qrOpened = true;
+          require('child_process').spawn('open', [QR_PNG], { stdio: 'ignore', detached: true }).unref();
+          console.log(`(also opened as an image: ${QR_PNG})`);
+        }
+      } catch (err) {
+        console.log('could not write the QR image:', err.message);
+      }
+    });
+    client.on('authenticated', () => {
+      log('authenticated');
+      try { fs.unlinkSync(path.join(__dirname, 'link-whatsapp.png')); } catch {}
+    });
+    client.on('auth_failure', (m) => { log('auth failed:', m); process.exit(1); });
+    client.on('disconnected', (r) => { log('disconnected:', r); process.exit(1); });
+
+    client.on('ready', async () => {
+      log('WhatsApp ready');
+      const total = await drain(client);
+      if (!WATCH) {
+        log(`done, ${total} sent`);
+        await client.destroy();
+        process.exit(0);
+      }
+      log('watching for newly queued invites and board votes - Ctrl+C to stop');
+      // One drain at a time. The timer fires every fifteen seconds; a drain
+      // takes far longer, because it waits 18-42s between guests. On 5 Sep a
+      // second drain started while the first was in one of those pauses, both
+      // holding the same list of queued guests, and one guest was sent to
+      // twice. A tick that lands while a drain is running is dropped.
+      let draining = false;
+      setInterval(() => {
+        if (draining) return;
+        draining = true;
+        drain(client).catch(e => log('poll error:', e.message)).finally(() => { draining = false; });
+      }, POLL_MS);
+    });
+
+    await client.initialize();
+  })().catch(err => { console.error('sender failed:', err.message); process.exit(1); });
+}
+
+module.exports = { drain, BROWSER_GONE, assertAlive, imageUrlsOf, isForWhatsApp };
