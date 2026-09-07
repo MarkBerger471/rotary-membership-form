@@ -549,12 +549,18 @@
       document.getElementById('attachLinkUrl').value = '';
       attachBusy(false);
       renderAttachList();
-      loadGuests().then(() => { renderAttachList(); renderMeetingGuests(); });
+      loadGuests(true).then(() => {
+        renderAttachList();
+        renderMeetingGuests();
+        if (linkedGuests().some(g => g.queued)) watchQueued();
+      });
       document.getElementById('attachModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
     }
 
     function closeAttachments() {
+      stopWatchingQueue();
+      sendMenuFor = null;
       attachDate = null;
       document.getElementById('attachModal').classList.add('hidden');
       document.body.style.overflow = '';
@@ -612,12 +618,41 @@
 
     let planGuests = null;
 
-    async function loadGuests() {
-      if (planGuests) return planGuests;
+    // Read afresh whenever the box is opened, and while anything is waiting to
+    // go out. Held for the life of the page, the list said "waiting for the
+    // WhatsApp sender" long after the sender had delivered - the message was
+    // gone, the page was not.
+    async function loadGuests(force) {
+      if (planGuests && !force) return planGuests;
       try {
+        // Only replaced when the read works, so a dropped connection cannot
+        // empty a list that is on screen.
         planGuests = (await apiFetch('/api/admin/guests')).guests || [];
-      } catch { planGuests = []; }
+      } catch { planGuests = planGuests || []; }
       return planGuests;
+    }
+
+    // The senders run on this Mac and clear each message as it goes. Nothing
+    // tells the page, so it asks - but only while something of this meeting's
+    // is actually queued, and never in a background tab.
+    let guestWatch = null;
+    function watchQueued() {
+      if (guestWatch) return;
+      guestWatch = setInterval(async () => {
+        if (document.hidden || !attachDate) return;
+        const before = linkedGuests().filter(g => g.queued).length;
+        if (!before) return stopWatchingQueue();
+        await loadGuests(true);
+        renderMeetingGuests();
+        const after = linkedGuests().filter(g => g.queued).length;
+        if (after < before) showToast(`${before - after} delivered`, 'success');
+        if (!after) stopWatchingQueue();
+      }, 8000);
+    }
+
+    function stopWatchingQueue() {
+      if (guestWatch) clearInterval(guestWatch);
+      guestWatch = null;
     }
 
     const guestIdsOf = (entry) => (entry && Array.isArray(entry.guestIds) ? entry.guestIds : []);
@@ -740,6 +775,7 @@
         });
         Object.assign(g, res.guest);
         renderMeetingGuests();
+        watchQueued();
         showToast(`${a.name} queued for ${g.name} on ${CHANNEL_NAME[channel]}`, 'success');
       } catch (err) {
         if (err.message !== 'Unauthorized') showToast(err.message || 'Could not queue it', 'error');
@@ -765,6 +801,7 @@
         } catch { /* counted below */ }
       }
       renderMeetingGuests();
+      watchQueued();
       showToast(`${a.name} queued for ${ok} of ${list.length}`, ok === list.length ? 'success' : 'error');
     }
 
