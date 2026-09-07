@@ -77,6 +77,8 @@
           <input id="qaFirst" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Anna" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[130px]">Last name
           <input id="qaLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Meier" /></label>
+        <label class="text-xs text-white/50 flex-1 min-w-[130px]">Nickname <span class="text-white/30">(optional)</span>
+          <input id="qaNick" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="what they go by" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[180px]">Mobile (with country code)
           <input id="qaPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="+66 81 234 5678" /></label>
         <label class="text-xs text-white/50 flex-1 min-w-[160px]">LINE name <span class="text-white/30">(optional)</span>
@@ -268,6 +270,7 @@
     async function quickAdd() {
       const firstName = document.getElementById('qaFirst').value.trim();
       const lastName = document.getElementById('qaLast').value.trim();
+      const nickname = document.getElementById('qaNick').value.trim();
       const name = [firstName, lastName].filter(Boolean).join(' ');
       const phone = document.getElementById('qaPhone').value.trim();
       const lineName = document.getElementById('qaLine').value.trim();
@@ -282,12 +285,12 @@
       try {
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, firstName, lastName, phone, notes, waNumber: digits(phone), lineName, linkedinUrl,
+          body: JSON.stringify({ name, firstName, lastName, nickname, phone, notes, waNumber: digits(phone), lineName, linkedinUrl,
             language: langOf('qa'), honorific: thaiOf('qa'), source: 'manual' }),
         });
         if (res.added) {
           showToast(name + ' added', 'success');
-          ['qaFirst','qaLast','qaPhone','qaLine','qaLinkedin','qaNotes'].forEach(id => document.getElementById(id).value = '');
+          ['qaFirst','qaLast','qaNick','qaPhone','qaLine','qaLinkedin','qaNotes'].forEach(id => document.getElementById(id).value = '');
           document.getElementById('qaFirst').focus();
           loadGuests();
         } else {
@@ -325,7 +328,7 @@
       if (name.endsWith('.json') || text.trim().startsWith('[')) {
         return JSON.parse(text).map(c => ({
           name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '',
-          firstName: c.firstName || '', lastName: c.lastName || '',
+          firstName: c.firstName || '', lastName: c.lastName || '', nickname: c.nickname || '',
           phone: c.phone || c.waNumber, waNumber: digits(c.waNumber || c.phone), notes: c.notes || '',
         })).filter(c => c.name && c.waNumber);
       }
@@ -339,8 +342,11 @@
           let first = '', last = '';
           if (n) { const p = n.split(';'); last = (p[0] || '').trim(); first = (p[1] || '').trim(); }
           if (!first) { const p = fn.trim().split(/\s+/); first = p[0] || ''; last = p.slice(1).join(' '); }
+          // vCards carry NICKNAME, and phones fill it in - so it comes across.
+          const nick = (card.match(/\nNICKNAME[^:]*:(.+)/i) || [])[1];
           return { name: [first, last].filter(Boolean).join(' ') || fn.trim(),
-                   firstName: first, lastName: last, phone: tel.trim(), waNumber: digits(tel), notes: '' };
+                   firstName: first, lastName: last, nickname: (nick || '').trim(),
+                   phone: tel.trim(), waNumber: digits(tel), notes: '' };
         }).filter(c => c && c.waNumber);
       }
       // loose paste: "Name +66 81 234 5678" or "Name, 0812345678" per line
@@ -397,7 +403,7 @@
         const res = await apiFetch('/api/admin/guests', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ guests: chosen.map(c => ({
-            name: c.name, firstName: c.firstName, lastName: c.lastName,
+            name: c.name, firstName: c.firstName, lastName: c.lastName, nickname: c.nickname || '',
             phone: c.phone, waNumber: c.waNumber, notes: c.notes,
             language: langOf('import'), honorific: thaiOf('import'),
           })), source: 'import' }),
