@@ -17,7 +17,7 @@ async function getGuests() {
   return [];
 }
 
-const EDITABLE = ['name', 'firstName', 'lastName', 'phone', 'waNumber', 'lineName', 'linkedinUrl', 'notes', 'company'];
+const EDITABLE = ['name', 'firstName', 'lastName', 'nickname', 'phone', 'waNumber', 'lineName', 'linkedinUrl', 'notes', 'company'];
 
 // A LinkedIn address is stored as the profile it points at, whether it was
 // pasted as a full URL, a bare slug, or with the tracking rubbish LinkedIn
@@ -123,6 +123,9 @@ function normalise(input, source) {
     name,
     firstName: looksLikeNumber(first) ? '' : first,
     lastName: last,
+    // What they are actually called. When it is set, messages use it instead
+    // of the first name - "Hello Mai", not "Hello Ornphicha".
+    nickname: looksLikeNumber(input.nickname) ? '' : String(input.nickname || '').trim(),
     phone: String(input.phone || (wa ? '+' + wa : '')).trim(),
     waNumber: wa,
     lineName: String(input.lineName || '').trim(),

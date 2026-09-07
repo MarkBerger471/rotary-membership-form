@@ -410,11 +410,12 @@
     }
 
     const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
-    // Only the stored first name counts. Falling back to the display name
-    // would resurrect exactly the bug we fixed on the guests page - WhatsApp
-    // names are surname-first, so the first word is often the surname. An
-    // empty first name means "not invitable yet", and must stay that way.
-    const firstNameOf = (p) => (p.firstName || '').trim();
+    // What to call them: the nickname when there is one, the stored first name
+    // otherwise. Never the display name - WhatsApp names are surname-first, so
+    // the first word is often the surname, which is the bug we fixed on the
+    // guests page. Neither on file means "not invitable yet", and must stay
+    // that way.
+    const firstNameOf = (p) => ((p.nickname || '').trim() || (p.firstName || '').trim());
 
     // Thai guests are addressed "Khun Somchai" - the title sits in front of the
     // first name, it does not replace it.
@@ -442,6 +443,7 @@
         // sends goes through pool(), which never sees them.
         guests = (g.guests || [])
           .map(x => ({ kind: 'guest', id: x.id, name: x.name, firstName: x.firstName,
+                       nickname: x.nickname || '',
                        honorific: x.honorific || '', language: x.language || '',
                        waNumber: digits(x.waNumber || x.phone), phone: x.phone,
                        lineName: (x.lineName || '').trim(),
@@ -641,7 +643,7 @@
     function targetRow(p, ch) {
       const id = personId(p);
       const first = firstNameOf(p);
-      const blocked = !ch.reach(p) ? ch.needs : !first ? 'no first name' : '';
+      const blocked = !ch.reach(p) ? ch.needs : !first ? 'no first name or nickname' : '';
       const done = sentThisRound.has(id);
       const sends = (p.invites || []).length;
       const open = openLogs.has(p.id);

@@ -151,9 +151,12 @@
       <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label class="text-xs text-white/50">First name
           <input id="gfFirst" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" />
-          <span class="text-[11px] text-white/35">used to address messages</span></label>
+          <span class="text-[11px] text-white/35">their name on the list</span></label>
         <label class="text-xs text-white/50">Last name
           <input id="gfLast" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
+        <label class="text-xs text-white/50 sm:col-span-2">Nickname
+          <input id="gfNick" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="what they are actually called" />
+          <span class="text-[11px] text-white/35">used to address messages when it is set - otherwise the first name is</span></label>
         <label class="text-xs text-white/50">Mobile (with country code)
           <input id="gfPhone" type="tel" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" /></label>
         <label class="text-xs text-white/50">LINE name
@@ -232,8 +235,8 @@
             <div class="w-9 h-9 rounded-full bg-rotary-sky/20 text-rotary-sky flex items-center justify-center text-xs font-bold flex-shrink-0">${escapeHtml(initials)}</div>
             <div class="min-w-0 flex-1">
               <div class="font-semibold text-[13px] leading-tight break-words">${escapeHtml(g.name)}</div>
-              ${g.firstName
-                ? `<div class="text-[11px] text-white/35">greeted as &ldquo;${escapeHtml([g.honorific, g.firstName].filter(Boolean).join(' '))}&rdquo;
+              ${greetName(g)
+                ? `<div class="text-[11px] text-white/35">greeted as &ldquo;${escapeHtml([g.honorific, greetName(g)].filter(Boolean).join(' '))}&rdquo;
                      <span class="text-white/25">&middot; ${g.language === 'de' ? 'DE' : 'EN'}</span></div>`
                 : `<div class="text-[11px] text-red-300/80">no first name - add one before inviting</div>`}
               ${g.notes ? `<div class="text-[11px] text-white/45">${escapeHtml(g.notes)}</div>` : ''}
@@ -434,7 +437,12 @@
     }
 
     let editingGuestId = null;
-    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfPhone:'phone', gfLine:'lineName', gfLinkedin:'linkedinUrl', gfCompany:'company', gfNotes:'notes' };
+    const GUEST_FIELDS = { gfFirst:'firstName', gfLast:'lastName', gfNick:'nickname', gfPhone:'phone', gfLine:'lineName', gfLinkedin:'linkedinUrl', gfCompany:'company', gfNotes:'notes' };
+
+    // The one answer to "what do we call them". A nickname wins when there is
+    // one: Ornphicha goes by Mai, and an invitation that opens with the name
+    // nobody uses reads like a circular.
+    const greetName = (g) => ((g.nickname || '').trim() || (g.firstName || '').trim());
 
     // The guest list is what this page is for; the two input panels start
     // folded so it is not pushed below the fold, and the choice is remembered.
@@ -492,7 +500,8 @@
     // Show exactly how the invite will open, so a wrong first name is obvious
     // before it is sent rather than after.
     function updateGreetingPreview() {
-      const first = document.getElementById('gfFirst').value.trim();
+      const first = greetName({ firstName: document.getElementById('gfFirst').value,
+                                nickname: document.getElementById('gfNick').value });
       const hon = thaiOf('gf');
       const de = langOf('gf') === 'de';
       const who = [hon, first].filter(Boolean).join(' ');
@@ -534,6 +543,7 @@
     }
 
     document.getElementById('gfFirst').addEventListener('input', updateGreetingPreview);
+    document.getElementById('gfNick').addEventListener('input', updateGreetingPreview);
     document.addEventListener('keydown', (e) => {
       const open = !document.getElementById('guestModal').classList.contains('hidden');
       if (!open) return;
