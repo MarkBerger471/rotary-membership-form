@@ -198,9 +198,10 @@
             <!-- Who is coming, told to whoever takes the numbers. -->
             <div class="mt-3 pt-3 border-t border-white/10 flex items-end gap-2 flex-wrap">
               <label class="text-xs text-white/50 flex-1 min-w-[190px]">Guest list goes to
-                <input id="guestListTo" onchange="renderMeetingGuests()" oninput="renderMeetingGuests()"
+                <input id="guestListTo" oninput="paintGuestListButton()" onchange="saveGuestListTo()"
+                  onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }"
                   class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="their LINE name, exactly" />
-                <span class="text-[11px] text-white/35">used again for every later meeting</span></label>
+                <span id="guestListHint" class="text-[11px] text-white/35">used again for every later meeting</span></label>
               <button onclick="sendGuestList()" id="guestListBtn"
                 class="btn-primary px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5s5.3-3.1 7.2-5.3c1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3z"/></svg>
@@ -564,6 +565,7 @@
       loadGuests(true).then(() => {
         renderAttachList();
         renderMeetingGuests();
+        fillGuestListTo();
         if (linkedGuests().some(g => g.queued)) watchQueued();
       });
       document.getElementById('attachModal').classList.remove('hidden');
@@ -735,19 +737,7 @@
       document.getElementById('guestCount').textContent = list.length
         ? `· ${confirmed.length} of ${list.length} coming` : '';
 
-      // The name only has to be typed once: a later meeting starts with
-      // whatever the last one that had a name used.
-      const to = document.getElementById('guestListTo');
-      if (document.activeElement !== to) to.value = entry.guestListTo || lastGuestListTo();
-      const btn = document.getElementById('guestListBtn');
-      const ready = confirmed.length > 0 && !!to.value.trim();
-      btn.disabled = !ready;
-      btn.classList.toggle('opacity-40', !ready);
-      document.getElementById('guestListLabel').textContent =
-        confirmed.length ? `Send the list (${confirmed.length})` : 'Send the list';
-      btn.title = !to.value.trim() ? 'Fill in the LINE name it should go to'
-        : !confirmed.length ? 'Tick who is coming first'
-        : `Send ${confirmed.length} name${confirmed.length === 1 ? '' : 's'} to ${to.value.trim()} on LINE`;
+      paintGuestListButton();
 
       document.getElementById('meetingGuests').innerHTML = list.length ? list.map(g => {
         const channel = channelFor(g);
@@ -845,6 +835,57 @@
       showToast(`${a.name} queued for ${ok} of ${list.length}`, ok === list.length ? 'success' : 'error');
     }
 
+    // The button follows what is ticked and what is typed. It reads the field
+    // and never writes it: writing it on every render is what threw away the
+    // name as soon as the box lost focus.
+    function paintGuestListButton() {
+      const confirmed = confirmedIdsOf(meetings[attachDate]);
+      const to = document.getElementById('guestListTo').value.trim();
+      const btn = document.getElementById('guestListBtn');
+      const ready = confirmed.length > 0 && !!to;
+      btn.disabled = !ready;
+      btn.classList.toggle('opacity-40', !ready);
+      document.getElementById('guestListLabel').textContent =
+        confirmed.length ? `Send the list (${confirmed.length})` : 'Send the list';
+      btn.title = !to ? 'Fill in the LINE name it should go to'
+        : !confirmed.length ? 'Tick who is coming first'
+        : `Send ${confirmed.length} name${confirmed.length === 1 ? '' : 's'} to ${to} on LINE`;
+    }
+
+    // Filled in when the box opens: this meeting's name, or the one the last
+    // meeting that had one used.
+    function fillGuestListTo() {
+      const entry = meetings[attachDate] || {};
+      document.getElementById('guestListTo').value = entry.guestListTo || lastGuestListTo();
+      paintGuestListButton();
+    }
+
+    // Typing it is saving it. Waiting for the send to save the name is what
+    // made it look like the field forgot everything.
+    async function saveGuestListTo() {
+      const to = document.getElementById('guestListTo').value.trim();
+      const date = attachDate;
+      const entry = meetings[date] || {};
+      if (!date || to === (entry.guestListTo || '')) return;
+      const hint = document.getElementById('guestListHint');
+      try {
+        const res = await apiFetch('/api/admin/meetings', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, guestListTo: to }),
+        });
+        meetings[date] = res.meeting;
+        hint.textContent = to ? `saved - ${to} is now the name every later meeting starts with` : 'cleared';
+        hint.className = 'text-[11px] text-rotary-gold/70';
+        setTimeout(() => {
+          hint.textContent = 'used again for every later meeting';
+          hint.className = 'text-[11px] text-white/35';
+        }, 2500);
+        paintGuestListButton();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not save the name', 'error');
+      }
+    }
+
     // Said yes. Only these go in the list that is sent.
     async function setComing(guestId, coming) {
       const entry = meetings[attachDate];
@@ -884,6 +925,7 @@
         // The name is now on the meeting, so a later one inherits it.
         meetings[date] = { ...meetings[date], guestListTo: to };
         renderMeetingGuests();
+        paintGuestListButton();
         showToast(`${res.names.length} name${res.names.length === 1 ? '' : 's'} queued for ${to} - the LINE sender delivers it`, 'success');
       } catch (err) {
         if (err.message !== 'Unauthorized') showToast(err.message || 'Could not send the list', 'error');
