@@ -46,6 +46,10 @@ function normalizeEntry(v) {
     // The LINE name the guest list for this evening is sent to - whoever takes
     // the numbers. Set once and every later meeting offers the same name.
     guestListTo: str(v.guestListTo).trim().slice(0, 120),
+    // What the message says after "Hello". The chat it goes to is often a
+    // group - "Board 26/27 Rotary DACH" - and greeting a group by the first
+    // word of its name reads as "Hello Board".
+    guestListGreeting: str(v.guestListGreeting).trim().slice(0, 60),
   };
 }
 
@@ -189,13 +193,19 @@ async function handleAttachment(req, res, att) {
 // The message that goes to whoever takes the numbers for the evening. Written
 // here rather than on the page so there is one wording, and so it can be read
 // back in a test - the page shows it before it goes, but does not invent it.
-function guestListText({ date, meeting, names, to }) {
+function guestListText({ date, meeting, names, to, greeting }) {
   const when = new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB',
     { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-  const first = String(to || '').trim().split(/\s+/)[0];
+  // Whatever was typed in the greeting box. Nothing there falls back to the
+  // first word of the chat's name, but only when that chat is a person: a
+  // group's name is not a name to greet, and "Hello Board," is how we found
+  // that out.
+  const looksLikeAGroup = /[（(]\s*\d{1,5}\s*[)）]\s*$/.test(String(to || '').trim());
+  const who = String(greeting || '').trim()
+    || (looksLikeAGroup ? '' : String(to || '').trim().split(/\s+/)[0]);
   const what = str(meeting.topic).trim();
   return [
-    first ? `Hello ${first},` : 'Hello,',
+    who ? `Hello ${who},` : 'Hello,',
     '',
     `these are my guests for ${when}${what ? ` - ${what}` : ''}:`,
     '',
@@ -229,6 +239,9 @@ module.exports = async (req, res) => {
 
       const to = str(b.to).trim().slice(0, 120) || meeting.guestListTo;
       if (!to) return res.status(400).json({ error: 'Nobody to send it to - fill in the LINE name first' });
+      const greeting = b.greeting === undefined
+        ? meeting.guestListGreeting
+        : str(b.greeting).trim().slice(0, 60);
 
       const guests = await guestsApi.getGuests();
       const names = meeting.confirmedIds
@@ -236,9 +249,9 @@ module.exports = async (req, res) => {
         .filter(Boolean);
       if (!names.length) return res.status(400).json({ error: 'Nobody is ticked as coming yet' });
 
-      const text = guestListText({ date, meeting, names, to });
+      const text = guestListText({ date, meeting, names, to, greeting });
       // Asked for the wording only: nothing is queued and nothing is saved.
-      if (b.preview) return res.json({ preview: true, text, names, to });
+      if (b.preview) return res.json({ preview: true, text, names, to, greeting });
 
       const entry = await outbox.queueNote({
         channel: 'line', lineName: to, name: to, text,
@@ -249,9 +262,9 @@ module.exports = async (req, res) => {
         about: `the guest list for ${date}`,
       });
 
-      // The name sticks to the meeting, so the next one can offer it too.
-      if (meeting.guestListTo !== to) {
-        meetings[date] = normalizeEntry({ ...meeting, guestListTo: to });
+      // Both names stick to the meeting, so the next one can offer them too.
+      if (meeting.guestListTo !== to || meeting.guestListGreeting !== greeting) {
+        meetings[date] = normalizeEntry({ ...meeting, guestListTo: to, guestListGreeting: greeting });
         await kv.set(KEY, meetings);
       }
       return res.json({ success: true, queued: entry, text, names });
@@ -279,7 +292,7 @@ module.exports = async (req, res) => {
       const meetings = normalize(await kv.get(KEY));
       const current = meetings[date] || normalizeEntry({ active: true });
       const patch = {};
-      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments', 'guestIds', 'confirmedIds', 'guestListTo']) {
+      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments', 'guestIds', 'confirmedIds', 'guestListTo', 'guestListGreeting']) {
         if (Object.prototype.hasOwnProperty.call(body, f)) patch[f] = body[f];
       }
       meetings[date] = normalizeEntry({ ...current, ...patch });

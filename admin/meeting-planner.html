@@ -202,6 +202,11 @@
                   onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }"
                   class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="their LINE name, exactly" />
                 <span id="guestListHint" class="text-[11px] text-white/35">used again for every later meeting</span></label>
+              <label class="text-xs text-white/50 w-40">Greet them as
+                <input id="guestListGreeting" onchange="saveGuestListTo()"
+                  onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }"
+                  class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" placeholder="Fai" />
+                <span class="text-[11px] text-white/35">the name after &ldquo;Hello&rdquo;</span></label>
               <button onclick="sendGuestList()" id="guestListBtn"
                 class="btn-primary px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3C6.9 3 2.8 6.4 2.8 10.6c0 3.8 3.3 6.9 7.7 7.5.3.1.7.2.8.5.1.3.1.6 0 .9l-.1.8c0 .2-.2.9.8.5s5.3-3.1 7.2-5.3c1.3-1.4 2-2.9 2-4.9C21.2 6.4 17.1 3 12 3z"/></svg>
@@ -674,9 +679,11 @@
 
     // The name last used anywhere, newest meeting first - what a meeting that
     // has never had one starts with.
-    function lastGuestListTo() {
-      const dated = Object.keys(meetings).filter(d => (meetings[d] || {}).guestListTo).sort();
-      return dated.length ? meetings[dated[dated.length - 1]].guestListTo : '';
+    function lastGuestListTo() { return lastSet('guestListTo'); }
+    function lastGuestListGreeting() { return lastSet('guestListGreeting'); }
+    function lastSet(field) {
+      const dated = Object.keys(meetings).filter(d => (meetings[d] || {})[field]).sort();
+      return dated.length ? meetings[dated[dated.length - 1]][field] : '';
     }
 
     // The guests of the meeting whose modal is open, and of those the ones a
@@ -857,6 +864,7 @@
     function fillGuestListTo() {
       const entry = meetings[attachDate] || {};
       document.getElementById('guestListTo').value = entry.guestListTo || lastGuestListTo();
+      document.getElementById('guestListGreeting').value = entry.guestListGreeting || lastGuestListGreeting();
       paintGuestListButton();
     }
 
@@ -864,14 +872,15 @@
     // made it look like the field forgot everything.
     async function saveGuestListTo() {
       const to = document.getElementById('guestListTo').value.trim();
+      const greeting = document.getElementById('guestListGreeting').value.trim();
       const date = attachDate;
       const entry = meetings[date] || {};
-      if (!date || to === (entry.guestListTo || '')) return;
+      if (!date || (to === (entry.guestListTo || '') && greeting === (entry.guestListGreeting || ''))) return;
       const hint = document.getElementById('guestListHint');
       try {
         const res = await apiFetch('/api/admin/meetings', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, guestListTo: to }),
+          body: JSON.stringify({ date, guestListTo: to, guestListGreeting: greeting }),
         });
         meetings[date] = res.meeting;
         hint.textContent = to ? `saved - ${to} is now the name every later meeting starts with` : 'cleared';
@@ -908,6 +917,7 @@
     // what is queued - the page never writes this message itself.
     async function sendGuestList() {
       const to = document.getElementById('guestListTo').value.trim();
+      const greeting = document.getElementById('guestListGreeting').value.trim();
       const date = attachDate;
       if (!to || !confirmedIdsOf(meetings[date]).length) return;
       const btn = document.getElementById('guestListBtn');
@@ -915,15 +925,15 @@
       try {
         const preview = await apiFetch('/api/admin/meetings?guestlist=1', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, to, preview: true }),
+          body: JSON.stringify({ date, to, greeting, preview: true }),
         });
         if (!confirm(`Send this to "${to}" on LINE?\n\n${preview.text}`)) return;
         const res = await apiFetch('/api/admin/meetings?guestlist=1', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, to }),
+          body: JSON.stringify({ date, to, greeting }),
         });
-        // The name is now on the meeting, so a later one inherits it.
-        meetings[date] = { ...meetings[date], guestListTo: to };
+        // Both names are on the meeting now, so a later one inherits them.
+        meetings[date] = { ...meetings[date], guestListTo: to, guestListGreeting: greeting };
         renderMeetingGuests();
         paintGuestListButton();
         showToast(`${res.names.length} name${res.names.length === 1 ? '' : 's'} queued for ${to} - the LINE sender delivers it`, 'success');
