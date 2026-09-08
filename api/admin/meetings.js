@@ -3,6 +3,8 @@ const {
   MAX_ATTACHMENTS, MAX_BYTES, UPLOAD_TYPES,
   attachmentKey, newAttachmentId, safeUrl, normalizeAttachments,
 } = require('../../lib/attachments');
+const outbox = require('../../lib/outbox');
+const guestsApi = require('./guests');
 
 const KEY = 'admin:meetings';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,6 +40,12 @@ function normalizeEntry(v) {
     // their ids: the names, numbers and channels stay on the guest record,
     // which is the one place they are edited.
     guestIds: normalizeGuestIds(v.guestIds),
+    // Of those, the ones who actually said yes. Kept per meeting: coming on
+    // the 16th says nothing about the 23rd.
+    confirmedIds: normalizeGuestIds(v.confirmedIds).filter(id => normalizeGuestIds(v.guestIds).includes(id)),
+    // The LINE name the guest list for this evening is sent to - whoever takes
+    // the numbers. Set once and every later meeting offers the same name.
+    guestListTo: str(v.guestListTo).trim().slice(0, 120),
   };
 }
 
@@ -178,6 +186,26 @@ async function handleAttachment(req, res, att) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// The message that goes to whoever takes the numbers for the evening. Written
+// here rather than on the page so there is one wording, and so it can be read
+// back in a test - the page shows it before it goes, but does not invent it.
+function guestListText({ date, meeting, names, to }) {
+  const when = new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB',
+    { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const first = String(to || '').trim().split(/\s+/)[0];
+  const what = str(meeting.topic).trim();
+  return [
+    first ? `Hello ${first},` : 'Hello,',
+    '',
+    `these are my guests for ${when}${what ? ` - ${what}` : ''}:`,
+    '',
+    ...names.map((n, i) => `${i + 1}. ${n}`),
+    '',
+    `${names.length} ${names.length === 1 ? 'person' : 'people'} in total. Thank you!`,
+    'Mark',
+  ].join('\n');
+}
+
 module.exports = async (req, res) => {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected || req.headers['x-admin-password'] !== expected) {
@@ -187,6 +215,44 @@ module.exports = async (req, res) => {
   try {
     const att = str((req.query || {}).att);
     if (att) return await handleAttachment(req, res, att);
+
+    // Send the evening's guest list on LINE. Everything about it is read from
+    // the meeting - who is confirmed, what the evening is, who it goes to - so
+    // the message cannot disagree with what the page was showing.
+    if (req.method === 'POST' && (req.query || {}).guestlist) {
+      const b = parseBody(req);
+      const date = str(b.date);
+      if (!DATE_RE.test(date)) return res.status(400).json({ error: 'A date (YYYY-MM-DD) is required' });
+      const meetings = normalize(await kv.get(KEY));
+      const meeting = meetings[date];
+      if (!meeting) return res.status(404).json({ error: 'No meeting on that date' });
+
+      const to = str(b.to).trim().slice(0, 120) || meeting.guestListTo;
+      if (!to) return res.status(400).json({ error: 'Nobody to send it to - fill in the LINE name first' });
+
+      const guests = await guestsApi.getGuests();
+      const names = meeting.confirmedIds
+        .map(id => (guests.find(g => g.id === id) || {}).name)
+        .filter(Boolean);
+      if (!names.length) return res.status(400).json({ error: 'Nobody is ticked as coming yet' });
+
+      const text = guestListText({ date, meeting, names, to });
+      // Asked for the wording only: nothing is queued and nothing is saved.
+      if (b.preview) return res.json({ preview: true, text, names, to });
+
+      const entry = await outbox.queueNote({
+        channel: 'line', lineName: to, name: to, text,
+        key: `guestlist|${date}|${to.toLowerCase()}`,
+        about: `the guest list for ${date}`,
+      });
+
+      // The name sticks to the meeting, so the next one can offer it too.
+      if (meeting.guestListTo !== to) {
+        meetings[date] = normalizeEntry({ ...meeting, guestListTo: to });
+        await kv.set(KEY, meetings);
+      }
+      return res.json({ success: true, queued: entry, text, names });
+    }
 
     if (req.method === 'GET') {
       return res.json({ meetings: normalize(await kv.get(KEY)) });
@@ -210,7 +276,7 @@ module.exports = async (req, res) => {
       const meetings = normalize(await kv.get(KEY));
       const current = meetings[date] || normalizeEntry({ active: true });
       const patch = {};
-      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments', 'guestIds']) {
+      for (const f of ['active', 'type', 'topic', 'presenter', 'presenterTitle', 'venue', 'photoUrl', 'description', 'attachments', 'guestIds', 'confirmedIds', 'guestListTo']) {
         if (Object.prototype.hasOwnProperty.call(body, f)) patch[f] = body[f];
       }
       meetings[date] = normalizeEntry({ ...current, ...patch });
