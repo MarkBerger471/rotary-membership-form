@@ -181,6 +181,7 @@ async function queuedBoard() {
       name: e.name || e.lineName,
       about: e.appName ? ` about ${e.appName}` : '',
       lineName: e.lineName,
+      group: !!e.group,
       queued: { text: e.text, imageUrls: [] },
     }));
 }
@@ -566,8 +567,13 @@ function titleReadings(words) {
 const MAX_MARKS = 3;
 const isMark = (t) => !/[0-9]/.test(t) && t.replace(/[^a-z0-9]/gi, '').length <= 2;
 
-function titleConfirms(name, words) {
-  const n = norm(name);
+// A group's header carries its member count - "Board 26/27 Rotary DACH (10)" -
+// which is not part of the name and is not an icon either. It is allowed
+// through only when a group is what was asked for.
+const isCount = (t) => /^[（(]?\s*\d{1,5}\s*[)）]?$/.test(String(t).trim());
+
+function titleConfirms(name, words, allowGroup) {
+  const n = norm(stripCount(name));
   if (!n) return false;
   const tokens = Array.isArray(words) ? words.slice() : String(words || '').trim().split(/\s+/);
   while (tokens.length && !/[a-z0-9]/i.test(tokens[0])) tokens.shift();
@@ -575,7 +581,11 @@ function titleConfirms(name, words) {
   if (tokens.length < wanted) return false;
   if (norm(tokens.slice(0, wanted).join(' ')) !== n) return false;
   const rest = tokens.slice(wanted);
-  return rest.length <= MAX_MARKS && rest.every(isMark);
+  const counts = rest.filter(isCount);
+  if (counts.length && !allowGroup) return false;
+  if (counts.length > 1) return false;
+  const marks = rest.filter(t => !isCount(t));
+  return marks.length <= MAX_MARKS && marks.every(isMark);
 }
 
 function setSearch(text) {
@@ -614,17 +624,43 @@ function chatSection(lines, headerSeen = false) {
   };
 }
 
-// Rows whose name is exactly the one we are looking for. A group reads as
-// "RCBD Members (41)" and so never matches a person's name.
+// LINE writes a group's member count after its name - "RCBD Members (41)" -
+// and cuts a long name off with an ellipsis. Neither is part of the name, so
+// both come off before anything is compared.
+const stripCount = (s) => String(s == null ? '' : s).replace(/\s*[（(]\s*\d{1,5}\s*[)）]\s*$/, '').trim();
+const stripCut = (s) => String(s == null ? '' : s).replace(/(\u2026|\.\.\.)\s*$/, '').trim();
+const wasCut = (s) => /(\u2026|\.\.\.)\s*$/.test(String(s == null ? '' : s).trim());
+const isGroupRow = (s) => stripCount(s) !== String(s == null ? '' : s).trim();
+
+// A prefix shorter than this is not enough to be sure which chat is meant.
+const MIN_CUT_PREFIX = 6;
+
+// Rows whose name is the one we are looking for. A group only counts when the
+// caller said a group is what it wants: a message meant for one person must
+// never land in a group of forty, which is why the rule was exact to begin
+// with. The guest list for an evening is the case that does want one.
 //
 // Two chats can carry the same name; what tells them apart on screen is the
 // line or two underneath - the last message and when it was sent. Using that
 // as the row's identity is what makes it possible to read the same row twice
 // while scrolling without counting it as a second chat by that name.
-function matchesIn(section, name) {
+function rowMatches(rowText, name, allowGroup) {
+  const wanted = norm(stripCount(stripCut(name)));
+  if (!wanted) return false;
+  const raw = String(rowText == null ? '' : rowText).trim();
+  if (isGroupRow(raw) && !allowGroup) return false;
+  const shown = norm(stripCount(stripCut(raw)));
+  if (shown === wanted) return true;
+  // "Board 26/27 Rota…" is that chat as far as the screen goes; it matches the
+  // name it is the beginning of, and two rows beginning the same way are
+  // refused further down like any other pair.
+  return wasCut(raw) && shown.length >= MIN_CUT_PREFIX && wanted.startsWith(shown);
+}
+
+function matchesIn(section, name, allowGroup) {
   const out = [];
   section.rows.forEach((line, i) => {
-    if (norm(line.text) !== norm(name)) return;
+    if (!rowMatches(line.text, name, allowGroup)) return;
     const identity = [line.text, section.rows[i + 1], section.rows[i + 2]]
       .map(l => (typeof l === 'string' ? l : l && l.text)).filter(Boolean).join(' | ');
     out.push({ line, identity });
@@ -632,10 +668,10 @@ function matchesIn(section, name) {
   return out;
 }
 
-function pickChatRow(lines, name) {
+function pickChatRow(lines, name, allowGroup) {
   const section = chatSection(lines);
   if (!section.headerSeen) return { row: null, why: 'no chat by that name' };
-  const hits = matchesIn(section, name);
+  const hits = matchesIn(section, name, allowGroup);
   if (hits.length > 1) return { row: null, why: `more than one chat is called "${name}"` };
   if (!hits.length) return { row: null, why: 'no chat by that name' };
   return { row: hits[0].line, why: '' };
@@ -653,8 +689,9 @@ const scrollList = (f, steps) => {
 // collect every row that is exactly this name. Stops at the next section, or
 // when the list stops moving, or when it has read enough screens that
 // something is clearly wrong.
-async function scanChats(name, f) {
+async function scanChats(name, f, allowGroup) {
   const found = new Map();
+  const seen = new Set();
   let headerSeen = false, complete = false, total = null, expands = 0, pass = 0, previous = '';
   for (; pass < MAX_PASSES; pass++) {
     const lines = listLines(f);
@@ -663,7 +700,10 @@ async function scanChats(name, f) {
     if (section.total !== null) total = section.total;
     // Keep the freshest sighting of each row: an older one's position on the
     // screen is stale the moment the list moves.
-    for (const hit of matchesIn(section, name)) found.set(hit.identity, { line: hit.line, pass });
+    for (const hit of matchesIn(section, name, allowGroup)) found.set(hit.identity, { line: hit.line, pass });
+    // What the chat list actually said, so a name that matches nothing can be
+    // reported with the names that were there instead of in the abstract.
+    section.rows.forEach(l => { const t = String(l.text || '').trim(); if (t) seen.add(t); });
     if (section.endSeen) { complete = true; break; }
     if (section.seeMore && expands < 2) {
       // The rest of the matches are behind this. Clicking it can also land on
@@ -680,15 +720,15 @@ async function scanChats(name, f) {
     scrollList(f, SCROLL_STEPS);
     await sleep(500);
   }
-  return { found, total, complete, lastPass: pass };
+  return { found, total, complete, lastPass: pass, seen: [...seen] };
 }
 
 // The one row we want, at coordinates that are still current. If it was read
 // several screens ago the list has moved since, so it is walked back up until
 // the row is on screen again rather than clicking where it used to be.
-async function rowOnScreen(name, f) {
+async function rowOnScreen(name, f, allowGroup) {
   for (let i = 0; i < MAX_PASSES; i++) {
-    const hits = matchesIn(chatSection(listLines(f), true), name);
+    const hits = matchesIn(chatSection(listLines(f), true), name, allowGroup);
     if (hits.length === 1) return hits[0].line;
     if (hits.length > 1) return null;
     scrollList(f, -SCROLL_STEPS);
@@ -697,18 +737,20 @@ async function rowOnScreen(name, f) {
   return null;
 }
 
-async function chatRowFor(name, f) {
-  const { found, total, complete, lastPass } = await scanChats(name, f);
+async function chatRowFor(name, f, allowGroup) {
+  const { found, total, complete, lastPass, seen } = await scanChats(name, f, allowGroup);
   const many = total && total > 1 ? ` (${total} chats match "${name}")` : '';
+  // The names that were on screen, so the reason says what to type instead.
+  const instead = seen.length ? ` - the chat list showed ${seen.slice(0, 4).map(t => `"${t}"`).join(', ')}` : '';
   if (found.size > 1) return { row: null, why: `more than one chat is called "${name}"` };
   if (!complete) return { row: null, why: `the list of matching chats could not be read to the end${many}` };
-  if (!found.size) return { row: null, why: `no chat by that name${many}` };
+  if (!found.size) return { row: null, why: `no chat by that name${many}${instead}` };
 
   if (lastPass > 0) log(`   read ${lastPass + 1} screens of the chat list to be sure of "${name}"`);
   const only = [...found.values()][0];
   if (only.pass === lastPass) return { row: only.line, why: '' };
   log('   scrolling back to the row');
-  const row = await rowOnScreen(name, f);
+  const row = await rowOnScreen(name, f, allowGroup);
   if (!row) return { row: null, why: `the chat called "${name}" could not be brought back on screen` };
   return { row, why: '' };
 }
@@ -732,10 +774,11 @@ const emptyComposer = (f) => composerLines(f).find(l => norm(l.text) === norm(PL
 
 async function openChat(guest, f) {
   const name = (guest.lineName || '').trim();
+  const allowGroup = !!guest.group;
   setSearch(name);
   await sleep(1400);
 
-  const { row, why } = await chatRowFor(name, f);
+  const { row, why } = await chatRowFor(name, f, allowGroup);
   if (!row) throw new Error(why);
 
   click(f.list.x + f.list.w * 0.3, row.cy);
@@ -746,7 +789,7 @@ async function openChat(guest, f) {
   // the real thing.
   const open = frames();
   const { tokens, shown } = headerTitle(open);
-  if (!titleConfirms(name, tokens)) {
+  if (!titleConfirms(name, tokens, allowGroup)) {
     throw new Error(`the chat that opened is titled "${shown || '(unreadable)'}", not "${name}" - nothing sent`);
   }
   return { title: shown, frames: open };
@@ -904,6 +947,8 @@ async function drain() {
   return sent;
 }
 
+// Checking a name by hand. Groups are shown here whether or not a message
+// would be allowed into one, because the point is to see what LINE calls it.
 async function lookUp(name) {
   ensureTools();
   await focusLine();
@@ -913,7 +958,7 @@ async function lookUp(name) {
   await sleep(1400);
   // Exactly what the sender does before it opens a chat, stopping short of
   // the click - so what this says is what a real run would find.
-  const { row, why } = await chatRowFor(name, f);
+  const { row, why } = await chatRowFor(name, f, true);
   setSearch('');
   console.log(`\n"${name}"`);
   console.log(row
@@ -990,4 +1035,5 @@ if (require.main === module) {
 // The parts that decide who gets a message are pure, so they can be tested
 // without a Mac, a screen or anybody's LINE account.
 module.exports = { titleConfirms, titleReadings, isMark, oneAtATime, pickChatRow, chatSection, matchesIn, isQueuedForLine,
-                   imageUrlsOf, norm, EnvironmentError, failureAction };
+                   imageUrlsOf, norm, EnvironmentError, failureAction,
+                   rowMatches, stripCount, stripCut, wasCut, isGroupRow };

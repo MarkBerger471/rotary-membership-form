@@ -242,6 +242,9 @@ module.exports = async (req, res) => {
 
       const entry = await outbox.queueNote({
         channel: 'line', lineName: to, name: to, text,
+        // Whoever takes the numbers is often a group chat - the board's, or
+        // the club's - so one is allowed here. Nothing else allows it.
+        group: true,
         key: `guestlist|${date}|${to.toLowerCase()}`,
         about: `the guest list for ${date}`,
       });
