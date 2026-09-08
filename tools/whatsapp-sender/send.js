@@ -200,7 +200,24 @@ async function fetchMedia(url) {
 // hours and marked twenty-two people as failed, none of whom were ever
 // written to. Their message must survive it, and this sender stops so the
 // launcher can start a fresh one - which is the only thing that fixes it.
-const BROWSER_GONE = /detached frame|execution context was destroyed|target closed|session closed|protocol error|browser (?:has )?disconnected|page (?:has been )?closed|websocket/i;
+const BROWSER_GONE = /detached frame|execution context was destroyed|target closed|session closed|protocol error|browser (?:has )?disconnected|page (?:has been )?closed|websocket|browser is stuck/i;
+
+// puppeteer calls can hang for ever rather than fail - a page that is gone
+// half way through a send simply never answers. Every call that touches the
+// browser gets a ceiling, so a stuck one becomes an error that restarts the
+// sender instead of silence with a queue behind it.
+const SEND_LIMIT_MS = 90 * 1000;
+const STATE_LIMIT_MS = 20 * 1000;
+
+function withTimeout(promise, ms, what) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)}s - the browser is stuck`)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 function notify(text) {
   try {
@@ -214,7 +231,7 @@ function notify(text) {
 async function assertAlive(client) {
   let state;
   try {
-    state = await client.getState();
+    state = await withTimeout(client.getState(), STATE_LIMIT_MS, 'asking the browser how it is');
   } catch (err) {
     throw new Error(`the browser lost its page: ${err.message}`);
   }
@@ -227,6 +244,47 @@ async function startAgain(client, why, queued) {
   notify(`WhatsApp lost its page. ${queued} message${queued === 1 ? ' is' : 's are'} still queued; a fresh sender is starting.`);
   if (client) await client.destroy().catch(() => {});
   process.exit(1);          // the launcher brings a new one up in 20 seconds
+}
+
+// Everything WhatsApp Web keeps for this account. Only this sender uses it,
+// which is what makes the cleanup below safe.
+const SESSION_DIR = path.join(__dirname, '.wwebjs_auth');
+
+// A browser left behind by a sender that was killed still holds the profile
+// lock. The next sender then authenticates and never becomes ready - which is
+// exactly what happened on 8 September: twenty-seven minutes stuck after
+// "authenticated", with a message queued the whole time. So anything still
+// running on this profile is cleared away before a new browser is started.
+function clearStaleBrowser() {
+  try {
+    const out = require('child_process')
+      .execFileSync('/usr/bin/pgrep', ['-f', SESSION_DIR], { encoding: 'utf8' }).trim();
+    const stale = out.split('\n').map(Number).filter(pid => pid && pid !== process.pid);
+    if (stale.length) {
+      log(`clearing ${stale.length} browser process${stale.length === 1 ? '' : 'es'} left over from a previous run`);
+      for (const pid of stale) { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+  } catch { /* pgrep says "nothing matched" by exiting 1 */ }
+  // The lock files name a process that is now gone; Chrome refuses to start
+  // cleanly while they are there.
+  for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+    try { fs.rmSync(path.join(SESSION_DIR, 'session', f), { force: true }); } catch {}
+  }
+}
+
+// Loading WhatsApp Web takes a few seconds on a good connection. Three minutes
+// means it is not going to happen - the page is stuck, or the network went
+// while it was loading - and waiting longer only holds the queue up.
+const READY_LIMIT_MS = 3 * 60 * 1000;
+
+// A restart loop should say so once, not every three minutes.
+const NOTE_FILE = path.join(__dirname, '.last-restart-note');
+function notifyOnce(text, everyMs = 30 * 60 * 1000) {
+  let last = 0;
+  try { last = Number(fs.readFileSync(NOTE_FILE, 'utf8')) || 0; } catch {}
+  if (Date.now() - last < everyMs) return;
+  try { fs.writeFileSync(NOTE_FILE, String(Date.now())); } catch {}
+  notify(text);
 }
 
 function chatIdFor(guest) {
@@ -328,7 +386,7 @@ async function drain(client) {
       continue;
     }
     try {
-      const { wanted, attached } = await sendOne(client, guest);
+      const { wanted, attached } = await withTimeout(sendOne(client, guest), SEND_LIMIT_MS, 'sending the message');
       // A message that lost its pictures is not a clean send. Say so here and
       // record it on the guest, so the Invite page shows it too.
       const lost = wanted - attached;
@@ -374,8 +432,10 @@ if (require.main === module) {
       process.exit(0);
     }
 
+    clearStaleBrowser();
+
     const client = new Client({
-      authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
+      authStrategy: new LocalAuth({ dataPath: SESSION_DIR }),
       puppeteer: {
         executablePath: fs.existsSync(CHROME) ? CHROME : undefined,
         headless: true,
@@ -409,7 +469,23 @@ if (require.main === module) {
     client.on('auth_failure', (m) => { log('auth failed:', m); process.exit(1); });
     client.on('disconnected', (r) => { log('disconnected:', r); process.exit(1); });
 
+    // What it is doing while it starts, so a stall is visible in the log
+    // rather than looking like silence.
+    client.on('loading_screen', (percent, message) => log(`loading ${percent}%${message ? ' - ' + message : ''}`));
+    client.on('change_state', (state) => log('state:', state));
+
+    // The one thing that was missing: a ceiling on starting up. Without it a
+    // page that never finishes loading holds the whole queue for ever.
+    const readyGuard = setTimeout(() => {
+      log(`WhatsApp did not finish loading in ${READY_LIMIT_MS / 60000} minutes - starting again with a clean browser`);
+      notifyOnce('WhatsApp is not finishing its start-up. Trying again with a fresh browser - have a look if this keeps up.');
+      client.destroy().catch(() => {}).finally(() => process.exit(1));
+      // Never let destroy() hanging keep a stuck sender alive.
+      setTimeout(() => process.exit(1), 10000).unref();
+    }, READY_LIMIT_MS);
+
     client.on('ready', async () => {
+      clearTimeout(readyGuard);
       log('WhatsApp ready');
       const total = await drain(client);
       if (!WATCH) {
