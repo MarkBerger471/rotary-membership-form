@@ -164,6 +164,16 @@ module.exports = async (req, res) => {
       return res.json({ items: await outbox.pendingFor(channel) });
     }
 
+    // A sender checking whether the message it is about to send is still
+    // wanted. Answered with ids and nothing else, because it is asked before
+    // every single message and the full list is eighty-odd records.
+    if (req.method === 'GET' && req.query && req.query.queuedIds) {
+      const list = await getGuests();
+      return res.json({ queued: list
+        .filter(g => g && g.queued && g.queued.text !== undefined)
+        .map(g => ({ id: g.id, channel: g.queued.channel || 'whatsapp', queuedAt: g.queued.queuedAt || '' })) });
+    }
+
     if (req.method === 'GET') {
       const list = await getGuests();
       return res.json({ guests: list.map(g => ({
@@ -198,6 +208,30 @@ module.exports = async (req, res) => {
       }
       await kv.set(KEY, list);
       return res.json({ success: true, added: added.length, skipped, guests: added });
+    }
+
+    // Stop. Everything still waiting to go out is taken off the queue in one
+    // write - eighty-five separate calls would take longer than the sender
+    // needs to send the next few. A message already being typed into WhatsApp
+    // goes; the senders check every message against this list before they send
+    // it, so nothing after it does. Board votes are not touched: they are a
+    // different queue and a different decision.
+    if (req.method === 'PATCH' && body().unqueue) {
+      const which = String(body().unqueue).toLowerCase();
+      if (which !== 'all' && !CHANNELS.includes(which)) {
+        return res.status(400).json({ error: `Unknown channel "${which}"` });
+      }
+      const list = await getGuests();
+      let stopped = 0;
+      for (const g of list) {
+        if (!g.queued) continue;
+        if (which !== 'all' && asChannel(g.queued.channel) !== which) continue;
+        g.queued = null;
+        g.queueError = 'stopped before it was sent';
+        stopped++;
+      }
+      if (stopped) await kv.set(KEY, list);
+      return res.json({ success: true, stopped });
     }
 
     // A sender reporting back on a board message: sent, or given up on with a

@@ -265,6 +265,7 @@
         <input type="search" id="targetSearch" class="glass-input px-3 py-1.5 rounded-lg text-sm w-40" placeholder="Search..." oninput="renderTargets()" />
         <div id="targetFilters" class="flex rounded-lg overflow-hidden border border-white/10" role="group" aria-label="Which guests to show"></div>
         <span id="targetMeta" class="text-white/40 text-xs ml-auto text-right">&nbsp;</span>
+        <button onclick="stopSending()" id="stopBtn" class="hidden px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors">Stop</button>
         <button onclick="sendToSelected()" id="sendAllBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send</button>
       </div>
       <div id="targetList" class="divide-y divide-white/5 max-h-[560px] overflow-y-auto"></div>
@@ -659,6 +660,14 @@
       paintChannel();
       const ready = list.filter(p => ch.reach(p) && firstNameOf(p));
       const queuedCount = all.filter(p => p.queued === channel).length;
+      // Anything still waiting, on either channel - what Stop would stop.
+      const waiting = all.filter(p => p.queued);
+      const stopBtn = document.getElementById('stopBtn');
+      stopBtn.classList.toggle('hidden', !waiting.length);
+      stopBtn.textContent = `Stop (${waiting.length})`;
+      stopBtn.title = waiting.length
+        ? `Take the ${waiting.length} message${waiting.length === 1 ? '' : 's'} still waiting off the queue`
+        : '';
       const mode = PANELS[activeMode] || PANELS.invite;
       // Count what would actually go out, not what is ticked: a guest ticked
       // for WhatsApp is still ticked after the switch to LINE, and the button
@@ -1000,15 +1009,48 @@
       const mode = PANELS[activeMode] || PANELS.invite;
       // Nothing is queued for LinkedIn - there is no sender to drain it.
       if (ch.byHand) { startLinkedIn(people); return; }
+      // How long the batch will actually take, at the pace the sender keeps.
+      const minutes = Math.round(people.length * 30 / 60);
+      const howLong = people.length < 3 ? '' : minutes < 60
+        ? ` That takes about ${minutes} minutes.`
+        : ` That takes about ${Math.round(minutes / 60 * 10) / 10} hours.`;
       if (!confirm(`Send ${mode.verb} ${ch.on} to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
                  + `They are queued now and ${ch.sender} on your Mac delivers them, `
-                 + ch.pace + '.')) return;
+                 + ch.pace + '.' + howLong
+                 + '\n\nYou can stop what has not gone yet with the Stop button.')) return;
       const btn = document.getElementById('sendAllBtn');
       btn.disabled = true;
       try {
         const { ok, failed } = await queue(people);
         showToast(`${ok} queued ${ch.on}${failed ? `, ${failed} failed` : ''} - ${ch.sender} is delivering them`, failed ? 'error' : 'success');
         watchQueue();
+      } finally { btn.disabled = false; }
+    }
+
+    // Stop. One call takes everything still waiting off the queue; the senders
+    // check each message against the queue immediately before they send it, so
+    // only the one being typed at that moment still goes.
+    async function stopSending() {
+      const waiting = pool().filter(p => p.queued);
+      if (!waiting.length) return;
+      const byChannel = {};
+      waiting.forEach((p) => { byChannel[p.queued] = (byChannel[p.queued] || 0) + 1; });
+      const what = Object.keys(byChannel)
+        .map(c => `${byChannel[c]} ${(CHANNELS[c] || {}).label || c}`).join(' and ');
+      if (!confirm(`Stop the ${waiting.length} message${waiting.length === 1 ? '' : 's'} still waiting (${what})?\n\n`
+                 + 'Whatever is being typed right now still goes; nothing after it does. '
+                 + 'Anything already sent stays sent.')) return;
+      const btn = document.getElementById('stopBtn');
+      btn.disabled = true;
+      try {
+        const res = await apiFetch('/api/admin/guests', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unqueue: 'all' }),
+        });
+        await loadPeople();
+        showToast(`${res.stopped} stopped`, 'success');
+      } catch (err) {
+        if (err.message !== 'Unauthorized') showToast(err.message || 'Could not stop it', 'error');
       } finally { btn.disabled = false; }
     }
 

@@ -133,6 +133,23 @@ async function queuedAll() {
   return board.concat(guests);
 }
 
+// Still wanted? The Invite page can stop a run that is under way, and a batch
+// of forty takes twenty minutes to work through - so the queue is asked about
+// each message immediately before it is typed, not once at the start. Asked
+// with ?queuedIds=1, which answers with ids alone.
+async function stillQueued(guest) {
+  try {
+    const { queued } = await api('/api/admin/guests?queuedIds=1');
+    return (queued || []).some(q => q.id === guest.id
+      && (!guest.queued.queuedAt || !q.queuedAt || q.queuedAt === guest.queued.queuedAt));
+  } catch (err) {
+    // If the website cannot be reached, send what we already hold rather than
+    // dropping a message on a bad connection.
+    log('could not check the queue:', err.message);
+    return true;
+  }
+}
+
 // Telling the server what happened. A guest's record carries the invite; a
 // board message is simply taken off the queue, with the reason if it failed.
 function reportSent(job, note) {
@@ -304,6 +321,10 @@ async function drain(client) {
       const imgs = imageUrlsOf(guest.queued);
       log(`WOULD SEND to ${who}${imgs.length ? ` [${imgs.length} image${imgs.length === 1 ? '' : 's'}]` : ''}`);
       log('   ' + String(guest.queued.text || '(no words - the file only)').replace(/\n/g, '\n   '));
+      continue;
+    }
+    if (!guest.board && !(await stillQueued(guest))) {
+      log(`skipped ${who} - taken off the queue while this run was going`);
       continue;
     }
     try {
