@@ -577,6 +577,15 @@ function titleConfirms(name, words, allowGroup) {
   if (!n) return false;
   const tokens = Array.isArray(words) ? words.slice() : String(words || '').trim().split(/\s+/);
   while (tokens.length && !/[a-z0-9]/i.test(tokens[0])) tokens.shift();
+
+  // A long name is cut off up there as well. What is shown has to be the
+  // beginning of the name and long enough to be sure of - the same rule the
+  // chat list uses.
+  const joined = norm(stripCut(stripCount(tokens.join(' '))));
+  if (wasCut(stripCount(tokens.join(' '))) || wasCut(tokens[tokens.length - 1] || '')) {
+    return joined.length >= MIN_CUT_PREFIX && n.startsWith(joined);
+  }
+
   const wanted = n.split(' ').length;
   if (tokens.length < wanted) return false;
   if (norm(tokens.slice(0, wanted).join(' ')) !== n) return false;
@@ -628,9 +637,21 @@ function chatSection(lines, headerSeen = false) {
 // and cuts a long name off with an ellipsis. Neither is part of the name, so
 // both come off before anything is compared.
 const stripCount = (s) => String(s == null ? '' : s).replace(/\s*[（(]\s*\d{1,5}\s*[)）]\s*$/, '').trim();
+
+// A row in the chat list is read as one line, and the name is only the front
+// of it: "Board 26/27 Rota... (10) 9:10 PM" is a truncated group name, its
+// member count and the time of the last message. The time and the count come
+// off - one each, from the right, in that order. Only one, because a name can
+// end in something that looks like a date: "RC BKK 26/27" is a name, and the
+// 26/27 must survive.
+const TAIL_TIME = /\s+(?:\d{1,2}[:.]\d{2}\s*(?:[AaPp]\.?[Mm]\.?)?|\d{1,2}[/.]\d{1,2}(?:[/.]\d{2,4})?|yesterday|today|mon|tue|wed|thu|fri|sat|sun)\s*$/i;
+const stripRowTail = (s) => stripCount(String(s == null ? '' : s).trim().replace(TAIL_TIME, ''));
 const stripCut = (s) => String(s == null ? '' : s).replace(/(\u2026|\.\.\.)\s*$/, '').trim();
 const wasCut = (s) => /(\u2026|\.\.\.)\s*$/.test(String(s == null ? '' : s).trim());
-const isGroupRow = (s) => stripCount(s) !== String(s == null ? '' : s).trim();
+const isGroupRow = (s) => {
+  const t = String(s == null ? '' : s).trim();
+  return stripCount(t) !== t || stripCount(t.replace(TAIL_TIME, '')) !== t.replace(TAIL_TIME, '').trim();
+};
 
 // A prefix shorter than this is not enough to be sure which chat is meant.
 const MIN_CUT_PREFIX = 6;
@@ -648,13 +669,27 @@ function rowMatches(rowText, name, allowGroup) {
   const wanted = norm(stripCount(stripCut(name)));
   if (!wanted) return false;
   const raw = String(rowText == null ? '' : rowText).trim();
+
+  // Whether this row is a group is decided on the row as it stands, once.
+  // Deciding it per reading let "Fai (4)" match "Fai" as soon as the count had
+  // been stripped off - which is the whole thing this rule exists to stop.
   if (isGroupRow(raw) && !allowGroup) return false;
-  const shown = norm(stripCount(stripCut(raw)));
-  if (shown === wanted) return true;
-  // "Board 26/27 Rota…" is that chat as far as the screen goes; it matches the
-  // name it is the beginning of, and two rows beginning the same way are
-  // refused further down like any other pair.
-  return wasCut(raw) && shown.length >= MIN_CUT_PREFIX && wanted.startsWith(shown);
+
+  // Read the row two ways: as it stands, and with the time and the member
+  // count taken off the end. Whichever is the name, one of them is.
+  for (const reading of [raw, stripRowTail(raw)]) {
+    // The count sits between the name and the time, so it is stripped here too
+    // before the name is compared.
+    const body = stripCount(reading);
+    const shown = norm(stripCut(body));
+    if (!shown) continue;
+    if (shown === wanted) return true;
+    // "Board 26/27 Rota…" is that chat as far as the screen goes; it matches
+    // the name it is the beginning of. Two rows that both do are refused
+    // further down, like any other pair.
+    if (wasCut(body) && shown.length >= MIN_CUT_PREFIX && wanted.startsWith(shown)) return true;
+  }
+  return false;
 }
 
 function matchesIn(section, name, allowGroup) {
