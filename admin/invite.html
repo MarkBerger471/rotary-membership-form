@@ -64,19 +64,25 @@
   
   <main class="max-w-6xl mx-auto px-4 py-8 animate-fade-in space-y-6">
 
-    <!-- Three senders, one open at a time. The open one is the one that gets
-         sent - there is no second send button hiding inside a panel, which is
-         how an overview once went out as a meeting invitation. -->
+    <!-- Three senders. Each box folds on its own; the one with the filled dot
+         is the one that gets sent, and says so. There is still only one send
+         button on the page - a second one hiding inside a panel is how an
+         overview once went out as a meeting invitation. -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <button type="button" onclick="openPanel('invite')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
-        <span id="invDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
-        <div class="flex-1 min-w-0">
-          <h2 class="font-bold text-lg">Invite to a meeting</h2>
-          <p class="text-white/40 text-xs mt-0.5">One evening, one date. Each guest gets their own name in the message.</p>
-        </div>
-        <span id="invTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
-        <svg id="invChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </button>
+      <div class="w-full px-6 py-4 border-b border-white/10 flex items-center gap-3">
+        <button type="button" id="invDot" role="radio" aria-checked="false" onclick="armMode('invite')"
+          title="Send this one" aria-label="Send this one"
+          class="w-4 h-4 rounded-full border-2 flex-shrink-0 hover:border-rotary-gold transition-colors"></button>
+        <button type="button" onclick="toggleFold('invite')" title="Open or fold this box"
+          class="flex-1 min-w-0 text-left flex items-center gap-3 -my-2 py-2 hover:opacity-75 transition-opacity">
+          <div class="flex-1 min-w-0">
+            <h2 class="font-bold text-lg">Invite to a meeting</h2>
+            <p class="text-white/40 text-xs mt-0.5">One evening, one date. Each guest gets their own name in the message.</p>
+          </div>
+          <span id="invTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
+          <svg id="invChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
 
       <div id="invPanel" class="p-6 space-y-5">
         <div class="flex flex-wrap gap-3 items-end">
@@ -123,15 +129,20 @@
 
     <!-- The monthly programme, not an invitation to one meeting -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <button type="button" onclick="openPanel('overview')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
-        <span id="ovDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
-        <div class="flex-1 min-w-0">
-          <h2 class="font-bold text-lg">Monthly overview</h2>
-          <p class="text-white/40 text-xs mt-0.5">The programme for the coming weeks, not an invitation to a single meeting.</p>
-        </div>
-        <span id="ovTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
-        <svg id="ovChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </button>
+      <div class="w-full px-6 py-4 border-b border-white/10 flex items-center gap-3">
+        <button type="button" id="ovDot" role="radio" aria-checked="false" onclick="armMode('overview')"
+          title="Send this one" aria-label="Send this one"
+          class="w-4 h-4 rounded-full border-2 flex-shrink-0 hover:border-rotary-gold transition-colors"></button>
+        <button type="button" onclick="toggleFold('overview')" title="Open or fold this box"
+          class="flex-1 min-w-0 text-left flex items-center gap-3 -my-2 py-2 hover:opacity-75 transition-opacity">
+          <div class="flex-1 min-w-0">
+            <h2 class="font-bold text-lg">Monthly overview</h2>
+            <p class="text-white/40 text-xs mt-0.5">The programme for the coming weeks, not an invitation to a single meeting.</p>
+          </div>
+          <span id="ovTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
+          <svg id="ovChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
 
       <div id="ovPanel" class="p-6 space-y-5 hidden">
         <div class="flex flex-wrap gap-3 items-end">
@@ -183,15 +194,20 @@
 
     <!-- Anything else: written once, sent as typed, with {name} still filled in -->
     <div class="glass-card rounded-2xl overflow-hidden">
-      <button type="button" onclick="openPanel('free')" class="w-full text-left px-6 py-4 border-b border-white/10 flex items-center gap-3 hover:bg-white/5 transition-colors">
-        <span id="ftDot" class="w-4 h-4 rounded-full border-2 flex-shrink-0"></span>
-        <div class="flex-1 min-w-0">
-          <h2 class="font-bold text-lg">Free text</h2>
-          <p class="text-white/40 text-xs mt-0.5">Your own message, sent exactly as you write it.</p>
-        </div>
-        <span id="ftTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
-        <svg id="ftChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </button>
+      <div class="w-full px-6 py-4 border-b border-white/10 flex items-center gap-3">
+        <button type="button" id="ftDot" role="radio" aria-checked="false" onclick="armMode('free')"
+          title="Send this one" aria-label="Send this one"
+          class="w-4 h-4 rounded-full border-2 flex-shrink-0 hover:border-rotary-gold transition-colors"></button>
+        <button type="button" onclick="toggleFold('free')" title="Open or fold this box"
+          class="flex-1 min-w-0 text-left flex items-center gap-3 -my-2 py-2 hover:opacity-75 transition-opacity">
+          <div class="flex-1 min-w-0">
+            <h2 class="font-bold text-lg">Free text</h2>
+            <p class="text-white/40 text-xs mt-0.5">Your own message, sent exactly as you write it.</p>
+          </div>
+          <span id="ftTag" class="hidden text-[10px] uppercase tracking-wide font-bold text-rotary-gold bg-rotary-gold/15 px-2 py-0.5 rounded-full whitespace-nowrap">sending this</span>
+          <svg id="ftChev" class="w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
 
       <div id="ftPanel" class="p-6 space-y-5 hidden">
         <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name and title</span>
@@ -533,19 +549,46 @@
       return inviteImages.slice();
     }
 
-    function openPanel(mode) {
-      activeMode = PANELS[mode] ? mode : 'invite';
+    // Folding and arming are two different things. A box can be open because
+    // you are writing in it and still not be the one that goes out; the filled
+    // dot and the "sending this" badge say which one does, and the Recipients
+    // line above the list says it again in words.
+    const OPEN_KEY = 'rcbd:invite:open:v1';
+    let openPanels = new Set(['invite']);
+
+    function saveOpenPanels() {
+      try { localStorage.setItem(OPEN_KEY, JSON.stringify([...openPanels])); } catch {}
+    }
+
+    function paintPanels() {
       Object.keys(PANELS).forEach((key) => {
-        const p = PANELS[key], on = key === activeMode;
-        document.getElementById(p.panel).classList.toggle('hidden', !on);
-        document.getElementById(p.chev).style.transform = on ? '' : 'rotate(-90deg)';
+        const p = PANELS[key], armed = key === activeMode, open = openPanels.has(key);
+        document.getElementById(p.panel).classList.toggle('hidden', !open);
+        document.getElementById(p.chev).style.transform = open ? '' : 'rotate(-90deg)';
         const dot = document.getElementById(p.dot);
-        dot.classList.toggle('border-rotary-gold', on);
-        dot.classList.toggle('bg-rotary-gold', on);
-        dot.classList.toggle('border-white/25', !on);
-        document.getElementById(p.tag).classList.toggle('hidden', !on);
+        dot.classList.toggle('border-rotary-gold', armed);
+        dot.classList.toggle('bg-rotary-gold', armed);
+        dot.classList.toggle('border-white/25', !armed);
+        dot.setAttribute('aria-checked', armed ? 'true' : 'false');
+        document.getElementById(p.tag).classList.toggle('hidden', !armed);
       });
+    }
+
+    function toggleFold(mode) {
+      if (!PANELS[mode]) return;
+      openPanels.has(mode) ? openPanels.delete(mode) : openPanels.add(mode);
+      saveOpenPanels();
+      paintPanels();
+      if (mode === 'overview' && openPanels.has(mode)) renderOvPreview();
+    }
+
+    // The one that gets sent. Nothing else about the page changes - what is
+    // open stays open - but everything downstream reads activeMode, so the
+    // previews, the button and the queue all follow.
+    function armMode(mode) {
+      activeMode = PANELS[mode] ? mode : 'invite';
       try { localStorage.setItem(MODE_KEY, activeMode); } catch {}
+      paintPanels();
       if (activeMode === 'overview') renderOvPreview();
       renderTargets();
     }
@@ -622,7 +665,7 @@
       const imgs = imagesFor().length;
       document.getElementById('sendWhat').textContent =
         `Sending: ${mode.what} ${ch.on}` + (imgs ? ` with ${imgs} image${imgs === 1 ? '' : 's'}` : ', no image')
-        + ' - open another box above to switch';
+        + ' - press the dot on another box to switch';
       document.getElementById('targetMeta').textContent = targetFilter === 'archived'
         ? `${list.length} archived · they get nothing until you put them back`
         : `${selected.size} selected · ${ready.length} of ${list.length} ready`
@@ -1567,10 +1610,17 @@
     // still the one that sends.
     let startMode = 'invite';
     try { startMode = localStorage.getItem(MODE_KEY) || 'invite'; } catch {}
-    // And on the channel it was last sent on. openPanel() renders, so the
+    // Whatever was left open last time, and the box that was armed if the page
+    // has never been used before.
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPEN_KEY) || 'null');
+      if (Array.isArray(saved)) openPanels = new Set(saved.filter(m => PANELS[m]));
+      else openPanels = new Set([startMode]);
+    } catch { openPanels = new Set([startMode]); }
+    // And on the channel it was last sent on. armMode() renders, so the
     // channel has to be settled before it runs.
     try { channel = CHANNELS[localStorage.getItem(CHANNEL_KEY)] ? localStorage.getItem(CHANNEL_KEY) : 'whatsapp'; } catch {}
-    openPanel(startMode);
+    armMode(startMode);
     loadMeetings();
     if (adminPassword) loadPeople().then(watchQueue);
   </script>

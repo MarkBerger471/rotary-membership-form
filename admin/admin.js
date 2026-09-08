@@ -135,6 +135,18 @@ const ADMIN_NAV_ITEMS = [
     icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   },
   {
+    label: 'Invite',
+    href: '/admin/invite',
+    match: ['/admin/invite'],
+    icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z',
+  },
+  {
+    label: 'Guests',
+    href: '/admin/guests',
+    match: ['/admin/guests'],
+    icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
+  },
+  {
     label: 'Membership',
     href: '/admin/membership',
     match: ['/admin/membership'],
@@ -145,18 +157,6 @@ const ADMIN_NAV_ITEMS = [
     href: '/admin/member-contacts',
     match: ['/admin/member-contacts'],
     icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0z',
-  },
-  {
-    label: 'Guests',
-    href: '/admin/guests',
-    match: ['/admin/guests'],
-    icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
-  },
-  {
-    label: 'Invite',
-    href: '/admin/invite',
-    match: ['/admin/invite'],
-    icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z',
   },
 ];
 
