@@ -720,7 +720,7 @@
       const linked = meetingsOf(p.id);
       const upcoming = upcomingMeetingList();
       return `
-        <div class="${done ? 'opacity-45' : ''}">
+        <div id="row-${p.id}" class="${done ? 'opacity-45' : ''} transition-colors">
           <div class="flex items-center gap-3 px-5 py-2.5 ${blocked ? 'opacity-50' : 'hover:bg-white/5'}">
             <input type="checkbox" ${selected.has(id) ? 'checked' : ''} ${blocked ? 'disabled' : ''}
               onchange="toggleTarget('${id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-shrink-0" />
@@ -731,10 +731,13 @@
                     title="What has been sent to them, and when"
                     class="text-[10px] ml-1 ${open ? 'text-rotary-gold' : 'text-white/30 hover:text-rotary-gold'} underline decoration-dotted underline-offset-2">
                     sent ${sends}x ${open ? '&#9652;' : '&#9662;'}</button>` : ''}
-                ${linked.map(d => `<button onclick="linkToMeeting('${p.id}', '${d}')"
-                    title="Down as a guest for this meeting - click to take them off"
-                    class="text-[10px] ml-1 px-1.5 py-0.5 rounded-full bg-rotary-gold/15 text-rotary-gold hover:bg-rotary-gold/25 whitespace-nowrap">
-                    ${escapeHtml(meetingDay(d))} &times;</button>`).join('')}</div>
+                ${linked.map(d => `<span class="text-[10px] ml-1 rounded-full bg-rotary-gold/15 text-rotary-gold whitespace-nowrap inline-flex items-center">
+                    <a href="/admin/meeting-planner?open=${d}&from=invite&guest=${encodeURIComponent(p.id)}"
+                       title="Open this meeting in the planner"
+                       class="pl-1.5 py-0.5 hover:text-white transition-colors">${escapeHtml(meetingDay(d))} &rarr;</a>
+                    <button onclick="linkToMeeting('${p.id}', '${d}')" title="Take them off this meeting"
+                       class="pr-1.5 pl-1 py-0.5 hover:text-white transition-colors">&times;</button>
+                  </span>`).join('')}</div>
               ${p.queueError ? `<div class="text-[11px] text-amber-300/90">last try: ${escapeHtml(p.queueError)}</div>` : ''}
               ${blocked
                 ? `<div class="text-[11px] text-red-300/80">${blocked} - add it on the Guests page</div>`
@@ -1663,6 +1666,22 @@
       }, 8000);
     }
 
+    // Coming back from a meeting: the row you left from, back on screen and
+    // lit for a moment so the eye finds it without reading the whole list.
+    function returnToGuest() {
+      let id = '';
+      try { id = new URLSearchParams(location.search).get('guest') || ''; } catch {}
+      if (!id) return;
+      const row = document.getElementById('row-' + id);
+      if (!row) return;
+      row.scrollIntoView({ block: 'center' });
+      row.classList.add('bg-rotary-gold/10');
+      setTimeout(() => row.classList.remove('bg-rotary-gold/10'), 2500);
+      // The address goes back to what it was, so a reload does not do this
+      // again and the page can be bookmarked as itself.
+      try { history.replaceState(null, '', location.pathname); } catch {}
+    }
+
     buildVariantList();
     updateDeNote();
     loadSelection();
@@ -1682,7 +1701,7 @@
     try { channel = CHANNELS[localStorage.getItem(CHANNEL_KEY)] ? localStorage.getItem(CHANNEL_KEY) : 'whatsapp'; } catch {}
     armMode(startMode);
     loadMeetings();
-    if (adminPassword) loadPeople().then(watchQueue);
+    if (adminPassword) loadPeople().then(() => { watchQueue(); returnToGuest(); });
   </script>
 </body>
 </html>

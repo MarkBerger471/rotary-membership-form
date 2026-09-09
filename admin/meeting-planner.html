@@ -158,6 +158,9 @@
             <h3 class="font-bold text-lg">Files &amp; links</h3>
             <p id="attachDate" class="text-white/50 text-xs mt-0.5">&nbsp;</p>
           </div>
+          <button id="backToInvite" onclick="backToInvite()"
+            class="hidden text-xs px-3 py-1.5 rounded-lg bg-white/5 text-white/60 hover:text-white whitespace-nowrap transition-colors flex-shrink-0"
+            title="Back to the guest you came from">&larr; Invite list</button>
           <button onclick="closeAttachments()" class="text-white/40 hover:text-white transition-colors flex-shrink-0" title="Close (Esc)">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -312,7 +315,42 @@
         if (err.message !== 'Unauthorized') showToast('Failed to load meetings', 'error');
       }
       document.getElementById('meetingsLoading').classList.add('hidden');
-      jumpToNextMeeting();
+      openFromLink() || jumpToNextMeeting();
+    }
+
+    // Where this page was opened from, if it was a link off the Invite page.
+    // Only what it needs: a date to open and a guest to go back to.
+    const IS_DATE = /^\d{4}-\d{2}-\d{2}$/;
+    const cameFromInvite = (() => {
+      try {
+        const q = new URLSearchParams(location.search);
+        const date = String(q.get('open') || '');
+        return {
+          date: IS_DATE.test(date) ? date : '',
+          back: q.get('from') === 'invite',
+          guest: String(q.get('guest') || '').slice(0, 64),
+        };
+      } catch { return { date: '', back: false, guest: '' }; }
+    })();
+
+    // Opened from a guest's row: that evening, with its month unfolded and its
+    // box already open - which is the whole point of the link.
+    function openFromLink() {
+      const { date } = cameFromInvite;
+      if (!date || !meetings[date]) return false;
+      openMonths.add(date.slice(0, 7));
+      renderMeetings();
+      const card = document.querySelector(`.mcard[data-date="${date}"]`);
+      if (card) card.scrollIntoView({ block: 'center' });
+      openAttachments(date);
+      jumped = true;
+      return true;
+    }
+
+    // Back to the list you came from, at the guest you came from.
+    function backToInvite() {
+      const { guest } = cameFromInvite;
+      location.href = '/admin/invite' + (guest ? '?guest=' + encodeURIComponent(guest) : '');
     }
 
     // Open on the evening that is coming, not on last July. Once, when the
@@ -463,7 +501,7 @@
               ${attachStrip(ds, entry)}`
             : '';
 
-          return `<div class="mcard mtype-${type} ${state} relative rounded-xl overflow-hidden"${ds === nextUp ? ' data-next="1"' : ''}>
+          return `<div class="mcard mtype-${type} ${state} relative rounded-xl overflow-hidden" data-date="${ds}"${ds === nextUp ? ' data-next="1"' : ''}>
             ${deleteBtn}
             <button type="button" onclick="toggleMeeting('${ds}')" class="w-full text-left px-3 py-2.5">
               <div class="mday text-[10px] font-bold uppercase tracking-wider">${weekday}</div>
@@ -612,6 +650,8 @@
 
     function openAttachments(ds) {
       attachDate = ds;
+      // The way back is only there when there is somewhere to go back to.
+      document.getElementById('backToInvite').classList.toggle('hidden', !cameFromInvite.back);
       document.getElementById('attachDate').textContent = formatFlyerDate(ds);
       document.getElementById('attachLinkName').value = '';
       document.getElementById('attachLinkUrl').value = '';
