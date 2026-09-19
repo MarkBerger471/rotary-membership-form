@@ -190,14 +190,52 @@
           <div id="attachList" class="space-y-1.5"></div>
           <p id="attachEmpty" class="hidden text-xs text-white/35 text-center py-2">Nothing attached to this meeting yet.</p>
 
-          <!-- Who might come that evening, and the one thing this page can send
-               them: a picture or a link, with nothing written under it. -->
+          <!-- Who might come that evening, and what can go to them from here:
+               a picture or a link with nothing written under it, or the
+               invitation below, to whoever is ticked. -->
           <div class="pt-3 border-t border-white/10">
-            <div class="flex items-baseline justify-between gap-2">
-              <h4 class="font-bold text-sm">Potential guests <span id="guestCount" class="text-white/35 text-xs font-normal"></span></h4>
-              <span class="text-[11px] text-white/30">linked on the Invite page</span>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 pl-3 min-w-0">
+                <input type="checkbox" id="inviteAllBox" onchange="tickAllForInvite(this.checked)" class="accent-rotary-gold w-4 h-4 flex-none"
+                  title="Tick everyone the invite can reach" aria-label="Tick everyone the invite can reach" />
+                <h4 class="font-bold text-sm">Potential guests <span id="guestCount" class="text-white/35 text-xs font-normal"></span></h4>
+              </div>
+              <span class="hidden sm:inline text-[11px] text-white/30 whitespace-nowrap">linked on the Invite page</span>
             </div>
             <div id="meetingGuests" class="space-y-1.5 mt-2"></div>
+
+            <!-- The Invite page's invitation, for this one evening. Its date,
+                 time, venue and topic are added by the page, so the wording
+                 stays the same from one meeting to the next. -->
+            <div id="meetingInvite" class="hidden mt-3 pt-3 border-t border-white/10 space-y-3">
+              <div class="flex items-baseline justify-between gap-2">
+                <h4 class="font-bold text-sm">Invite <span class="text-white/35 text-xs font-normal">to the guests ticked above</span></h4>
+              </div>
+              <div class="flex flex-wrap gap-2 items-end">
+                <label class="text-xs text-white/50 flex-1 min-w-[180px]">Wording
+                  <select id="mvVariant" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1" onchange="applyInviteVariant(true)"></select></label>
+                <button onclick="nextInviteVariant()" class="btn-secondary px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap">Try another</button>
+                <label class="flex items-center gap-2 text-xs text-white/50 pb-2">
+                  <input type="checkbox" id="mvRolling" class="accent-rotary-gold w-4 h-4" onchange="saveInvite()" checked />
+                  rotate automatically
+                </label>
+              </div>
+              <label class="text-xs text-white/50 block">Message <span class="text-white/30">- {name} becomes their name and title</span>
+                <textarea id="mvMsgEn" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+                  oninput="onInviteEdited()"></textarea></label>
+              <label class="text-xs text-white/50 block">German version <span class="text-white/30">- leave it empty and German speakers get the English message</span>
+                <textarea id="mvMsgDe" rows="3" class="glass-input w-full px-3 py-2 rounded-lg text-sm mt-1 resize-none"
+                  oninput="onInviteEdited()"></textarea></label>
+              <p id="mvDeNote" class="text-[11px] text-white/35 -mt-1"></p>
+              <div>
+                <p class="text-[11px] text-white/35">Added above your closing line:</p>
+                <div id="mvDetails" class="mt-1 rounded-lg bg-[#0a1628]/60 border border-white/10 px-3 py-2 text-[12px] text-white/70 whitespace-pre-wrap"></div>
+              </div>
+              <div id="mvPics" class="hidden"></div>
+              <div class="flex justify-end">
+                <button onclick="sendInvite()" id="mvSendBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Send invite</button>
+              </div>
+            </div>
 
             <!-- Who is coming, told to whoever takes the numbers. -->
             <div class="mt-3 pt-3 border-t border-white/10 flex items-end gap-2 flex-wrap">
@@ -248,6 +286,7 @@
   </div>
 
   <script src="/admin/admin.js"></script>
+  <script src="/admin/invite-wording.js"></script>
   <script>
     requireAuthOrRedirect();
 
@@ -721,9 +760,9 @@
     // ---- potential guests
     //
     // Guests are linked to an evening on the Invite page; this is the other
-    // end of that. The only thing sent from here is a picture or a link with
-    // nothing written under it - the wording of an invitation belongs on the
-    // Invite page, where it can be read before it goes.
+    // end of that. Two things go from here: a picture or a link with nothing
+    // written under it, and the invitation to this evening - to the guests
+    // ticked, in a wording that is on screen before it goes.
 
     let planGuests = null;
 
@@ -836,23 +875,31 @@
 
       paintGuestListButton();
 
+      const ticked = ticksOf(attachDate);
       document.getElementById('meetingGuests').innerHTML = list.length ? list.map(g => {
         const channel = channelFor(g);
         const queued = g.queued ? `<span class="text-rotary-gold/80">waiting for the ${CHANNEL_NAME[g.queued.channel] || ''} sender</span>` : '';
+        const coming = confirmed.includes(g.id);
+        const cannot = cannotInvite(g);
         return `<div class="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
-          <input type="checkbox" ${confirmed.includes(g.id) ? 'checked' : ''}
-            onchange="setComing('${g.id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-none"
-            title="Tick when they have said they are coming - only these are in the guest list" />
+          <input type="checkbox" ${ticked.has(g.id) && !cannot ? 'checked' : ''} ${cannot ? 'disabled' : ''}
+            onchange="tickForInvite('${g.id}', this.checked)" class="accent-rotary-gold w-4 h-4 flex-none ${cannot ? 'opacity-40' : ''}"
+            title="${escapeHtml(cannot || 'Tick to send them the invite below')}" />
           <div class="min-w-0 flex-1">
             <div class="text-sm truncate">${escapeHtml(g.name || '(unnamed)')}</div>
             <div class="text-[11px] text-white/35 truncate">
               ${channel ? `<span class="text-white/50">${CHANNEL_NAME[channel]}</span> &middot; ${queued || escapeHtml(lastSentLine(g))}`
                         : '<span class="text-red-300/80">no WhatsApp number and no LINE name</span>'}</div>
+            ${channel && !firstNameOf(g)
+              ? '<div class="text-[11px] text-red-300/80 truncate">no first name or nickname for the invite - add it on the Guests page</div>'
+              : ''}
+            <div class="sm:hidden mt-1">${comingSwitch(g.id, coming, 'inline-block')}</div>
             ${channel && files.length === 1
               ? `<div class="text-[11px] text-white/25 truncate">${files[0].kind === 'link' ? '&#128279;' : '&#128247;'} ${escapeHtml(files[0].name)} &middot; nothing written with it</div>`
               : ''}
           </div>
           <div class="flex gap-1 justify-end items-center flex-none">
+            ${comingSwitch(g.id, coming, 'hidden sm:inline-block')}
             ${!channel ? '' : files.length === 1
               ? `<button onclick="sendAttachmentTo('${files[0].id}', '${g.id}')"
                    title="Send ${escapeHtml(files[0].name)} to ${escapeHtml(g.name || '')} on ${CHANNEL_NAME[channel]} - nothing written with it"
@@ -879,6 +926,18 @@
           </div>` : ''}`;
       }).join('')
         : `<p class="text-xs text-white/35 py-1">Nobody linked to this evening yet - do that on the Invite page, next to the guest.</p>`;
+      renderInvitePanel();
+    }
+
+    // Whether they said yes - what decides the guest list. On the right of the
+    // row, or under the name on a phone, where the right has no room left.
+    function comingSwitch(id, coming, where) {
+      return `<button onclick="setComing('${id}', ${!coming})" aria-pressed="${coming}"
+        title="${coming ? 'They said yes, so they are on the guest list - click to take them off it'
+                        : 'Mark them once they have said yes - only these go on the guest list'}"
+        class="${where} text-[10px] px-2 py-1 rounded-full whitespace-nowrap transition-colors flex-none
+               ${coming ? 'bg-rotary-gold/20 text-rotary-gold font-bold hover:bg-rotary-gold/30' : 'bg-white/5 text-white/40 hover:text-white/70'}">
+        ${coming ? '&check; coming' : 'coming?'}</button>`;
     }
 
     // One send: the picture as a picture, the link as the address on its own.
@@ -1040,6 +1099,8 @@
           body: JSON.stringify({ date: attachDate, guestIds: ids }),
         });
         meetings[attachDate] = res.meeting;
+        const ticked = ticksOf(attachDate);
+        if (ticked.delete(guestId)) setTicks(attachDate, ticked);
         renderAttachList();
         renderMeetingGuests();
         renderMeetings();
@@ -1047,6 +1108,258 @@
         if (err.message !== 'Unauthorized') showToast(err.message || 'Could not take them off', 'error');
       }
     }
+
+    // ---- inviting the ticked guests
+    //
+    // The Invite page's invitation, sent from the evening it is for. The
+    // wording is one for every meeting and kept apart from the Invite page's,
+    // which may have another evening's details typed into it. This evening's
+    // date, venue and topic are added as it is sent, above the closing line.
+
+    const INVITE_KEY = 'rcbd:meeting-invite:v1';
+    const INVITE_ROLL_KEY = 'rcbd:meeting-invite:rolling:v1';
+    // Who is ticked and which pictures are left out, per evening - closing
+    // the box to check something should not lose the ticks.
+    const INVITE_PICKS_KEY = 'rcbd:meeting-invite:picks:v1';
+    let invitePicks = { ticks: {}, leaveOut: {} };
+
+    function loadInvitePicks() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(INVITE_PICKS_KEY) || 'null');
+        if (saved && typeof saved === 'object') invitePicks = { ticks: saved.ticks || {}, leaveOut: saved.leaveOut || {} };
+      } catch {}
+      // An evening that is over has nobody left to invite.
+      const today = new Date().toISOString().slice(0, 10);
+      for (const map of [invitePicks.ticks, invitePicks.leaveOut]) {
+        for (const d of Object.keys(map)) if (d < today) delete map[d];
+      }
+    }
+
+    function saveInvitePicks() {
+      try { localStorage.setItem(INVITE_PICKS_KEY, JSON.stringify(invitePicks)); } catch {}
+    }
+
+    const ticksOf = (date) => new Set(invitePicks.ticks[date] || []);
+    function setTicks(date, set) {
+      if (set.size) invitePicks.ticks[date] = [...set]; else delete invitePicks.ticks[date];
+      saveInvitePicks();
+    }
+
+    // Why a guest cannot be sent the invite, or '' when they can. It greets
+    // them by name, so a guest with no first name or nickname would get
+    // "Hello ,".
+    function cannotInvite(g) {
+      if (!channelFor(g)) return 'No WhatsApp number and no LINE name';
+      if (!firstNameOf(g)) return 'No first name or nickname - add it on the Guests page';
+      return '';
+    }
+
+    // Ticked and reachable: exactly who the button sends to, and what its
+    // count says.
+    function invitees() {
+      const ticked = ticksOf(attachDate);
+      return linkedGuests().filter(g => ticked.has(g.id) && !cannotInvite(g));
+    }
+
+    function tickForInvite(id, on) {
+      const set = ticksOf(attachDate);
+      on ? set.add(id) : set.delete(id);
+      setTicks(attachDate, set);
+      renderMeetingGuests();
+    }
+
+    function tickAllForInvite(on) {
+      const set = ticksOf(attachDate);
+      linkedGuests().filter(g => !cannotInvite(g)).forEach(g => (on ? set.add(g.id) : set.delete(g.id)));
+      setTicks(attachDate, set);
+      renderMeetingGuests();
+    }
+
+    // The evening's pictures go with it as real photos, the message as the
+    // caption on the first - unless one has been clicked off. Ten at most,
+    // which is what the queue keeps.
+    function invitePictures(date) {
+      const left = invitePicks.leaveOut[date] || [];
+      return attachmentsOf(meetings[date]).filter(a => a.kind === 'image' && !left.includes(a.id)).slice(0, 10);
+    }
+
+    function toggleInvitePicture(id) {
+      const left = new Set(invitePicks.leaveOut[attachDate] || []);
+      left.has(id) ? left.delete(id) : left.add(id);
+      if (left.size) invitePicks.leaveOut[attachDate] = [...left]; else delete invitePicks.leaveOut[attachDate];
+      saveInvitePicks();
+      renderInvitePanel();
+    }
+
+    // Built exactly as the Invite page builds it: their language when there
+    // is German to send, their name and title, and the evening's details
+    // written in the language of the wording actually going out.
+    function inviteText(g, date) {
+      const deText = document.getElementById('mvMsgDe').value;
+      const useDe = langOf(g) === 'de' && deText.trim() !== '';
+      const tpl = useDe ? deText : (document.getElementById('mvMsgEn').value || VARIANTS[0].en);
+      const body = tpl.replace(/\{name\}/g, greetingName(g));
+      return insertBeforeSignoff(body, [meetingDetails(date, meetings[date], useDe ? 'de' : 'en')]);
+    }
+
+    function renderInvitePanel() {
+      const list = linkedGuests();
+      document.getElementById('meetingInvite').classList.toggle('hidden', !list.length);
+      if (!list.length) return;
+
+      // The tick-all box mirrors the rows: full, empty, or part way.
+      const ticked = ticksOf(attachDate);
+      const can = list.filter(g => !cannotInvite(g));
+      const on = can.filter(g => ticked.has(g.id)).length;
+      const all = document.getElementById('inviteAllBox');
+      all.checked = can.length > 0 && on === can.length;
+      all.indeterminate = on > 0 && on < can.length;
+      all.disabled = !can.length;
+
+      document.getElementById('mvDetails').textContent = meetingDetails(attachDate, meetings[attachDate], 'en');
+
+      const pics = attachmentsOf(meetings[attachDate]).filter(a => a.kind === 'image');
+      const left = invitePicks.leaveOut[attachDate] || [];
+      const picsEl = document.getElementById('mvPics');
+      picsEl.classList.toggle('hidden', !pics.length);
+      picsEl.innerHTML = pics.length ? `
+        <p class="text-[11px] text-white/35 mb-1">Sent with it as photos, your message as the caption - click one to leave it out</p>
+        <div class="flex flex-wrap gap-2">${pics.map(a => {
+          const out = left.includes(a.id);
+          return `<button type="button" onclick="toggleInvitePicture('${a.id}')" aria-pressed="${!out}"
+            title="${escapeHtml(a.name)} - ${out ? 'left out, click to send it' : 'goes with the invite, click to leave it out'}"
+            class="relative w-12 h-12 rounded-lg overflow-hidden border-2 ${out ? 'border-white/10 opacity-35' : 'border-rotary-gold'} transition">
+            <img id="thumb-${a.id}" alt="" src="${thumbCache.get(a.id) || ''}" class="w-full h-full object-cover bg-white/10" />
+            ${out ? '' : '<span class="absolute top-0 right-0 bg-rotary-gold text-[#0a1628] text-[9px] font-bold leading-none px-1 py-0.5 rounded-bl">&check;</span>'}
+          </button>`;
+        }).join('')}</div>` : '';
+
+      const n = invitees().length;
+      const btn = document.getElementById('mvSendBtn');
+      btn.textContent = n ? `Send invite (${n})` : 'Send invite';
+      btn.disabled = !n;
+      btn.classList.toggle('opacity-40', !n);
+      btn.classList.toggle('cursor-not-allowed', !n);
+      btn.title = n ? `Queue the invite for ${n} guest${n === 1 ? '' : 's'}, each on the channel they were last written on`
+                    : 'Tick who should get it first';
+    }
+
+    // Queued like every other send from here; the senders on this Mac deliver
+    // it. A guest who is queued is unticked, so pressing the button twice
+    // cannot invite anybody twice.
+    async function sendInvite() {
+      const date = attachDate;
+      const people = invitees();
+      if (!date || !people.length) return;
+      const pics = invitePictures(date);
+      const imageUrls = pics.map(a => attachUrl(a.id));
+      const waiting = people.filter(g => g.queued).length;
+      const first = people[0];
+      if (!confirm(`Send the invite for ${formatFlyerDate(date)} to ${people.length} guest${people.length === 1 ? '' : 's'}?\n\n`
+        + people.map(g => `- ${g.name} on ${CHANNEL_NAME[channelFor(g)]}`).join('\n')
+        + `\n\n${first.name} gets:\n\n${inviteText(first, date)}`
+        + (pics.length ? `\n\n+ ${pics.length} picture${pics.length === 1 ? '' : 's'}` : '')
+        + (waiting ? `\n\n${waiting} of them already have something waiting to go out - this replaces it.` : '')
+        + '\n\nThe senders on this Mac deliver them.')) return;
+
+      const btn = document.getElementById('mvSendBtn');
+      btn.disabled = true;
+      const ticked = ticksOf(date);
+      let ok = 0;
+      for (const g of people) {
+        try {
+          const res = await apiFetch('/api/admin/guests', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: g.id, queued: { text: inviteText(g, date), imageUrls, channel: channelFor(g), what: 'invite' } }),
+          });
+          Object.assign(g, res.guest);
+          ticked.delete(g.id);
+          ok++;
+        } catch (err) {
+          if (err.message === 'Unauthorized') break;
+        }
+      }
+      setTicks(date, ticked);
+      if (attachDate === date) renderMeetingGuests();
+      watchQueued();
+      showToast(`Invite queued for ${ok} of ${people.length}`, ok === people.length ? 'success' : 'error');
+    }
+
+    function buildInviteVariants() {
+      document.getElementById('mvVariant').innerHTML =
+        VARIANTS.map((v, i) => `<option value="${i}">${i + 1}. ${escapeHtml(v.label)}</option>`).join('')
+        + '<option value="custom">Custom (edited below)</option>';
+    }
+
+    function applyInviteVariant(fromUser) {
+      const sel = document.getElementById('mvVariant').value;
+      if (sel === 'custom') { saveInvite(); return; }
+      const v = VARIANTS[Number(sel)] || VARIANTS[0];
+      document.getElementById('mvMsgEn').value = v.en;
+      document.getElementById('mvMsgDe').value = v.de;
+      if (fromUser) document.getElementById('mvRolling').checked = false;
+      paintInviteDeNote(); saveInvite();
+    }
+
+    function nextInviteVariant() {
+      const cur = Number(document.getElementById('mvVariant').value);
+      const next = (Number.isFinite(cur) ? cur + 1 : 0) % VARIANTS.length;
+      document.getElementById('mvVariant').value = String(next);
+      applyInviteVariant(true);
+    }
+
+    // As on the Invite page: editing one language never touches the other.
+    function onInviteEdited() {
+      document.getElementById('mvVariant').value = 'custom';
+      document.getElementById('mvRolling').checked = false;
+      paintInviteDeNote(); saveInvite();
+    }
+
+    // What the note says has to be what happens: it turns on whether there is
+    // German to send.
+    function paintInviteDeNote() {
+      const hasDe = document.getElementById('mvMsgDe').value.trim() !== '';
+      document.getElementById('mvDeNote').textContent = hasDe
+        ? 'German-speaking guests get the German wording. Everyone else gets the English one.'
+        : 'The German box is empty, so German-speaking guests get this English wording.';
+    }
+
+    function saveInvite() {
+      try {
+        localStorage.setItem(INVITE_KEY, JSON.stringify({
+          en: document.getElementById('mvMsgEn').value,
+          de: document.getElementById('mvMsgDe').value,
+          variant: document.getElementById('mvVariant').value,
+          rolling: document.getElementById('mvRolling').checked,
+        }));
+      } catch {}
+    }
+
+    // Rotated once per visit, as on the Invite page, so successive rounds are
+    // not word for word the same. Its own count, so the two pages do not push
+    // each other along.
+    (function restoreInvite() {
+      buildInviteVariants();
+      loadInvitePicks();
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(INVITE_KEY) || 'null'); } catch {}
+      const rolling = !saved || saved.rolling !== false;
+      document.getElementById('mvRolling').checked = rolling;
+      if (rolling) {
+        let n = 0;
+        try { n = Number(localStorage.getItem(INVITE_ROLL_KEY) || '0') || 0; } catch {}
+        try { localStorage.setItem(INVITE_ROLL_KEY, String((n + 1) % VARIANTS.length)); } catch {}
+        const i = n % VARIANTS.length;
+        document.getElementById('mvVariant').value = String(i);
+        document.getElementById('mvMsgEn').value = VARIANTS[i].en;
+        document.getElementById('mvMsgDe').value = VARIANTS[i].de;
+      } else {
+        document.getElementById('mvVariant').value = (saved && saved.variant) || '0';
+        document.getElementById('mvMsgEn').value = (saved && saved.en) || VARIANTS[0].en;
+        document.getElementById('mvMsgDe').value = (saved && saved.de !== undefined) ? saved.de : VARIANTS[0].de;
+      }
+      paintInviteDeNote();
+    })();
 
     // ---- writing
 

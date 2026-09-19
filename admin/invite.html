@@ -305,45 +305,15 @@
   </div>
 
   <script src="/admin/admin.js"></script>
+  <script src="/admin/invite-wording.js"></script>
   <script>
     requireAuthOrRedirect();
 
     const TEMPLATE_KEY = 'rcbd:invite:template:v1';
     const ROLL_KEY = 'rcbd:invite:rolling:v1';
-    // Ten wordings so repeat invitations do not read like a mail merge. The
-    // default rotates on every visit; pick one explicitly to override.
-    const VARIANTS = [
-      { label: 'Warm and short',
-        en: 'Hello {name}, our next Rotary meeting is coming up and I would really like to have you there. Are you free that evening?\nBest regards, Mark',
-        de: 'Hallo {name}, unser nächstes Rotary-Treffen steht an und ich hätte Dich sehr gerne dabei. Hast Du an dem Abend Zeit?\nHerzliche Grüße, Mark' },
-      { label: 'Good to see you',
-        en: 'Hi {name}, we meet again at Rotary soon and it would be really good to see you there.\nAll the best, Mark',
-        de: 'Hallo {name}, wir treffen uns bald wieder bei Rotary und es wäre wirklich schön, Dich dort zu sehen.\nViele Grüße, Mark' },
-      { label: 'As my guest',
-        en: 'Hello {name}, I would be delighted to bring you along as my guest to our next Rotary meeting. Does that work for you?\nWarm regards, Mark',
-        de: 'Hallo {name}, ich würde Dich sehr gerne als meinen Gast zum nächsten Rotary-Treffen mitnehmen. Passt Dir das?\nGanz herzliche Grüße, Mark' },
-      { label: 'Thought of you',
-        en: 'Hi {name}, I thought of you when I saw the programme for our next Rotary meeting. Would you like to come along with me?\nHope to see you there, Mark',
-        de: 'Hallo {name}, beim Programm für unser nächstes Rotary-Treffen musste ich an Dich denken. Magst Du mitkommen?\nSchöne Grüße, Mark' },
-      { label: 'Direct invitation',
-        en: 'Hello {name}, I would like to invite you to our next Rotary meeting. It would be lovely to have you with us.\nBest wishes, Mark',
-        de: 'Hallo {name}, ich möchte Dich herzlich zu unserem nächsten Rotary-Treffen einladen. Es wäre schön, Dich dabeizuhaben.\nBeste Grüße, Mark' },
-      { label: 'Casual',
-        en: 'Hi {name}, any chance you are free for our next Rotary meeting? Would be good to have you along.\nCheers, Mark',
-        de: 'Hallo {name}, hast Du beim nächsten Rotary-Treffen zufällig Zeit? Wäre schön, Dich dabeizuhaben.\nLiebe Grüße, Mark' },
-      { label: 'A good evening',
-        en: 'Hello {name}, our next Rotary meeting is coming up - good company and an interesting talk. I would love to have you there.\nWarm wishes, Mark',
-        de: 'Hallo {name}, unser nächstes Rotary-Treffen steht an - nette Leute und ein interessanter Vortrag. Ich hätte Dich gerne dabei.\nHerzlichst, Mark' },
-      { label: 'Go together',
-        en: 'Hi {name}, I am going to our next Rotary meeting - shall we go together? I would enjoy the company.\nTake care, Mark',
-        de: 'Hallo {name}, ich gehe zu unserem nächsten Rotary-Treffen - wollen wir zusammen hin? Ich würde mich über Deine Begleitung freuen.\nAlles Gute, Mark' },
-      { label: 'Been a while',
-        en: 'Hello {name}, it has been far too long. Our next Rotary meeting would be a good chance to catch up - will you come?\nSee you soon, Mark',
-        de: 'Hallo {name}, es ist viel zu lange her. Unser nächstes Rotary-Treffen wäre eine gute Gelegenheit, sich wiederzusehen - kommst Du?\nBis bald, Mark' },
-      { label: 'A little formal',
-        en: 'Dear {name}, I would like to invite you to our next meeting of the Rotary Club Bangkok DACH. It would be a pleasure to welcome you.\nKindest regards, Mark',
-        de: 'Hallo {name}, ich möchte Dich sehr gerne zu unserem nächsten Treffen des Rotary Club Bangkok DACH einladen. Es wäre mir eine Freude, Dich dort zu begrüßen.\nMit besten Grüßen, Mark' },
-    ];
+    // The wordings themselves live in invite-wording.js, shared with the
+    // meeting planner. The default rotates on every visit; pick one
+    // explicitly to override.
     const DEFAULT_EN = VARIANTS[0].en;
     const DEFAULT_DE = VARIANTS[0].de;
 
@@ -431,22 +401,7 @@
     }
 
     const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
-    // What to call them: the nickname when there is one, the stored first name
-    // otherwise. Never the display name - WhatsApp names are surname-first, so
-    // the first word is often the surname, which is the bug we fixed on the
-    // guests page. Neither on file means "not invitable yet", and must stay
-    // that way.
-    const firstNameOf = (p) => ((p.nickname || '').trim() || (p.firstName || '').trim());
-
-    // Thai guests are addressed "Khun Somchai" - the title sits in front of the
-    // first name, it does not replace it.
-    function greetingName(p) {
-      const first = firstNameOf(p);
-      if (!first) return '';
-      return [(p.honorific || '').trim(), first].filter(Boolean).join(' ');
-    }
-    // Language comes from the guest record, nothing else.
-    const langOf = (p) => (p.language === 'de' ? 'de' : 'en');
+    // firstNameOf, greetingName and langOf come from invite-wording.js.
 
     // Keyed on the number so a tick survives a reload. Someone Mark only has
     // on LINE has no number, so their own id stands in - otherwise every
@@ -490,31 +445,8 @@
     // archiving, and it has to hold for every count and every send button.
     const pool = () => guests.filter(g => !g.archived);
 
-    // The closing line is the last line of a wording ("Best regards, Mark").
-    // Anything this tool adds - the programme, a website link - belongs above
-    // it, not trailing after the signature. A long last line is prose rather
-    // than a sign-off, so it is left where it is.
-    // A closing line is short, has a comma before the name and is not a
-    // sentence or a programme bullet. When a hand-written message has none,
-    // the additions simply go at the end, as they always did.
-    const isSignoff = (line) =>
-      line.length <= 60 && line.includes(',') && !/[.!?]/.test(line)
-      && !/^[-*\d]/.test(line) && !/\s-\s/.test(line);
-
-    function splitSignoff(text) {
-      const s = String(text || '');
-      const i = s.lastIndexOf('\n');
-      const last = i === -1 ? '' : s.slice(i + 1).trim();
-      if (!isSignoff(last)) return { body: s, signoff: '' };
-      return { body: s.slice(0, i).replace(/\s+$/, ''), signoff: last };
-    }
-
-    function insertBeforeSignoff(text, blocks) {
-      const parts = blocks.map(b => (b || '').trim()).filter(Boolean);
-      if (!parts.length) return text;              // nothing to add, leave it exactly as typed
-      const { body, signoff } = splitSignoff(text);
-      return [body, ...parts, signoff].filter(Boolean).join('\n\n');
-    }
+    // splitSignoff and insertBeforeSignoff come from invite-wording.js:
+    // anything added goes above the closing line, not after the signature.
 
     function buildMessage(person) {
       // An empty German box means one thing only: German speakers get the
@@ -1619,12 +1551,8 @@
       const d = document.getElementById('meetingSelect').value;
       if (!d || !meetings[d]) { renderTargets(); return; }
       const m = meetings[d];
-      const en = new Date(d).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
-      const de = new Date(d).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' });
-      const venue = m.venue || 'Grand Hyatt Erawan';
-      const what = m.topic || m.presenter || '';
-      const tailEn = `${en}, 18:30 - ${venue}` + (what ? `\n${what}` : '');
-      const tailDe = `${de}, 18:30 Uhr - ${venue}` + (what ? `\n${what}` : '');
+      const tailEn = meetingDetails(d, m, 'en');
+      const tailDe = meetingDetails(d, m, 'de');
       // An earlier pick sits between the message and the closing line, so
       // dropping the middle blocks makes choosing another meeting replace
       // those details rather than stack a second set on top of them.
